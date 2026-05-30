@@ -7,6 +7,20 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
+type Nivel = 'visitante' | 'morador' | 'gestor';
+
+const NIVEL_COLOR: Record<Nivel, string> = {
+  visitante: '#10b981', // verde
+  morador:   '#5a84ff', // azul
+  gestor:    '#ef4444', // vermelho
+};
+
+const NIVEL_LABEL: Record<Nivel, string> = {
+  visitante: 'Área do Visitante',
+  morador:   'Área do Morador',
+  gestor:    'Gestão',
+};
+
 interface ModuleCard {
   path: string;
   label: string;
@@ -14,26 +28,32 @@ interface ModuleCard {
   Icon: React.ElementType;
   color: string;
   bg: string;
-  gestorOnly?: boolean;
+  nivel: Nivel;
 }
 
+// Agrupados por nível de acesso
 const MODULES: ModuleCard[] = [
-  { path: '/financeiro',       label: 'Financeiro',     desc: 'Rateios e prestação de contas',      Icon: DollarSign,   color: '#10b981', bg: 'rgba(16,185,129,0.15)'  },
-  { path: '/portaria',         label: 'Portaria',       desc: 'Registro digital de acessos',         Icon: Shield,       color: '#57d8ff', bg: 'rgba(87,216,255,0.13)'  },
-  { path: '/comunicados',      label: 'Comunicados',    desc: 'Avisos com prioridade visual',        Icon: Bell,         color: '#f59e0b', bg: 'rgba(245,158,11,0.13)'  },
-  { path: '/agendamentos',     label: 'Agendamentos',   desc: 'Reserva de áreas comuns',             Icon: Calendar,     color: '#5a84ff', bg: 'rgba(90,132,255,0.13)'  },
-  { path: '/ocorrencias',      label: 'Ocorrências',    desc: 'Chamados com workflow completo',      Icon: AlertCircle,  color: '#ef4444', bg: 'rgba(239,68,68,0.13)'   },
-  { path: '/galeria',          label: 'Galeria',        desc: 'Fotos do condomínio',                 Icon: Image,        color: '#a78bfa', bg: 'rgba(167,139,250,0.13)' },
-  { path: '/documentos',       label: 'Documentos',     desc: 'Atas, rateios e regulamento',         Icon: FileText,     color: '#6366f1', bg: 'rgba(99,102,241,0.13)'  },
-  { path: '/classificados',    label: 'Classificados',  desc: 'Mural entre moradores',               Icon: Tag,          color: '#f59e0b', bg: 'rgba(245,158,11,0.11)'  },
-  { path: '/achados-perdidos', label: 'Achados',        desc: 'Perdidos e encontrados',              Icon: Search,       color: '#10b981', bg: 'rgba(16,185,129,0.12)'  },
-  { path: '/parceiros',        label: 'Parceiros',      desc: 'Descontos e vantagens locais',        Icon: Building2,    color: '#57d8ff', bg: 'rgba(87,216,255,0.10)'  },
-  { path: '/eventos',          label: 'Eventos',        desc: 'Agenda e inscrições',                 Icon: TreePine,     color: '#10b981', bg: 'rgba(16,185,129,0.10)'  },
-  { path: '/telefones-uteis',         label: 'Telefones',   desc: 'Contatos úteis e emergências',   Icon: Phone, color: '#f59e0b', bg: 'rgba(245,158,11,0.12)'  },
-  { path: '/responsabilidade-social', label: 'Resp. Social', desc: 'Resíduos e campanhas solidárias', Icon: Leaf,  color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
-  { path: '/unidades',         label: 'Chácaras',       desc: 'Censo e gestão de unidades',          Icon: Home,         color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', gestorOnly: true },
-  { path: '/moradores',        label: 'Moradores',      desc: 'Cadastro e contato direto',           Icon: Users,        color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', gestorOnly: true },
-  { path: '/acessos',          label: 'Acessos',        desc: 'Permissões e perfis de acesso',       Icon: ShieldCheck,  color: '#5a84ff', bg: 'rgba(90,132,255,0.12)', gestorOnly: true },
+  // ── Visitante (sem login) ──────────────────────────────────────
+  { path: '/galeria',                label: 'Galeria',      desc: 'Fotos do condomínio',            Icon: Image,      color: '#a78bfa', bg: 'rgba(167,139,250,0.13)', nivel: 'visitante' },
+  { path: '/eventos',                label: 'Eventos',      desc: 'Agenda e inscrições',            Icon: TreePine,   color: '#10b981', bg: 'rgba(16,185,129,0.10)',  nivel: 'visitante' },
+  { path: '/classificados',          label: 'Classificados',desc: 'Mural entre moradores',          Icon: Tag,        color: '#f59e0b', bg: 'rgba(245,158,11,0.11)',  nivel: 'visitante' },
+  { path: '/telefones-uteis',        label: 'Telefones',    desc: 'Contatos úteis e emergências',  Icon: Phone,      color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  nivel: 'visitante' },
+  { path: '/responsabilidade-social',label: 'Resp. Social', desc: 'Resíduos e campanhas solidárias',Icon: Leaf,      color: '#10b981', bg: 'rgba(16,185,129,0.12)',  nivel: 'visitante' },
+
+  // ── Morador (login obrigatório) ────────────────────────────────
+  { path: '/financeiro',       label: 'Financeiro',   desc: 'Rateios e prestação de contas',   Icon: DollarSign,  color: '#10b981', bg: 'rgba(16,185,129,0.15)',  nivel: 'morador' },
+  { path: '/comunicados',      label: 'Comunicados',  desc: 'Avisos com prioridade visual',    Icon: Bell,        color: '#f59e0b', bg: 'rgba(245,158,11,0.13)',  nivel: 'morador' },
+  { path: '/agendamentos',     label: 'Agendamentos', desc: 'Reserva de áreas comuns',         Icon: Calendar,    color: '#5a84ff', bg: 'rgba(90,132,255,0.13)',  nivel: 'morador' },
+  { path: '/ocorrencias',      label: 'Ocorrências',  desc: 'Chamados com workflow completo',  Icon: AlertCircle, color: '#ef4444', bg: 'rgba(239,68,68,0.13)',   nivel: 'morador' },
+  { path: '/portaria',         label: 'Portaria',     desc: 'Registro digital de acessos',     Icon: Shield,      color: '#57d8ff', bg: 'rgba(87,216,255,0.13)',  nivel: 'morador' },
+  { path: '/documentos',       label: 'Documentos',   desc: 'Atas, rateios e regulamento',     Icon: FileText,    color: '#6366f1', bg: 'rgba(99,102,241,0.13)',  nivel: 'morador' },
+  { path: '/achados-perdidos', label: 'Achados',      desc: 'Perdidos e encontrados',          Icon: Search,      color: '#10b981', bg: 'rgba(16,185,129,0.12)',  nivel: 'morador' },
+  { path: '/parceiros',        label: 'Parceiros',    desc: 'Descontos e vantagens locais',    Icon: Building2,   color: '#57d8ff', bg: 'rgba(87,216,255,0.10)',  nivel: 'morador' },
+
+  // ── Gestor (admin + síndico) ───────────────────────────────────
+  { path: '/unidades',  label: 'Chácaras',  desc: 'Censo e gestão de unidades',    Icon: Home,       color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', nivel: 'gestor' },
+  { path: '/moradores', label: 'Moradores', desc: 'Cadastro e contato direto',     Icon: Users,      color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', nivel: 'gestor' },
+  { path: '/acessos',   label: 'Acessos',   desc: 'Permissões e perfis de acesso', Icon: ShieldCheck,color: '#5a84ff', bg: 'rgba(90,132,255,0.12)',  nivel: 'gestor' },
 ];
 
 const FEATURES = [
@@ -57,9 +77,9 @@ export const AppMenu = () => {
   const navigate = useNavigate();
   const [burst, setBurst] = useState<Burst | null>(null);
 
-  const visible = MODULES.filter(m => !m.gestorOnly || isGestor);
-  const base    = visible.filter(m => !m.gestorOnly);
-  const gestor  = visible.filter(m => m.gestorOnly);
+  const visitante = MODULES.filter(m => m.nivel === 'visitante');
+  const morador   = MODULES.filter(m => m.nivel === 'morador');
+  const gestor    = MODULES.filter(m => m.nivel === 'gestor');
 
   const handleCardClick = useCallback((path: string, e: React.MouseEvent) => {
     const el = e.currentTarget as HTMLElement;
@@ -139,24 +159,26 @@ export const AppMenu = () => {
             Uma plataforma com 20+ módulos funcionais — financeiro, portaria, comunicados, agendamentos e muito mais, todos integrados.
           </p>
 
-          {/* Grid base */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, marginBottom: 10 }}>
-            {base.map(m => (
+          {/* ── Visitante ── */}
+          <NivelDivider nivel="visitante" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, marginBottom: 4 }}>
+            {visitante.map(m => (
               <ModCard key={m.path} card={m} onClick={e => handleCardClick(m.path, e)} />
             ))}
           </div>
 
-          {/* Linha gestão */}
-          {gestor.length > 0 && (
+          {/* ── Morador ── */}
+          <NivelDivider nivel="morador" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, marginBottom: 4 }}>
+            {morador.map(m => (
+              <ModCard key={m.path} card={m} onClick={e => handleCardClick(m.path, e)} />
+            ))}
+          </div>
+
+          {/* ── Gestor ── */}
+          {isGestor && (
             <>
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', margin: '14px 0 12px', position: 'relative' }}>
-                <span style={{
-                  position: 'absolute', top: -9, left: 0,
-                  fontSize: '0.6rem', fontWeight: 700, letterSpacing: '.1em',
-                  textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)',
-                  background: 'rgba(8,13,28,0.97)', paddingRight: 8,
-                }}>Gestão</span>
-              </div>
+              <NivelDivider nivel="gestor" />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
                 {gestor.map(m => (
                   <ModCard key={m.path} card={m} onClick={e => handleCardClick(m.path, e)} />
@@ -219,6 +241,26 @@ export const AppMenu = () => {
   );
 };
 
+/* ── Divisor de nível ── */
+const NivelDivider = ({ nivel }: { nivel: Nivel }) => {
+  const color = NIVEL_COLOR[nivel];
+  const label = NIVEL_LABEL[nivel];
+  return (
+    <div style={{ borderTop: `1px solid ${color}28`, margin: '10px 0 8px', position: 'relative' }}>
+      <span style={{
+        position: 'absolute', top: -8, left: 0,
+        fontSize: '0.58rem', fontWeight: 800, letterSpacing: '.12em',
+        textTransform: 'uppercase', color,
+        background: 'rgba(8,13,28,0.97)', paddingRight: 8,
+        display: 'flex', alignItems: 'center', gap: 5,
+      }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
+        {label}
+      </span>
+    </div>
+  );
+};
+
 /* ── Card individual ── */
 const ModCard = ({
   card,
@@ -226,39 +268,44 @@ const ModCard = ({
 }: {
   card: ModuleCard;
   onClick: (e: React.MouseEvent) => void;
-}) => (
-  <button
-    onClick={onClick}
-    style={{
-      background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.07)',
-      borderRadius: 14, padding: '10px 8px',
-      display: 'flex', flexDirection: 'column', gap: 7,
-      cursor: 'pointer', textAlign: 'left',
-      transition: 'background 0.15s, border-color 0.15s',
-      WebkitTapHighlightColor: 'transparent',
-      width: '100%', minWidth: 0, overflow: 'hidden',
-    }}
-    onMouseEnter={e => {
-      const el = e.currentTarget as HTMLElement;
-      el.style.background = 'rgba(255,255,255,0.065)';
-      el.style.borderColor = 'rgba(87,216,255,0.18)';
-    }}
-    onMouseLeave={e => {
-      const el = e.currentTarget as HTMLElement;
-      el.style.background = 'rgba(255,255,255,0.035)';
-      el.style.borderColor = 'rgba(255,255,255,0.07)';
-    }}
-  >
-    <div style={{
-      width: 32, height: 32, borderRadius: 9,
-      background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0,
-    }}>
-      <card.Icon size={16} style={{ color: card.color }} />
-    </div>
-    <div style={{ minWidth: 0, width: '100%' }}>
-      <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.72rem', lineHeight: 1.2, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.label}</p>
-      <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.42)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{card.desc}</p>
-    </div>
-  </button>
-);
+}) => {
+  const borderColor = NIVEL_COLOR[card.nivel];
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: 'rgba(255,255,255,0.035)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderLeft: `3px solid ${borderColor}55`,
+        borderRadius: 14, padding: '10px 8px',
+        display: 'flex', flexDirection: 'column', gap: 7,
+        cursor: 'pointer', textAlign: 'left',
+        transition: 'background 0.15s, border-color 0.15s, border-left-color 0.15s',
+        WebkitTapHighlightColor: 'transparent',
+        width: '100%', minWidth: 0, overflow: 'hidden',
+      }}
+      onMouseEnter={e => {
+        const el = e.currentTarget as HTMLElement;
+        el.style.background = 'rgba(255,255,255,0.065)';
+        el.style.borderLeftColor = `${borderColor}cc`;
+      }}
+      onMouseLeave={e => {
+        const el = e.currentTarget as HTMLElement;
+        el.style.background = 'rgba(255,255,255,0.035)';
+        el.style.borderLeftColor = `${borderColor}55`;
+      }}
+    >
+      <div style={{
+        width: 32, height: 32, borderRadius: 9,
+        background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        <card.Icon size={16} style={{ color: card.color }} />
+      </div>
+      <div style={{ minWidth: 0, width: '100%' }}>
+        <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.72rem', lineHeight: 1.2, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.label}</p>
+        <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.42)', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{card.desc}</p>
+      </div>
+    </button>
+  );
+};

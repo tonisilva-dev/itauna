@@ -123,7 +123,14 @@ export const LandingPage = () => {
     };
   }, []);
 
+  // Ordem semântica:
+  // [O Lugar] Hero · O Lugar · O Lago
+  // [Identidade] Quem Somos · Breve Histórico · Nossa Identidade · Valores
+  // [Iniciativas] Resp. Social · Plataforma · Telefones
+  // [CTA] Saiba Mais
   const slides: SlideItem[] = [
+
+    /* ══ GRUPO 1: O LUGAR ══════════════════════════════════════════ */
 
     /* ── SLIDE 1: Hero ── */
     {
@@ -193,79 +200,7 @@ export const LandingPage = () => {
       ),
     },
 
-    /* ── SLIDE 2: Plataforma Digital ── */
-    {
-      key: 'slide-plataforma',
-      label: 'Plataforma',
-      content: (
-        <Shell badges={[
-          { icon: '⚡', label: 'Praticidade' },
-          { icon: '🔐', label: 'LGPD Nativa' },
-          { icon: '📊', label: 'Transparência Total' },
-        ]}>
-          <div>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 8 }}>
-              Tecnologia & Serviços Integrados
-            </p>
-            <h2 style={{ fontSize: 'clamp(20px,5vw,34px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 8 }}>
-              Tudo na <span style={gradStyle}>palma da mão</span>
-            </h2>
-            <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.55 }}>
-              Uma plataforma com 20+ módulos funcionais — financeiro, portaria, comunicados, agendamentos e muito mais, todos integrados.
-            </p>
-          </div>
-
-          {/* Grid de módulos */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 'clamp(5px,1.2vw,8px)' }}>
-            {[
-              { Icon: DollarSign,  title: 'Financeiro',   desc: 'Rateios e prestação de contas',  color: GREEN  },
-              { Icon: Shield,      title: 'Portaria',     desc: 'Registro digital de acessos',    color: CYAN   },
-              { Icon: Bell,        title: 'Comunicados',  desc: 'Avisos com prioridade visual',   color: YELLOW },
-              { Icon: Calendar,    title: 'Agendamentos', desc: 'Reserva de áreas comuns',        color: BLUE   },
-              { Icon: AlertCircle, title: 'Ocorrências',  desc: 'Chamados com workflow completo', color: RED    },
-              { Icon: Image,       title: 'Galeria',      desc: 'Fotos do condomínio',            color: PURPLE },
-              { Icon: FileText,    title: 'Documentos',   desc: 'Atas, rateios e regulamento',    color: CYAN   },
-              { Icon: Tag,         title: 'Classificados',desc: 'Mural entre moradores',          color: YELLOW },
-              { Icon: Search,      title: 'Achados',      desc: 'Perdidos e encontrados',         color: GREEN  },
-            ].map(f => (
-              <div key={f.title} style={{
-                ...card, padding: 'clamp(8px,2vw,12px) clamp(6px,1.5vw,10px)',
-                display: 'flex', flexDirection: 'column', gap: 6,
-              }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: 8,
-                  background: `${f.color}18`, border: `1px solid ${f.color}28`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}>
-                  <f.Icon size={13} style={{ color: f.color }} />
-                </div>
-                <div>
-                  <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, color: '#fff', marginBottom: 2, lineHeight: 1.2 }}>{f.title}</p>
-                  <p style={{ fontSize: 'clamp(8px,1.8vw,9.5px)', color: 'rgba(255,255,255,0.38)', lineHeight: 1.35 }}>{f.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Destaque biometria */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: 'clamp(10px,2.5vw,14px) clamp(12px,3vw,16px)',
-            borderRadius: 13, background: `${CYAN}08`, border: `1px solid ${CYAN}22`,
-          }}>
-            <Fingerprint size={20} style={{ color: CYAN, flexShrink: 0 }} />
-            <div>
-              <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', fontWeight: 700, color: '#fff', marginBottom: 2 }}>Login por Digital / Face ID</p>
-              <p style={{ fontSize: 'clamp(9px,2vw,10px)', color: 'rgba(255,255,255,0.45)', lineHeight: 1.4 }}>
-                Biometria WebAuthn/FIDO2 — a biometria fica no dispositivo, nunca em servidor. Padrão bancário aplicado à gestão condominial.
-              </p>
-            </div>
-          </div>
-        </Shell>
-      ),
-    },
-
-    /* ── SLIDE 3: O Lugar (encantamento Disney) ── */
+    /* ── SLIDE 2: O Lugar ── */
     {
       key: 'slide-lugar',
       label: 'O Lugar',
@@ -329,6 +264,56 @@ export const LandingPage = () => {
         </Shell>
       ),
     },
+
+    /* ── SLIDE 3: O Lago ── */
+    {
+      key: 'slide-lago',
+      label: 'O Lago',
+      content: (
+        <Shell badges={[
+          { icon: '💧', label: 'Espelho central' },
+          { icon: '🦆', label: 'Vida selvagem' },
+          { icon: '🌅', label: 'Pôr do sol diário' },
+        ]}>
+          <div>
+            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 8 }}>
+              O Coração do Lugar
+            </p>
+            <h2 style={{ fontSize: 'clamp(19px,4.8vw,32px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 10 }}>
+              O grande espelho<br/><span style={gradStyle}>d'água que respira.</span>
+            </h2>
+          </div>
+          <div style={{ ...card, padding: 'clamp(11px,2.8vw,15px)' }}>
+            <p style={{ fontSize: 'clamp(10px,2.1vw,11.5px)', color: 'rgba(255,255,255,0.68)', lineHeight: 1.8 }}>
+              No coração de Itaúna, o lago central reflete o céu. Garças de madrugada, ninhos de pássaros ao amanhecer, rãs ao anoitecer — toda a vida selvagem concentra-se em torno deste espelho d'água. Nossas ruas em paralelepípedos não são coincidência: cada gota de chuva é absorvida pelo solo, alimentando o lago em vez de assoreá-lo. Sustentabilidade em ação.
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(6px,1.5vw,8px)' }}>
+            {[
+              { emoji: '🏖️', color: CYAN,   title: 'Quadra de beach tennis',      desc: 'Arena de areia natural para jogos ao entardecer, com o lago ao fundo.' },
+              { emoji: '⚽', color: GREEN,  title: 'Campo de futebol society',    desc: 'Partidas que terminam quando o sol toca a água.' },
+              { emoji: '🍽️', color: YELLOW, title: 'Salão de festas',             desc: 'Eventos com vista privilegiada — casamentos, aniversários, celebrações com o lago como cenário.' },
+              { emoji: '👶', color: PURPLE, title: 'Playground e pista de caminhada', desc: 'Crianças brincam sob as árvores enquanto adultos caminham ao redor da água.' },
+            ].map(d => (
+              <div key={d.title} style={{ ...card, padding: 'clamp(9px,2.2vw,13px)', display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '1.3rem', flexShrink: 0, marginTop: 1 }}>{d.emoji}</span>
+                <div>
+                  <p style={{ fontSize: 'clamp(10px,2.2vw,11.5px)', fontWeight: 700, color: '#fff', marginBottom: 2 }}>{d.title}</p>
+                  <p style={{ fontSize: 'clamp(8.5px,1.8vw,10px)', color: 'rgba(255,255,255,0.48)', lineHeight: 1.5 }}>{d.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ ...card, padding: 'clamp(10px,2.5vw,14px)', background: 'linear-gradient(135deg, rgba(87,216,255,0.05), rgba(13,20,35,0.95))', borderLeft: `3px solid ${CYAN}` }}>
+            <p style={{ fontSize: 'clamp(10px,2.2vw,12px)', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', lineHeight: 1.7 }}>
+              "No Itaúna, o lago não é apenas água. É o pulso do lugar — conecta você à natureza, aos seus vizinhos, e a cada pôr do sol que não é como os outros."
+            </p>
+          </div>
+        </Shell>
+      ),
+    },
+
+    /* ══ GRUPO 2: IDENTIDADE ════════════════════════════════════════ */
 
     /* ── SLIDE 4: Quem Somos (encantamento Disney) ── */
     {
@@ -480,83 +465,111 @@ export const LandingPage = () => {
       ),
     },
 
-    /* ── SLIDE 6: O Grande Espelho d'Água (o lago) ── */
+    /* ── SLIDE 6: Nossa Identidade ── */
     {
-      key: 'slide-lago',
-      label: 'O Lago',
+      key: 'slide-identidade',
+      label: 'Nossa Identidade',
       content: (
         <Shell badges={[
-          { icon: '💧', label: 'Espelho central' },
-          { icon: '🦆', label: 'Vida selvagem' },
-          { icon: '🌅', label: 'Pôr do sol diário' },
+          { icon: '🌍', label: 'Comunidade' },
+          { icon: '📖', label: 'Histórico' },
+          { icon: '🎯', label: 'Identidade' },
         ]}>
           <div>
             <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 8 }}>
-              O Coração do Lugar
+              Nossa Identidade
             </p>
-            <h2 style={{ fontSize: 'clamp(19px,4.8vw,32px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 10 }}>
-              O grande espelho<br/><span style={gradStyle}>d'água que respira.</span>
+            <h2 style={{ fontSize: 'clamp(20px,5vw,34px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 12 }}>
+              <span style={gradStyle}>Comunidade de escolha</span> deliberada
             </h2>
-          </div>
-
-          {/* Narrativa sensorial */}
-          <div style={{ ...card, padding: 'clamp(11px,2.8vw,15px)' }}>
-            <p style={{ fontSize: 'clamp(10px,2.1vw,11.5px)', color: 'rgba(255,255,255,0.68)', lineHeight: 1.8 }}>
-              No coração de Itaúna, o lago central reflete o céu. Garças de madrugada, ninhos de pássaros ao amanhecer, rãs ao anoitecer — toda a vida selvagem concentra-se em torno deste espelho d'água. Nossas ruas em paralelepípedos não são coincidência: cada gota de chuva é absorvida pelo solo, alimentando o lago em vez de assoreá-lo. Sustentabilidade em ação.
+            <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', color: 'rgba(255,255,255,0.58)', lineHeight: 1.65 }}>
+              Itaúna não é apenas um condomínio. É um lugar onde 360 famílias decidiram que o campo não é um compromisso — é um privilégio.
             </p>
           </div>
-
-          {/* O que rodeia o lago */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(6px,1.5vw,8px)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(10px,2vw,14px)' }}>
             {[
-              {
-                emoji: '🏖️', color: CYAN,
-                title: 'Quadra de beach tennis',
-                desc: 'Arena de areia natural para jogos ao entardecer, com o lago ao fundo.',
-              },
-              {
-                emoji: '⚽', color: GREEN,
-                title: 'Campo de futebol society',
-                desc: 'Partidas que terminam quando o sol toca a água.',
-              },
-              {
-                emoji: '🍽️', color: YELLOW,
-                title: 'Salão de festas',
-                desc: 'Eventos com vista privilegiada — casamentos, aniversários, celebrações com o lago como cenário.',
-              },
-              {
-                emoji: '👶', color: PURPLE,
-                title: 'Playground e pista de caminhada',
-                desc: 'Crianças brincam sob as árvores enquanto adultos caminham ao redor da água — cada idade tem seu tempo no lago.',
-              },
-            ].map(d => (
-              <div key={d.title} style={{
-                ...card, padding: 'clamp(9px,2.2vw,13px)', display: 'flex', gap: 11, alignItems: 'flex-start',
-              }}>
-                <span style={{ fontSize: '1.3rem', flexShrink: 0, marginTop: 1 }}>{d.emoji}</span>
-                <div>
-                  <p style={{ fontSize: 'clamp(10px,2.2vw,11.5px)', fontWeight: 700, color: '#fff', marginBottom: 2 }}>{d.title}</p>
-                  <p style={{ fontSize: 'clamp(8.5px,1.8vw,10px)', color: 'rgba(255,255,255,0.48)', lineHeight: 1.5 }}>{d.desc}</p>
+              { year: '2005', title: 'Oficialização',    desc: 'Decreto nº 320/2005 e Associação fundada' },
+              { year: '2019', title: 'Sustentabilidade', desc: 'Nomeação das vias com espécies locais' },
+              { year: '2024', title: 'Inovação Digital', desc: 'Plataforma integrada com 20+ módulos' },
+            ].map((item, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '50px 1fr', gap: 12 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 800, color: CYAN, letterSpacing: '0.06em' }}>{item.year}</p>
+                </div>
+                <div style={{ ...card, padding: 'clamp(9px,2.2vw,12px)' }}>
+                  <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', fontWeight: 700, color: '#fff', marginBottom: 2 }}>{item.title}</p>
+                  <p style={{ fontSize: 'clamp(9px,2vw,10px)', color: 'rgba(255,255,255,0.45)' }}>{item.desc}</p>
                 </div>
               </div>
             ))}
           </div>
-
-          {/* Closing sensorial */}
-          <div style={{
-            ...card, padding: 'clamp(10px,2.5vw,14px)',
-            background: 'linear-gradient(135deg, rgba(87,216,255,0.05), rgba(13,20,35,0.95))',
-            borderLeft: `3px solid ${CYAN}`,
-          }}>
-            <p style={{ fontSize: 'clamp(10px,2.2vw,12px)', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', lineHeight: 1.7 }}>
-              "No Itaúna, o lago não é apenas água. É o pulso do lugar — conecta você à natureza, aos seus vizinhos, e a cada pôr do sol que não é como os outros. É a razão pela qual você volta para casa."
-            </p>
-          </div>
+          <Link to="/quem-somos" style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: 'clamp(11px,2.5vw,13px)', borderRadius: '11px',
+            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
+            color: CYAN, fontWeight: 700, fontSize: 'clamp(12px,2.5vw,13px)', textDecoration: 'none',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(87,216,255,0.12)'; e.currentTarget.style.borderColor = 'rgba(87,216,255,0.3)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+          >
+            Ver Página Completa <ArrowRight size={14} />
+          </Link>
         </Shell>
       ),
     },
 
-    /* ── SLIDE 7: Responsabilidade Social-Ambiental ── */
+    /* ── SLIDE 7: Nossos Valores ── */
+    {
+      key: 'slide-valores',
+      label: 'Valores',
+      content: (
+        <Shell badges={[
+          { icon: '🌿', label: 'Natureza' },
+          { icon: '⚖️', label: 'Legalidade' },
+          { icon: '💡', label: 'Inovação' },
+        ]}>
+          <div>
+            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 8 }}>
+              Nossos Pilares
+            </p>
+            <h2 style={{ fontSize: 'clamp(20px,5vw,34px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 16 }}>
+              Sete <span style={gradStyle}>Valores</span> que Guiam Tudo
+            </h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 'clamp(8px,2vw,12px)' }}>
+            {[
+              { icon: '🌿', title: 'Natureza',       desc: 'Lagos e mata nativa viva' },
+              { icon: '☀️', title: 'Sustentabilidade', desc: 'Paralelepípedos + Painéis solares' },
+              { icon: '🔒', title: 'Segurança',      desc: 'Portaria 24h integrada' },
+              { icon: '👥', title: 'Comunidade',     desc: 'Vizinhos conectados' },
+            ].map((p, i) => (
+              <div key={i} style={{ ...card, padding: 'clamp(12px,2.5vw,14px)', display: 'flex', gap: 10, flexDirection: 'column' }}>
+                <p style={{ fontSize: '1.8rem' }}>{p.icon}</p>
+                <div>
+                  <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', fontWeight: 700, color: '#fff', marginBottom: 2 }}>{p.title}</p>
+                  <p style={{ fontSize: 'clamp(9px,2vw,10px)', color: 'rgba(255,255,255,0.45)' }}>{p.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Link to="/quem-somos" style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: 'clamp(11px,2.5vw,13px)', borderRadius: '11px',
+            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
+            color: CYAN, fontWeight: 700, fontSize: 'clamp(12px,2.5vw,13px)', textDecoration: 'none',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(87,216,255,0.12)'; e.currentTarget.style.borderColor = 'rgba(87,216,255,0.3)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+          >
+            Conhecer os 7 Pilares <ArrowRight size={14} />
+          </Link>
+        </Shell>
+      ),
+    },
+
+    /* ══ GRUPO 3: INICIATIVAS & SERVIÇOS ═══════════════════════════ */
+
+    /* ── SLIDE 8: Responsabilidade Social-Ambiental ── */
     {
       key: 'slide-social',
       label: 'Resp. Social',
@@ -711,129 +724,66 @@ export const LandingPage = () => {
       ),
     },
 
-    /* ── SLIDE 8: Quem Somos (Identidade) ── */
+    /* ── SLIDE 9: Plataforma Digital ── */
     {
-      key: 'slide-identidade',
-      label: 'Quem Somos',
+      key: 'slide-plataforma',
+      label: 'Plataforma',
       content: (
         <Shell badges={[
-          { icon: '🌍', label: 'Comunidade' },
-          { icon: '📖', label: 'Histórico' },
-          { icon: '🎯', label: 'Identidade' },
+          { icon: '⚡', label: 'Praticidade' },
+          { icon: '🔐', label: 'LGPD Nativa' },
+          { icon: '📊', label: 'Transparência Total' },
         ]}>
           <div>
             <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 8 }}>
-              Nossa Identidade
+              Tecnologia &amp; Serviços Integrados
             </p>
-            <h2 style={{ fontSize: 'clamp(20px,5vw,34px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 12 }}>
-              <span style={gradStyle}>Comunidade de escolha</span> deliberada
+            <h2 style={{ fontSize: 'clamp(20px,5vw,34px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 8 }}>
+              Tudo na <span style={gradStyle}>palma da mão</span>
             </h2>
-            <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', color: 'rgba(255,255,255,0.58)', lineHeight: 1.65 }}>
-              Itaúna não é apenas um condomínio. É um lugar onde 360 famílias decidiram que o campo não é um compromisso — é um privilégio.
+            <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.55 }}>
+              Uma plataforma com 20+ módulos funcionais — financeiro, portaria, comunicados, agendamentos e muito mais, todos integrados.
             </p>
           </div>
-
-          {/* Timeline resumida */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(10px,2vw,14px)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 'clamp(5px,1.2vw,8px)' }}>
             {[
-              { year: '2005', title: 'Oficialização', desc: 'Decreto nº 320/2005 e Associação fundada' },
-              { year: '2019', title: 'Sustentabilidade', desc: 'Nomeação das vias com espécies locais' },
-              { year: '2024', title: 'Inovação Digital', desc: 'Plataforma integrada com 20+ módulos' },
-            ].map((item, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '50px 1fr', gap: 12 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <p style={{ fontSize: '0.75rem', fontWeight: 800, color: CYAN, letterSpacing: '0.06em' }}>{item.year}</p>
+              { Icon: DollarSign,  title: 'Financeiro',    desc: 'Rateios e prestação de contas',  color: GREEN  },
+              { Icon: Shield,      title: 'Portaria',      desc: 'Registro digital de acessos',    color: CYAN   },
+              { Icon: Bell,        title: 'Comunicados',   desc: 'Avisos com prioridade visual',   color: YELLOW },
+              { Icon: Calendar,    title: 'Agendamentos',  desc: 'Reserva de áreas comuns',        color: BLUE   },
+              { Icon: AlertCircle, title: 'Ocorrências',   desc: 'Chamados com workflow completo', color: RED    },
+              { Icon: Image,       title: 'Galeria',       desc: 'Fotos do condomínio',            color: PURPLE },
+              { Icon: FileText,    title: 'Documentos',    desc: 'Atas, rateios e regulamento',    color: CYAN   },
+              { Icon: Tag,         title: 'Classificados', desc: 'Mural entre moradores',          color: YELLOW },
+              { Icon: Search,      title: 'Achados',       desc: 'Perdidos e encontrados',         color: GREEN  },
+            ].map(f => (
+              <div key={f.title} style={{ ...card, padding: 'clamp(8px,2vw,12px) clamp(6px,1.5vw,10px)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: `${f.color}18`, border: `1px solid ${f.color}28`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <f.Icon size={13} style={{ color: f.color }} />
                 </div>
-                <div style={{ ...card, padding: 'clamp(9px,2.2vw,12px)' }}>
-                  <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', fontWeight: 700, color: '#fff', marginBottom: 2 }}>{item.title}</p>
-                  <p style={{ fontSize: 'clamp(9px,2vw,10px)', color: 'rgba(255,255,255,0.45)' }}>{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <Link to="/quem-somos" style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            padding: 'clamp(11px,2.5vw,13px)', borderRadius: '11px',
-            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
-            color: CYAN, fontWeight: 700, fontSize: 'clamp(12px,2.5vw,13px)',
-            textDecoration: 'none', transition: 'all 0.2s',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'rgba(87,216,255,0.12)';
-            e.currentTarget.style.borderColor = 'rgba(87,216,255,0.3)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
-          }}
-          >
-            Ver Página Completa <ArrowRight size={14} />
-          </Link>
-        </Shell>
-      ),
-    },
-
-    /* ── SLIDE 8: Nossos Valores ── */
-    {
-      key: 'slide-valores',
-      label: 'Valores',
-      content: (
-        <Shell badges={[
-          { icon: '🌿', label: 'Natureza' },
-          { icon: '⚖️', label: 'Legalidade' },
-          { icon: '💡', label: 'Inovação' },
-        ]}>
-          <div>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 8 }}>
-              Nossos Pilares
-            </p>
-            <h2 style={{ fontSize: 'clamp(20px,5vw,34px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 16 }}>
-              Sete <span style={gradStyle}>Valores</span> que Guiam Tudo
-            </h2>
-          </div>
-
-          {/* 4 Pilares principais */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 'clamp(8px,2vw,12px)' }}>
-            {[
-              { icon: '🌿', title: 'Natureza', desc: 'Lagos e mata nativa viva' },
-              { icon: '☀️', title: 'Sustentabilidade', desc: 'Paralelepípedos + Painéis solares' },
-              { icon: '🔒', title: 'Segurança', desc: 'Portaria 24h integrada' },
-              { icon: '👥', title: 'Comunidade', desc: 'Vizinhos conectados' },
-            ].map((p, i) => (
-              <div key={i} style={{ ...card, padding: 'clamp(12px,2.5vw,14px)', display: 'flex', gap: 10, flexDirection: 'column' }}>
-                <p style={{ fontSize: '1.8rem' }}>{p.icon}</p>
                 <div>
-                  <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', fontWeight: 700, color: '#fff', marginBottom: 2 }}>{p.title}</p>
-                  <p style={{ fontSize: 'clamp(9px,2vw,10px)', color: 'rgba(255,255,255,0.45)' }}>{p.desc}</p>
+                  <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, color: '#fff', marginBottom: 2, lineHeight: 1.2 }}>{f.title}</p>
+                  <p style={{ fontSize: 'clamp(8px,1.8vw,9.5px)', color: 'rgba(255,255,255,0.38)', lineHeight: 1.35 }}>{f.desc}</p>
                 </div>
               </div>
             ))}
           </div>
-
-          <Link to="/quem-somos" style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            padding: 'clamp(11px,2.5vw,13px)', borderRadius: '11px',
-            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
-            color: CYAN, fontWeight: 700, fontSize: 'clamp(12px,2.5vw,13px)',
-            textDecoration: 'none', transition: 'all 0.2s',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'rgba(87,216,255,0.12)';
-            e.currentTarget.style.borderColor = 'rgba(87,216,255,0.3)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
-          }}
-          >
-            Conhecer os 7 Pilares <ArrowRight size={14} />
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 'clamp(10px,2.5vw,14px) clamp(12px,3vw,16px)', borderRadius: 13, background: `${CYAN}08`, border: `1px solid ${CYAN}22` }}>
+            <Fingerprint size={20} style={{ color: CYAN, flexShrink: 0 }} />
+            <div>
+              <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', fontWeight: 700, color: '#fff', marginBottom: 2 }}>Login por Digital / Face ID</p>
+              <p style={{ fontSize: 'clamp(9px,2vw,10px)', color: 'rgba(255,255,255,0.45)', lineHeight: 1.4 }}>
+                Biometria WebAuthn/FIDO2 — a biometria fica no dispositivo, nunca em servidor.
+              </p>
+            </div>
+          </div>
         </Shell>
       ),
     },
 
-    /* ── SLIDE 9: Saiba Mais (Editorial Premium) ── */
+    /* ══ GRUPO 4: CTA FINAL ═════════════════════════════════════════ */
+
+    /* ── SLIDE 11: Saiba Mais (Editorial Premium) ── */
     {
       key: 'slide-saiba-mais',
       label: 'Saiba Mais',
