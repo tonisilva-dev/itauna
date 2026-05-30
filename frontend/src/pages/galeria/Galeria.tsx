@@ -104,7 +104,7 @@ export const Galeria = () => {
   const [deleteTarget, setDeleteTarget] = useState<DbGaleriaFoto | null>(null);
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || !isGestor) return;
     try {
       await deleteGaleriaFoto(deleteTarget.id);
       setDbFotos(prev => prev.filter(f => f.id !== deleteTarget.id));

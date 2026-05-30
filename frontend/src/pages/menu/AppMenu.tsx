@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   DollarSign, Shield, Bell, Calendar, AlertCircle, Image,
   FileText, Tag, Search, Building2, TreePine, Home, Users,
-  ShieldCheck, Zap, Lock, BarChart3,
+  ShieldCheck, Zap, Lock, BarChart3, Phone,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -29,6 +29,7 @@ const MODULES: ModuleCard[] = [
   { path: '/achados-perdidos', label: 'Achados',        desc: 'Perdidos e encontrados',              Icon: Search,       color: '#10b981', bg: 'rgba(16,185,129,0.12)'  },
   { path: '/parceiros',        label: 'Parceiros',      desc: 'Descontos e vantagens locais',        Icon: Building2,    color: '#57d8ff', bg: 'rgba(87,216,255,0.10)'  },
   { path: '/eventos',          label: 'Eventos',        desc: 'Agenda e inscrições',                 Icon: TreePine,     color: '#10b981', bg: 'rgba(16,185,129,0.10)'  },
+  { path: '/telefones-uteis',  label: 'Telefones',      desc: 'Contatos úteis e emergências',        Icon: Phone,        color: '#f59e0b', bg: 'rgba(245,158,11,0.12)'  },
   { path: '/unidades',         label: 'Chácaras',       desc: 'Censo e gestão de unidades',          Icon: Home,         color: '#94a3b8', bg: 'rgba(148,163,184,0.10)', gestorOnly: true },
   { path: '/moradores',        label: 'Moradores',      desc: 'Cadastro e contato direto',           Icon: Users,        color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', gestorOnly: true },
   { path: '/acessos',          label: 'Acessos',        desc: 'Permissões e perfis de acesso',       Icon: ShieldCheck,  color: '#5a84ff', bg: 'rgba(90,132,255,0.12)', gestorOnly: true },
