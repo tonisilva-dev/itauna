@@ -271,6 +271,36 @@ export interface AreaComum {
   updated_at: string;
 }
 
+export type TelefoneCategoria = 'Emergência' | 'Saúde' | 'Utilidades' | 'Poder Público' | 'Condomínio' | 'Outros';
+
+export interface TelefoneSecretaria {
+  id: string;
+  telefone_id: string;
+  nome: string;
+  email?: string | null;
+  telefone?: string | null;
+  ordem: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TelefoneUtil {
+  id: string;
+  nome: string;
+  categoria: TelefoneCategoria;
+  telefone: string;
+  telefone2?: string | null;
+  descricao?: string | null;
+  emoji: string;
+  ordem: number;
+  is_active: boolean;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  // join
+  secretarias?: TelefoneSecretaria[];
+}
+
 // Supabase Database type placeholder
 export type Database = {
   public: {
@@ -293,6 +323,8 @@ export type Database = {
       achados_perdidos:       { Row: AchadoPerdido;        Insert: Partial<AchadoPerdido>;        Update: Partial<AchadoPerdido> };
       galeria_fotos:          { Row: GaleriaFoto;          Insert: Partial<GaleriaFoto>;          Update: Partial<GaleriaFoto> };
       areas_comuns:           { Row: AreaComum;            Insert: Partial<AreaComum>;            Update: Partial<AreaComum> };
+      telefones_uteis:        { Row: TelefoneUtil;          Insert: Partial<TelefoneUtil>;          Update: Partial<TelefoneUtil> };
+      telefones_secretarias:  { Row: TelefoneSecretaria;   Insert: Partial<TelefoneSecretaria>;   Update: Partial<TelefoneSecretaria> };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

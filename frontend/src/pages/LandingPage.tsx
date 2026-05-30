@@ -556,7 +556,86 @@ export const LandingPage = () => {
       ),
     },
 
-    /* ── SLIDE 7: Quem Somos ── */
+    /* ── SLIDE 7: Telefones Úteis ── */
+    {
+      key: 'slide-telefones',
+      label: 'Telefones',
+      content: (
+        <Shell badges={[
+          { icon: '🚨', label: 'Emergências' },
+          { icon: '💧', label: 'Utilidades' },
+          { icon: '🏛️', label: 'Poder Público' },
+        ]}>
+          <div>
+            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ef4444', marginBottom: 8 }}>
+              Contatos Essenciais
+            </p>
+            <h2 style={{ fontSize: 'clamp(19px,4.8vw,32px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 6 }}>
+              Telefones <span style={{ background: 'linear-gradient(135deg,#72e3ff,#669dff)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>úteis</span>
+            </h2>
+            <p style={{ fontSize: 'clamp(10px,2.2vw,12px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.55, marginBottom: 2 }}>
+              Emergências, serviços e órgãos públicos para moradores e visitantes.
+            </p>
+          </div>
+
+          {/* Emergências em destaque */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 'clamp(5px,1.2vw,8px)' }}>
+            {[
+              { emoji: '🚑', num: '192',  label: 'SAMU / SIATE', color: '#ef4444' },
+              { emoji: '🔥', num: '193',  label: 'Bombeiros',    color: '#f59e0b' },
+              { emoji: '🚔', num: '190',  label: 'Polícia Mil.', color: '#5a84ff' },
+              { emoji: '⛑️', num: '199',  label: 'Defesa Civil', color: '#10b981' },
+            ].map(e => (
+              <a key={e.label} href={`tel:${e.num}`} style={{
+                display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none',
+                background: `${e.color}10`, border: `1px solid ${e.color}28`,
+                borderRadius: 12, padding: 'clamp(9px,2.2vw,13px)',
+              }}>
+                <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{e.emoji}</span>
+                <div>
+                  <p style={{ fontSize: 'clamp(15px,3.5vw,20px)', fontWeight: 900, color: e.color, lineHeight: 1 }}>{e.num}</p>
+                  <p style={{ fontSize: 'clamp(8px,1.8vw,10px)', color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>{e.label}</p>
+                </div>
+              </a>
+            ))}
+          </div>
+
+          {/* Utilidades e poder público */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(5px,1.2vw,7px)' }}>
+            {[
+              { emoji: '💧', label: 'SAMAE Ibiporã',    num: '(43) 3252-1655', color: '#57d8ff' },
+              { emoji: '⚡', label: 'COPEL',             num: '0800 723 2302',  color: '#f59e0b' },
+              { emoji: '🏛️', label: 'Prefeitura Ibiporã', num: '(43) 3252-1500', color: '#5a84ff' },
+              { emoji: '🏡', label: 'Portaria Itaúna',  num: '(43) 99999-0001', color: '#57d8ff' },
+            ].map(c => (
+              <a key={c.label} href={`tel:${c.num.replace(/\D/g,'')}`} style={{
+                display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none',
+                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+                borderLeft: `3px solid ${c.color}`, borderRadius: '0 10px 10px 0',
+                padding: 'clamp(8px,2vw,11px) clamp(10px,2.5vw,14px)',
+              }}>
+                <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{c.emoji}</span>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, color: '#fff', marginBottom: 1 }}>{c.label}</p>
+                  <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: c.color, fontWeight: 600 }}>{c.num}</p>
+                </div>
+              </a>
+            ))}
+          </div>
+
+          <Link to="/telefones-uteis" style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: 'clamp(10px,2.5vw,13px)', borderRadius: '11px',
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)',
+            color: '#57d8ff', fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', textDecoration: 'none',
+          }}>
+            Ver lista completa <ArrowRight size={14} />
+          </Link>
+        </Shell>
+      ),
+    },
+
+    /* ── SLIDE 8: Quem Somos (Identidade) ── */
     {
       key: 'slide-identidade',
       label: 'Quem Somos',

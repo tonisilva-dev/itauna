@@ -922,6 +922,102 @@ export async function fetchIncidentsSummary(): Promise<{
 
 /* ─── Dashboard summary ────────────────────────────────────────── */
 
+/* ─── Telefones Úteis ──────────────────────────────────────────── */
+
+export interface DbSecretaria {
+  id: string;
+  telefone_id: string;
+  nome: string;
+  email: string | null;
+  telefone: string | null;
+  ordem: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbTelefone {
+  id: string;
+  nome: string;
+  categoria: string;
+  telefone: string;
+  telefone2: string | null;
+  descricao: string | null;
+  emoji: string;
+  ordem: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  secretarias?: DbSecretaria[];
+}
+
+const TELEFONE_SELECT = '*, secretarias:telefones_secretarias(id, telefone_id, nome, email, telefone, ordem, created_at, updated_at)';
+
+export async function fetchTelefonesUteis(): Promise<DbTelefone[]> {
+  const { data, error } = await db
+    .from('telefones_uteis')
+    .select(TELEFONE_SELECT)
+    .eq('is_active', true)
+    .order('ordem', { ascending: true })
+    .order('nome',  { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as DbTelefone[];
+}
+
+export async function fetchTelefonesAdmin(): Promise<DbTelefone[]> {
+  const { data, error } = await db
+    .from('telefones_uteis')
+    .select(TELEFONE_SELECT)
+    .order('ordem', { ascending: true })
+    .order('nome',  { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as DbTelefone[];
+}
+
+export async function insertTelefone(payload: Omit<DbTelefone, 'id' | 'created_at' | 'updated_at' | 'secretarias'>): Promise<DbTelefone> {
+  const { data, error } = await db
+    .from('telefones_uteis')
+    .insert(payload)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DbTelefone;
+}
+
+export async function updateTelefone(id: string, payload: Partial<DbTelefone>): Promise<void> {
+  const { secretarias: _, ...rest } = payload as any;
+  const { error } = await db.from('telefones_uteis').update(rest).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteTelefone(id: string): Promise<void> {
+  const { error } = await db.from('telefones_uteis').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/* ─── Secretarias ──────────────────────────────────────────────── */
+
+export async function insertSecretaria(payload: Omit<DbSecretaria, 'id' | 'created_at' | 'updated_at'>): Promise<DbSecretaria> {
+  const { data, error } = await db
+    .from('telefones_secretarias')
+    .insert(payload)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DbSecretaria;
+}
+
+export async function updateSecretaria(id: string, payload: Partial<DbSecretaria>): Promise<void> {
+  const { error } = await db.from('telefones_secretarias').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteSecretaria(id: string): Promise<void> {
+  const { error } = await db.from('telefones_secretarias').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/* ─── Dashboard ────────────────────────────────────────────────── */
+
 export async function fetchDashboardSummary() {
   const [finances, incidents, announcements, units] = await Promise.allSettled([
     fetchFinanceSummary(format(new Date(), 'yyyy-MM')),
