@@ -28,6 +28,7 @@ const Perfil          = lazy(() => import('./pages/perfil/Perfil').then(m => ({ 
 const Classificados   = lazy(() => import('./pages/classificados/Classificados').then(m => ({ default: m.Classificados })));
 const AchadosPerdidos = lazy(() => import('./pages/achados-perdidos/AchadosPerdidos').then(m => ({ default: m.AchadosPerdidos })));
 const Portaria        = lazy(() => import('./pages/portaria/Portaria').then(m => ({ default: m.Portaria })));
+const QuemSomos       = lazy(() => import('./pages/QuemSomos').then(m => ({ default: m.QuemSomos })));
 const Privacidade     = lazy(() => import('./pages/Privacidade').then(m => ({ default: m.Privacidade })));
 const Preview         = lazy(() => import('./pages/Preview').then(m => ({ default: m.Preview })));
 
@@ -96,6 +97,7 @@ export default function App() {
               ROTAS COMPARTILHADAS — visitantes E moradores logados
               ═══════════════════════════════════════════════════════ */}
           <Route element={<AdaptiveLayout />}>
+            <Route path="/quem-somos"    element={<QuemSomos />} />
             <Route path="/galeria"       element={<Galeria />} />
             <Route path="/classificados" element={<Classificados />} />
             <Route path="/eventos"       element={<Eventos />} />
