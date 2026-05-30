@@ -24,8 +24,10 @@ export const PageCarousel3D: React.FC<PageCarousel3DProps> = ({
   const total = slides.length;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const touchStartX = useRef<number>(0);
-  const touchEndX = useRef<number>(0);
-  const isSwiping = useRef<boolean>(false); // flag: diferencia swipe de tap
+  const touchStartY = useRef<number>(0);
+  const touchEndX   = useRef<number>(0);
+  const isSwiping   = useRef<boolean>(false);
+  const swipeDir    = useRef<'h' | 'v' | null>(null); // h=horizontal, v=vertical
 
   const goTo = useCallback((idx: number) => {
     setCur(((idx % total) + total) % total);
@@ -79,11 +81,14 @@ export const PageCarousel3D: React.FC<PageCarousel3DProps> = ({
   }, [goTo, resetAuto]);
 
   // ──────────────────────────────────────────────────────────
-  //  TOUCH — FIX CRÍTICO:
-  //  Se o toque começou em elemento interativo (button, a,
-  //  input, etc.), marcamos isSwiping=false e saímos sem
-  //  registrar coordenadas. Assim o tap chega normalmente
-  //  ao elemento filho (login, galeria, etc.)
+  //  TOUCH — dois fixes críticos:
+  //  1. Elementos interativos (button, a, input…) não são
+  //     interceptados — o tap chega ao filho normalmente.
+  //  2. Gestos VERTICAIS (scroll de conteúdo) também não são
+  //     interceptados: na primeira movimentação significativa
+  //     (>8 px), detectamos a direção dominante. Se for
+  //     vertical, abortamos o swipe e o scroll nativo funciona.
+  //     Só gestos horizontais trocam de slide.
   // ──────────────────────────────────────────────────────────
   const INTERACTIVE = 'a, button, input, select, textarea, label, [role="button"], [tabindex]';
 
@@ -91,22 +96,39 @@ export const PageCarousel3D: React.FC<PageCarousel3DProps> = ({
     const target = e.target as HTMLElement;
     if (target.closest(INTERACTIVE)) {
       isSwiping.current = false;
-      return; // não intercepta — deixa o click chegar ao filho
+      return;
     }
-    isSwiping.current = true;
+    isSwiping.current   = true;
+    swipeDir.current    = null;
     touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
     touchEndX.current   = e.touches[0].clientX;
     stopAuto();
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!isSwiping.current) return;
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = e.touches[0].clientY - touchStartY.current;
+
+    // Determina direção na primeira movimentação significativa
+    if (swipeDir.current === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      swipeDir.current = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+    }
+
+    // Gesto vertical → aborta swipe e deixa scroll nativo agir
+    if (swipeDir.current === 'v') {
+      isSwiping.current = false;
+      return;
+    }
+
     touchEndX.current = e.touches[0].clientX;
   };
 
   const handleTouchEnd = () => {
     if (!isSwiping.current) return;
     isSwiping.current = false;
+    if (swipeDir.current !== 'h') { startAuto(); return; }
     const diff = touchStartX.current - touchEndX.current;
     if (Math.abs(diff) > 50) {
       diff > 0 ? next() : prev();
