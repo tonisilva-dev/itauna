@@ -271,6 +271,24 @@ export interface AreaComum {
   updated_at: string;
 }
 
+export type CampanhaCategoria = 'Solidariedade' | 'Sazonais' | 'Saúde' | 'Educação' | 'Meio Ambiente' | 'Geral';
+export type CampanhaStatus   = 'ativa' | 'encerrada' | 'planejada';
+
+export interface CampanhaSocial {
+  id: string;
+  titulo: string;
+  descricao?: string | null;
+  categoria: CampanhaCategoria;
+  emoji: string;
+  data_inicio?: string | null;
+  data_fim?: string | null;
+  status: CampanhaStatus;
+  is_active: boolean;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type TelefoneCategoria = 'Emergência' | 'Saúde' | 'Utilidades' | 'Poder Público' | 'Condomínio' | 'Outros';
 
 export interface TelefoneSecretaria {
@@ -325,6 +343,7 @@ export type Database = {
       areas_comuns:           { Row: AreaComum;            Insert: Partial<AreaComum>;            Update: Partial<AreaComum> };
       telefones_uteis:        { Row: TelefoneUtil;          Insert: Partial<TelefoneUtil>;          Update: Partial<TelefoneUtil> };
       telefones_secretarias:  { Row: TelefoneSecretaria;   Insert: Partial<TelefoneSecretaria>;   Update: Partial<TelefoneSecretaria> };
+      campanhas_sociais:      { Row: CampanhaSocial;       Insert: Partial<CampanhaSocial>;       Update: Partial<CampanhaSocial> };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

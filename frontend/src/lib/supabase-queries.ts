@@ -1016,6 +1016,60 @@ export async function deleteSecretaria(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/* ─── Campanhas Sociais ────────────────────────────────────────── */
+
+export interface DbCampanha {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  categoria: string;
+  emoji: string;
+  data_inicio: string | null;
+  data_fim: string | null;
+  status: 'ativa' | 'encerrada' | 'planejada';
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchCampanhas(): Promise<DbCampanha[]> {
+  const { data, error } = await db
+    .from('campanhas_sociais')
+    .select('*')
+    .eq('is_active', true)
+    .order('status')
+    .order('data_inicio', { ascending: false, nullsFirst: false });
+  if (error) throw error;
+  return (data ?? []) as DbCampanha[];
+}
+
+export async function fetchCampanhasAdmin(): Promise<DbCampanha[]> {
+  const { data, error } = await db
+    .from('campanhas_sociais')
+    .select('*')
+    .order('status')
+    .order('data_inicio', { ascending: false, nullsFirst: false });
+  if (error) throw error;
+  return (data ?? []) as DbCampanha[];
+}
+
+export async function insertCampanha(payload: Omit<DbCampanha, 'id' | 'created_at' | 'updated_at'>): Promise<DbCampanha> {
+  const { data, error } = await db
+    .from('campanhas_sociais').insert(payload).select().single();
+  if (error) throw error;
+  return data as DbCampanha;
+}
+
+export async function updateCampanha(id: string, payload: Partial<DbCampanha>): Promise<void> {
+  const { error } = await db.from('campanhas_sociais').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteCampanha(id: string): Promise<void> {
+  const { error } = await db.from('campanhas_sociais').delete().eq('id', id);
+  if (error) throw error;
+}
+
 /* ─── Dashboard ────────────────────────────────────────────────── */
 
 export async function fetchDashboardSummary() {

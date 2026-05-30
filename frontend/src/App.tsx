@@ -29,7 +29,8 @@ const Classificados   = lazy(() => import('./pages/classificados/Classificados')
 const AchadosPerdidos = lazy(() => import('./pages/achados-perdidos/AchadosPerdidos').then(m => ({ default: m.AchadosPerdidos })));
 const Portaria        = lazy(() => import('./pages/portaria/Portaria').then(m => ({ default: m.Portaria })));
 const QuemSomos       = lazy(() => import('./pages/QuemSomos').then(m => ({ default: m.QuemSomos })));
-const TelefonesUteis  = lazy(() => import('./pages/TelefonesUteis').then(m => ({ default: m.TelefonesUteis })));
+const TelefonesUteis         = lazy(() => import('./pages/TelefonesUteis').then(m => ({ default: m.TelefonesUteis })));
+const ResponsabilidadeSocial = lazy(() => import('./pages/ResponsabilidadeSocial').then(m => ({ default: m.ResponsabilidadeSocial })));
 const Privacidade     = lazy(() => import('./pages/Privacidade').then(m => ({ default: m.Privacidade })));
 const Preview         = lazy(() => import('./pages/Preview').then(m => ({ default: m.Preview })));
 
@@ -102,7 +103,8 @@ export default function App() {
             <Route path="/galeria"          element={<Galeria />} />
             <Route path="/classificados"    element={<Classificados />} />
             <Route path="/eventos"          element={<Eventos />} />
-            <Route path="/telefones-uteis"  element={<TelefonesUteis />} />
+            <Route path="/telefones-uteis"          element={<TelefonesUteis />} />
+            <Route path="/responsabilidade-social"  element={<ResponsabilidadeSocial />} />
           </Route>
 
           {/* ═══════════════════════════════════════════════════════

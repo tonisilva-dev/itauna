@@ -556,7 +556,83 @@ export const LandingPage = () => {
       ),
     },
 
-    /* ── SLIDE 7: Telefones Úteis ── */
+    /* ── SLIDE 7: Responsabilidade Social-Ambiental ── */
+    {
+      key: 'slide-social',
+      label: 'Resp. Social',
+      content: (
+        <Shell badges={[
+          { icon: '♻️', label: 'Coleta Seletiva' },
+          { icon: '🤝', label: 'Campanhas Solidárias' },
+          { icon: '🌱', label: 'Sustentabilidade' },
+        ]}>
+          <div>
+            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: GREEN, marginBottom: 8 }}>
+              Ativo Social · Itaúna
+            </p>
+            <h2 style={{ fontSize: 'clamp(19px,4.8vw,32px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 6 }}>
+              Responsabilidade<br />
+              <span style={{ background: 'linear-gradient(135deg,#10b981,#57d8ff)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
+                Social &amp; Ambiental
+              </span>
+            </h2>
+            <p style={{ fontSize: 'clamp(10px,2.2vw,12px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.55 }}>
+              Do cuidado com os resíduos ao gesto solidário — aqui, responsabilidade é um valor vivido em comunidade.
+            </p>
+          </div>
+
+          {/* Duas ações */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(7px,1.5vw,10px)' }}>
+            {/* Resíduos */}
+            <div style={{ ...card, padding: 'clamp(12px,2.5vw,16px)', borderLeft: `3px solid ${GREEN}`, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: `${GREEN}18`, border: `1px solid ${GREEN}28`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: '1.2rem' }}>♻️</span>
+              </div>
+              <div>
+                <p style={{ fontSize: 'clamp(11px,2.5vw,13px)', fontWeight: 700, color: '#fff', marginBottom: 4 }}>Gestão de Resíduos</p>
+                <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                  Guia completo de separação de orgânicos, recicláveis e rejeitos — com ponto de coleta na portaria.
+                </p>
+                <div style={{ marginTop: 8, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  {['🟤 Orgânicos','🔵 Recicláveis','⚫ Rejeitos'].map(t => (
+                    <span key={t} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: `${GREEN}12`, color: GREEN, border: `1px solid ${GREEN}22`, fontWeight: 600 }}>{t}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Campanhas */}
+            <div style={{ ...card, padding: 'clamp(12px,2.5vw,16px)', borderLeft: `3px solid ${YELLOW}`, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: `${YELLOW}18`, border: `1px solid ${YELLOW}28`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: '1.2rem' }}>🤝</span>
+              </div>
+              <div>
+                <p style={{ fontSize: 'clamp(11px,2.5vw,13px)', fontWeight: 700, color: '#fff', marginBottom: 4 }}>Campanhas Solidárias</p>
+                <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                  Ações sazonais que conectam moradores e comunidade — Agasalho, Páscoa, Natal e muito mais.
+                </p>
+                <div style={{ marginTop: 8, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  {['🐣 Páscoa','🧥 Agasalho','🎁 Crianças','🎄 Natal'].map(t => (
+                    <span key={t} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: `${YELLOW}10`, color: YELLOW, border: `1px solid ${YELLOW}22`, fontWeight: 600 }}>{t}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Link to="/responsabilidade-social" style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: 'clamp(10px,2.5vw,13px)', borderRadius: '11px',
+            background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.22)',
+            color: GREEN, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', textDecoration: 'none',
+          }}>
+            Conhecer as iniciativas <ArrowRight size={14} />
+          </Link>
+        </Shell>
+      ),
+    },
+
+    /* ── SLIDE 8: Telefones Úteis ── */
     {
       key: 'slide-telefones',
       label: 'Telefones',
