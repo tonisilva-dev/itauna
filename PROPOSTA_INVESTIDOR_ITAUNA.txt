@@ -1,0 +1,431 @@
+================================================================================
+     ITAÚNA DIGITAL — PLATAFORMA DE GESTÃO CONDOMINIAL INTELIGENTE
+     Descritivo Executivo para Apresentação a Investidores
+================================================================================
+
+Versão: 1.0  |  Data: Maio de 2026  |  Confidencial
+
+
+────────────────────────────────────────────────────────────────────────────────
+1. VISÃO GERAL
+────────────────────────────────────────────────────────────────────────────────
+
+O Itaúna Digital é uma plataforma web completa de gestão condominial desenvolvida
+para o Condomínio Chácaras Itaúna, localizado em Ibiporã, Paraná — um complexo
+ecológico de 360 unidades (chácaras) com infraestrutura de lazer, portaria 24h
+e área de preservação ambiental.
+
+A plataforma centraliza, em um único ambiente digital seguro, toda a operação
+administrativa, financeira e comunitária do condomínio — eliminando processos
+manuais, planilhas desconexas, grupos de WhatsApp desordenados e comunicação
+informal, que são a realidade da esmagadora maioria dos condomínios brasileiros
+de médio e grande porte.
+
+Mais do que um software de gestão, o Itaúna Digital é um ecossistema de
+relacionamento entre síndico, administração, moradores, portaria e parceiros
+comerciais — acessível de qualquer dispositivo, com identidade visual premium
+e experiência de uso fluida.
+
+
+────────────────────────────────────────────────────────────────────────────────
+2. O PROBLEMA QUE RESOLVEMOS
+────────────────────────────────────────────────────────────────────────────────
+
+Condomínios de grande porte no Brasil enfrentam desafios estruturais crônicos:
+
+  • Comunicação fragmentada — avisos perdidos em grupos de WhatsApp, murais
+    físicos ignorados e e-mails sem controle de leitura.
+
+  • Gestão financeira opaca — moradores não sabem sua situação, inadimplência
+    é tratada de forma reativa, relatórios são produzidos manualmente.
+
+  • Controle de acesso precário — portarias com registros em papel, sem
+    histórico de visitantes, sem autorização digital prévia.
+
+  • Ausência de canais de participação — moradores sem voz ativa, ocorrências
+    ignoradas, agendamentos de áreas comuns feitos por telefone.
+
+  • Gestão de documentos dispersa — atas, regulamentos e rateios espalhados em
+    e-mails antigos ou pastas físicas inacessíveis.
+
+  • Falta de transparência — moradores desconhecem o andamento de obras,
+    despesas, contratos e decisões assembleares.
+
+O Itaúna Digital resolve todos esses pontos com uma solução integrada, moderna
+e de alto padrão.
+
+
+────────────────────────────────────────────────────────────────────────────────
+3. A SOLUÇÃO — FUNCIONALIDADES DA PLATAFORMA
+────────────────────────────────────────────────────────────────────────────────
+
+A plataforma é organizada em módulos interdependentes, com interfaces distintas
+para dois perfis principais: GESTORES (síndico e administradores) e MORADORES.
+Cada perfil vê exatamente o que precisa, sem ruído e sem excesso de informação.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.1  AUTENTICAÇÃO E SEGURANÇA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Login por e-mail e senha com sanitização e rate limiting (bloqueio após
+    5 tentativas consecutivas, proteção contra força bruta).
+
+  → Autenticação biométrica via WebAuthn — o morador pode cadastrar sua digital
+    ou Face ID e acessar o sistema sem digitar senha. A biometria nunca é
+    transmitida a servidores: fica armazenada exclusivamente no dispositivo do
+    usuário (padrão FIDO2), o que é um diferencial de segurança e privacidade
+    raros em plataformas condominiais.
+
+  → Recuperação de senha por e-mail com link seguro temporário.
+
+  → Quatro níveis de acesso: Administrador, Síndico, Assistente (com
+    permissões granulares por módulo) e Condômino.
+
+  → Conformidade com a LGPD: banner de consentimento, política de privacidade,
+    sem coleta de dados biométricos em servidor.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.2  DASHBOARD INTELIGENTE (DUPLO)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  PARA GESTORES:
+  → KPIs em tempo real: receitas do mês, despesas pagas, saldo disponível e
+    índice de inadimplência — visão executiva numa tela.
+  → Gráfico de fluxo de caixa quinzenal com evolução de receitas vs despesas.
+  → Gráfico de pizza com composição de adimplência (Em dia / Inadimplente /
+    Suspenso) e composição de despesas por categoria.
+  → Últimos lançamentos e comunicados publicados; atalhos rápidos para ações.
+
+  PARA MORADORES:
+  → Situação financeira pessoal: número da chácara, status (regular/inadimplente),
+    próximo vencimento e histórico de rateios.
+  → Últimos comunicados e pagamentos registrados.
+  → Ações rápidas com um toque: agendar espaço, registrar ocorrência, ir à galeria.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.3  GESTÃO FINANCEIRA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Painel financeiro completo com KPIs consolidados (total geral, despesas
+    pagas, valores pendentes).
+  → Registro de receitas e despesas com 16 categorias (Pessoal, Encargos,
+    Manutenção, Consumo, Materiais, Seguros, Administrativo, etc.).
+  → Tabela de movimentações filtrável por tipo, categoria e mês de referência
+    (últimos 12 meses disponíveis).
+  → Status de cada lançamento: Pago, Pendente ou Vencido — com alertas visuais.
+  → Formulário inline para lançamento rápido de despesas e receitas.
+  → Evolução quinzenal em gráfico de área: receitas vs despesas.
+  → Moradores visualizam apenas sua situação individual e os rateios aprovados.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.4  GESTÃO DE MORADORES E UNIDADES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  MORADORES:
+  → Censo digital das 360 unidades com busca por nome, chácara ou e-mail.
+  → Ficha completa de cada morador: dados pessoais, perfil de acesso, contato
+    direto por e-mail ou WhatsApp.
+  → Cadastro de novos moradores com atribuição de papel (condômino/síndico/admin).
+  → Ativação e inativação de moradores pelo administrador.
+  → Canais de emergência acessíveis a todos: SAMU (192), Bombeiros (193),
+    Polícia Militar (190), Defesa Civil (199).
+
+  UNIDADES (CHÁCARAS):
+  → Painel de 360 chácaras com filtro por status financeiro (Regular, Em Débito,
+    Suspenso).
+  → Gaveta lateral com ficha da chácara: área em m², taxa mensal, saldo devedor,
+    contato do proprietário.
+  → Cadastro de nova chácara com todos os atributos.
+  → Para o morador: visualização da sua unidade com botões de pagamento via
+    Pix (chave copiável) e geração de boleto em PDF.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.5  COMUNICADOS E MURAL DIGITAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Publicação de comunicados com três níveis de prioridade: Urgente (vermelho),
+    Importante (amarelo), Informativo (teal).
+  → Opção de fixar comunicados no topo do mural — avisos críticos nunca se
+    perdem no histórico.
+  → Categorias: Reunião, Manutenção, Serviços, Regulamento, Informativo.
+  → Busca e filtro por categoria; gaveta lateral com conteúdo completo do aviso.
+  → Para moradores: acesso ao Manual de Convivência digitalizado (regras de
+    silêncio, uso da piscina, velocidade nas vias, coleta de lixo, etc.).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.6  AGENDAMENTO DE ESPAÇOS COMUNS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Reserva digital de cinco áreas: Salão de Festas, Quadra Poliesportiva,
+    Piscina, Quiosque e Campo de Futebol.
+  → Formulário com seleção de área, data, horário de início e fim, observações.
+  → Listagem de reservas ativas com opção de cancelamento pelo próprio morador.
+  → Visão de gestores: todas as reservas do condomínio centralizadas.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.7  PORTARIA DIGITAL E CONTROLE DE ACESSO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Registro digital de entradas e saídas: visitantes, entregas e prestadores
+    de serviço — com nome, placa do veículo, horário e destino.
+  → Dashboard da portaria em tempo real: quem está dentro do condomínio agora,
+    total de entradas do dia, visitantes autorizados, pendências.
+  → Histórico completo de movimentação consultável.
+  → Lista de prestadores autorizados fixo com validade de autorização.
+  → Reduz risco de acessos não autorizados e elimina registros em papel.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.8  OCORRÊNCIAS E CHAMADOS DE MANUTENÇÃO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Abertura de chamados por qualquer morador: título, localização, categoria
+    (Manutenção, Elétrica, Limpeza, Infraestrutura) e prioridade (urgente,
+    alta, média, baixa).
+  → Fluxo de status: Aberto → Em andamento → Resolvido.
+  → KPIs de acompanhamento: total aberto, em progresso, resolvidos.
+  → Gestores recebem alertas de chamados urgentes e podem atualizar status.
+  → Histórico rastreável de todas as ocorrências do condomínio.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.9  BIBLIOTECA DIGITAL DE DOCUMENTOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Repositório centralizado de documentos: Editais, Rateios, Atas de
+    Assembleia, Regulamento Interno, Relatórios Financeiros, Contratos.
+  → Busca por título e filtro por categoria.
+  → Visualização e download de cada documento diretamente na plataforma.
+  → Gestores fazem upload com título, categoria e descrição.
+  → Moradores acessam o FAQ jurídico-administrativo (validade de atas,
+    autenticação de documentos, LGPD, portabilidade de dados).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.10  GALERIA FOTOGRÁFICA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Galeria com fotos reais do condomínio organizadas em álbuns por categoria:
+    Natureza, Infraestrutura, Lazer e Esportes.
+  → Visualização em grid responsivo com lightbox fullscreen ao clicar.
+  → Busca por legenda; filtros por categoria.
+  → Acessível inclusive para visitantes não cadastrados — funciona como vitrine
+    institucional do empreendimento.
+  → Gestores podem adicionar novas fotos diretamente pela plataforma.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.11  CLASSIFICADOS — MURAL COMERCIAL ENTRE MORADORES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Marketplace interno: moradores anunciam chácaras para aluguel de temporada,
+    veículos, serviços, eletrodomésticos, móveis e outros bens.
+  → Categorias: Imóveis, Veículos, Serviços, Eletrônicos, Móveis, Outros.
+  → Contato direto pelo WhatsApp a partir do anúncio.
+  → Busca e filtro por categoria; gaveta de detalhes ao clicar no anúncio.
+  → Gera valor de rede dentro da comunidade — moradores fazem negócios entre si.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.12  ACHADOS E PERDIDOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Registro digital de itens perdidos e encontrados no condomínio.
+  → Filtros por tipo (Perdido / Encontrado) e status (Em aberto / Resolvido).
+  → Formulário com descrição, local aproximado e data.
+  → Botão "Devolvido" para marcar resolução e fechar o chamado.
+  → Elimina o ciclo vicioso de postagens repetidas em grupos de WhatsApp.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.13  PARCEIROS E CONVÊNIOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Vitrine de parceiros comerciais com descontos e vantagens exclusivas para
+    moradores: postos de combustível, mercados, academias, empresas locais.
+  → Categorias: Patrocinador, Apoiador, Fornecedor, Institucional.
+  → Card de cada parceiro com logo, descrição, site, telefone e e-mail.
+  → Gestores cadastram e gerenciam parcerias diretamente na plataforma.
+  → Cria um ecossistema de valor para moradores além da gestão condominial —
+    e um canal de receita adicional via patrocínio.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.14  GESTÃO DE ACESSOS E PERMISSÕES (ADMINISTRAÇÃO)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Administrador cria assistentes (porteiros, auxiliares, contadores) com
+    permissões granulares por módulo e operação.
+  → 9 módulos configuráveis: Financeiro, Chácaras, Moradores, Eventos,
+    Parceiros, Ocorrências, Comunicados, Documentos, Agendamentos.
+  → 3 operações por módulo: Criar, Editar, Excluir — configuráveis
+    individualmente.
+  → Presets prontos: Portaria, Finanças, Gerente Pleno — para onboarding rápido.
+  → Princípio do menor privilégio: cada colaborador acessa apenas o que precisa.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.15  PERFIL DO USUÁRIO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Edição de nome, telefone e foto de perfil.
+  → Alteração de senha com validação de senha atual.
+  → Gerenciamento da biometria: ativar, desativar ou redefinir.
+  → Preferências de notificação: Comunicados, Portaria, Ocorrências,
+    Classificados — o morador escolhe o que quer receber.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3.16  LANDING PAGE INSTITUCIONAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → Página pública de apresentação do condomínio com hero section, carrossel
+    de funcionalidades, seções de Recursos, Segurança e Comunidade.
+  → Visitantes não cadastrados podem explorar a galeria fotográfica, eventos
+    e classificados públicos.
+  → Funciona como vitrine imobiliária e institucional — reforça o valor
+    percebido das unidades e atrai potenciais compradores.
+
+
+────────────────────────────────────────────────────────────────────────────────
+4. DIFERENCIAIS COMPETITIVOS
+────────────────────────────────────────────────────────────────────────────────
+
+  1. AUTENTICAÇÃO BIOMÉTRICA SEM SERVIDOR
+     Único entre plataformas condominiais brasileiras a oferecer login por
+     digital/Face ID com o padrão WebAuthn/FIDO2. A biometria fica no
+     dispositivo — nunca é enviada a nenhum servidor. Isso é segurança de
+     nível bancário aplicada à gestão condominial.
+
+  2. INTERFACE DUAL INTELIGENTE
+     O sistema detecta o perfil do usuário (gestor ou morador) e exibe
+     interfaces completamente distintas e otimizadas. Gestores veem dados
+     operacionais; moradores veem sua situação pessoal. Não existe "menu cheio
+     de itens cinzas" nem confusão de acesso.
+
+  3. EXPERIÊNCIA PREMIUM EM DARK THEME
+     Design cuidadosamente desenvolvido com tema escuro premium, animações
+     suaves, transições 3D, componentes com blur e gradiente — uma estética
+     que eleva a percepção de valor do próprio condomínio junto aos moradores.
+
+  4. CONTROLE DE ACESSO GRANULAR POR MÓDULO
+     Administradores definem exatamente o que cada colaborador pode fazer —
+     criar, editar ou excluir — em cada um dos 9 módulos do sistema. Essa
+     granularidade é incomum em soluções condominiais do mercado nacional.
+
+  5. ECOSSISTEMA COMPLETO EM UMA PLATAFORMA
+     Financeiro + Moradores + Portaria + Comunicados + Documentos +
+     Agendamentos + Ocorrências + Galeria + Classificados + Parceiros —
+     tudo integrado, sem necessidade de múltiplos sistemas ou apps separados.
+
+  6. CONFORMIDADE LGPD NATIVA
+     Desde a concepção: consentimento de cookies, política de privacidade,
+     dados biométricos somente no dispositivo, sanitização de inputs,
+     controle de acesso por papel. Conformidade não é um add-on — é
+     arquitetural.
+
+  7. LANDING PAGE COMO ATIVO IMOBILIÁRIO
+     A página pública funciona como cartão de visitas digital do condomínio,
+     com galeria de fotos reais, apresentação de infraestrutura e acesso
+     a funcionalidades sem necessidade de cadastro. Isso agrega valor
+     percebido às unidades e facilita vendas e locações.
+
+  8. ESCALABILIDADE TÉCNICA
+     Construído sobre Supabase (PostgreSQL gerenciado + Auth + Storage),
+     React 18 com lazy loading, Vite como bundler e arquitetura de
+     componentes reutilizáveis. Preparado para escalar de 360 para
+     milhares de unidades sem reescrita.
+
+
+────────────────────────────────────────────────────────────────────────────────
+5. STACK TECNOLÓGICA
+────────────────────────────────────────────────────────────────────────────────
+
+  Frontend:     React 18 + TypeScript + Vite
+  Estilo:       TailwindCSS + CSS-in-JS
+  Ícones:       Lucide React
+  Gráficos:     Recharts (AreaChart, BarChart, PieChart)
+  Roteamento:   React Router v6 (com guards de autenticação e papel)
+  Notificações: React Hot Toast
+  Biometria:    WebAuthn API (FIDO2) — nativa do browser, sem SDK externo
+  Backend:      Supabase (PostgreSQL + Auth + Row Level Security + Storage)
+  Infraestrutura: VPS dedicado (Nginx) + deploy automatizado via script PS1
+  Segurança:    Rate limiting, sanitização de inputs, RLS no banco de dados
+
+
+────────────────────────────────────────────────────────────────────────────────
+6. NÚMEROS DO PROJETO
+────────────────────────────────────────────────────────────────────────────────
+
+  360     unidades gerenciadas
+  20+     módulos e páginas funcionais
+  4       níveis de acesso (admin, síndico, assistente, condômino)
+  9       módulos com controle granular de permissões
+  5       áreas comuns com sistema de agendamento
+  16      categorias de lançamento financeiro
+  4       categorias de documentos na biblioteca digital
+  4       categorias de galeria fotográfica com fotos reais
+  1       sistema de autenticação biométrica sem servidor
+
+
+────────────────────────────────────────────────────────────────────────────────
+7. IMPACTO E IMPORTÂNCIA
+────────────────────────────────────────────────────────────────────────────────
+
+  PARA OS MORADORES:
+  → Fim das ligações para a portaria para reservar o salão de festas.
+  → Acesso a boletos, rateios e documentos a qualquer hora, pelo celular.
+  → Canal direto e rastreável para registrar problemas e acompanhar resolução.
+  → Comunidade mais ativa: classificados, parceiros, galeria, achados e perdidos.
+  → Segurança reforçada: saber quem entrou e saiu do condomínio.
+
+  PARA O SÍNDICO E ADMINISTRAÇÃO:
+  → Gestão financeira centralizada: zero planilha, histórico completo.
+  → Comunicação eficaz: avisos que chegam, são lidos e ficam registrados.
+  → Redução de inadimplência: moradores veem sua situação e têm acesso ao Pix.
+  → Controle de portaria digital: histórico auditável de acessos.
+  → Delegação segura: cada colaborador age apenas no seu escopo.
+
+  PARA O CONDOMÍNIO COMO ATIVO:
+  → Valorização imobiliária: condomínio digitalizado é percebido como mais
+    moderno, seguro e bem administrado.
+  → Redução de custos operacionais: menos papel, menos ligações, menos retrabalho.
+  → Transparência que gera confiança e reduz conflitos assembleares.
+  → Vitrine pública que atrai compradores e locatários para as chácaras.
+
+
+────────────────────────────────────────────────────────────────────────────────
+8. POTENCIAL DE EXPANSÃO (MODELO SAAS)
+────────────────────────────────────────────────────────────────────────────────
+
+O Itaúna Digital foi construído como produto, não como projeto pontual.
+Sua arquitetura modular, baseada em Supabase com isolamento de dados por
+condomínio (Row Level Security), permite replicar a plataforma para novos
+clientes sem reescrita de código.
+
+O mercado-alvo imediato é o segmento de condomínios de chácaras, fazendas
+e loteamentos fechados — um nicho de altíssimo crescimento no Brasil, com
+perfil de morador exigente e poder aquisitivo elevado, atualmente mal
+atendido pelas soluções condominiais tradicionais (focadas em apartamentos
+urbanos, com interfaces datadas e sem diferencial de experiência).
+
+Modelo de receita projetado:
+  → Licença mensal por condomínio (SaaS)
+  → Tier baseado em número de unidades
+  → Receita de parceiros e patrocinadores exibidos na plataforma
+  → Módulos premium (ex.: integração bancária, app mobile nativo)
+
+
+────────────────────────────────────────────────────────────────────────────────
+9. CONCLUSÃO
+────────────────────────────────────────────────────────────────────────────────
+
+O Itaúna Digital não é um sistema de gestão condominial comum. É uma plataforma
+de experiência comunitária construída com padrão tecnológico e estético de
+produto de consumo premium — diferente de tudo que existe hoje no segmento
+de condomínios de chácaras e loteamentos fechados no Brasil.
+
+Com mais de 20 módulos funcionais, autenticação biométrica sem servidor,
+controle de acesso granular, interface dual inteligente para gestores e
+moradores, e uma arquitetura preparada para escalar como SaaS, o produto está
+pronto para crescer além do Condomínio Chácaras Itaúna e se tornar a referência
+de gestão digital para um segmento que movimenta bilhões de reais por ano
+e ainda opera, em sua maioria, com planilhas e grupos de WhatsApp.
+
+A oportunidade é real. A solução está construída. O próximo passo é escalar.
+
+================================================================================
+     ITAÚNA DIGITAL — Onde tecnologia encontra natureza
+     www.itauna.org
+================================================================================

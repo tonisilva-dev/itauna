@@ -1,0 +1,195 @@
+/* ==========================================================
+   SLIDE PANEL — 3-zone flex layout, zero absolute trickery
+   ========================================================== */
+
+/* ── Root: fills the slide completely ── */
+.sp-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+.sp-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 18px 9px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  min-height: 46px;
+}
+
+.sp-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sp-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: radial-gradient(circle, #57d8ff 0%, #5a84ff 100%);
+  box-shadow: 0 0 0 3px rgba(87, 216, 255, 0.12), 0 0 14px rgba(87, 216, 255, 0.45);
+}
+
+.sp-eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #57d8ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sp-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── BODY ── */
+.sp-body {
+  flex: 1;
+  min-height: 0;          /* permite encolher dentro do flex pai */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px 10px;
+  overflow: hidden;
+}
+
+.sp-title {
+  flex-shrink: 0;
+  font-size: clamp(18px, 3.2vw, 28px);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  color: #fff;
+  margin: 0;
+}
+
+/* grad-text helper usado por módulos */
+.sp-title .grad-text,
+.grad-text {
+  background: linear-gradient(135deg, #72e3ff, #669dff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.sp-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sp-content::-webkit-scrollbar { display: none; }
+
+/* ── FOOTER / BADGES ── */
+.sp-foot {
+  flex-shrink: 0;
+  display: flex;
+  align-items: stretch;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.018);
+  min-height: 40px;
+  max-height: 48px;
+}
+
+.sp-badge {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 4px;
+  font-size: clamp(9px, 1.1vw, 11px);
+  font-weight: 600;
+  color: rgba(231, 240, 254, 0.85);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sp-badge:last-child { border-right: none; }
+
+.sp-badge-icon {
+  font-size: 13px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.sp-badge-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================
+   MOBILE PEQUENO (≤ 480px)
+   ========================================================== */
+@media (max-width: 480px) {
+  .sp-head   { padding: 8px 14px 7px; min-height: 40px; }
+  .sp-eyebrow { font-size: 9px; }
+  .sp-body   { padding: 10px 14px 8px; gap: 8px; }
+  .sp-title  { font-size: clamp(15px, 4.5vw, 20px); }
+  .sp-foot   { min-height: 36px; max-height: 40px; }
+  .sp-badge  { font-size: 9px; gap: 3px; padding: 4px 2px; }
+  .sp-badge-icon { font-size: 11px; }
+}
+
+/* ==========================================================
+   LEGADO — classes usadas por módulos ainda não migrados
+   ========================================================== */
+.panel-head  { display: none; }          /* oculta header antigo se aparecer */
+.panel-badges { display: none; }         /* oculta footer antigo se aparecer */
+
+.eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #57d8ff;
+}
+
+.section-h {
+  font-size: clamp(18px, 3.2vw, 28px);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  color: #fff;
+  margin: 0 0 2px;
+}
+
+.section-h span,
+.section-h .grad-text {
+  background: linear-gradient(135deg, #72e3ff, #669dff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 18px 10px;
+  gap: 10px;
+  overflow: hidden;
+}

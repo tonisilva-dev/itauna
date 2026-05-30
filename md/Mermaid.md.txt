@@ -1,0 +1,241 @@
+1. Diagramas Mermaid
+1.1 Arquitetura geral do sistema
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1.2 Fluxo de antecipação silenciosa (backend)
+1.3 Fluxo de mediação silenciosa (anônimo)
+
+
+
+
+
+
+
+
+
+
+
+1.4 Fluxo de onboarding personalizado (novo morador)
+2. Contratos de API (exemplos para desenvolvimento)
+2.1 Serviço de antecipação silenciosa – POST /api/v1/analytics/patterns
+Descrição: Recebe reclamações anônimas agregadas e retorna tendências detectadas (para o síndico).
+
+Request (exemplo de payload interno, gerado pelo backend após agregação):
+
+json
+{
+  "condominio_id": "c27e8f9a",
+  "periodo_horas": 48,
+  "temas": ["cheiro", "barulho", "iluminacao", "estacionamento"],
+  "areas": ["lago", "bloco3", "piscina", "portaria"],
+  "limiar_minimo_relatos": 3
+}
+Response (tendências detectadas):
+
+json
+{
+  "tendencias": [
+    {
+      "tema": "cheiro",
+      "area": "lago",
+      "total_relatos_anonimos": 5,
+      "janela_horas": 48,
+      "sugestao_acao": "Verificar sistema de filtragem e iluminação noturna",
+      "prioridade": "alta"
+    }
+  ],
+  "timestamp": "2026-05-25T14:30:00Z"
+}
+2.2 Mediação silenciosa – POST /api/v1/mediation/anonymous
+Descrição: Envia relato anônimo, sem identificação do morador.
+
+Request:
+
+json
+{
+  "condominio_id": "c27e8f9a",
+  "tema": "barulho",
+  "area": "bloco3",
+  "descricao": "som alto após 22h, vários dias seguidos",
+  "anexo_url": null
+}
+Response:
+
+json
+{
+  "protocolo": "anon-3f8d2e",
+  "status": "registrado",
+  "mensagem_ao_usuario": "Seu relato foi registrado anonimamente. Se outros moradores reportarem o mesmo problema, o síndico será notificado de forma agregada."
+}
+2.3 Geração de FAQ automático – POST /api/v1/events/faq
+Descrição: Para um dado evento, retorna perguntas frequentes com respostas automáticas (baseadas em eventos anteriores e regras do condomínio).
+
+Request:
+
+json
+{
+  "evento_id": "festa_junina_2026",
+  "pergunta_usuario": "Posso levar cachorro?"
+}
+Response:
+
+json
+{
+  "pergunta": "Posso levar cachorro?",
+  "resposta": "Pets são permitidos na área gramada, mas não dentro da piscina ou salão. Mantenha na coleira e leve saquinhos para dejetos.",
+  "fonte": "regras_internas_v2",
+  "sugerir_perguntas_relacionadas": ["Há restrição de horário para pets?", "Posso deixar o cachorro sozinho na área?"]
+}
+2.4 Timeline viva – GET /api/v1/timeline/{condominio_id}?ano=2026
+Response:
+
+json
+{
+  "condominio_id": "c27e8f9a",
+  "ano": 2026,
+  "eventos": [
+    {
+      "data": "2026-05-15",
+      "tipo": "melhoria",
+      "titulo": "Reforma do paisagismo da entrada",
+      "investimento": 8200.00,
+      "economia_anual_estimada": 1200.00,
+      "fotos_antes_depois": ["url1", "url2"],
+      "status": "concluido"
+    }
+  ],
+  "onboarding_resumo": "Em 2026, já realizamos 3 melhorias que reduziram custos e aumentaram a satisfação."
+}
+3. Textos de Onboarding (copiar e usar no app)
+3.1 Boas‑vindas para morador (primeiro acesso)
+Bem-vindo ao seu condomínio inteligente.
+
+Aqui, você não precisa brigar para ser ouvido. Nosso sistema resolve a maioria dos problemas por trás dos panos, com privacidade e rapidez.
+
+O que você pode fazer:
+
+Abrir solicitações (com prazo e status)
+
+Reportar incômodos de forma anônima
+
+Participar de votações e assembleias sem sair de casa
+
+Ver a história do condomínio (obras, melhorias, conquistas)
+
+Nosso compromisso:
+
+Nunca vamos expor seus dados
+
+Você sempre sabe o prazo para resolver seu problema
+
+Se algo puder ser antecipado para evitar conflito, faremos silenciosamente
+
+[Continuar] → [Acessar Timeline Viva]
+
+3.2 Boas‑vindas para síndico (primeiro acesso)
+Você agora tem um aliado invisível.
+
+Ser síndico é desgastante. Nosso app foi desenhado para reduzir sua carga emocional e operacional.
+
+O que muda para você:
+
+IA que rascunha respostas empáticas (você só aprova)
+
+Alertas preventivos (antes que virem crise)
+
+Painel de saúde do condomínio (satisfação, conflitos, tempo de resposta)
+
+Mediação anônima que resolve tretas sem expor ninguém
+
+Timeline que mostra seu trabalho em evolução (valoriza sua gestão)
+
+Você continua no controle. Nós só facilitamos o caminho.
+
+[Configurar preferências] → [Ver primeiro alerta preventivo]
+
+3.3 Explicação do Índice de Saúde (para síndico e conselho)
+O que é o Índice de Saúde Condominial?
+
+Uma métrica que vai além do financeiro. Mostra como está a confiança, o engajamento e a paz social do seu condomínio.
+
+Componentes:
+
+Satisfação geral (pesquisa anônima trimestral)
+
+Conflitos resolvidos (% de ocorrências fechadas com feedback positivo)
+
+Tempo médio de resposta (SLA real)
+
+Reincidência (problemas que voltam a ocorrer)
+
+Participação (em votações, assembleias, eventos)
+
+Usamos isso para:
+
+Alertar sobre tendências negativas antes da crise
+
+Sugerir ações preventivas (ex: melhorar iluminação do estacionamento)
+
+Valorizar sua gestão perante os moradores (com dados, não achismos)
+
+[Ver exemplo do dashboard]
+
+4. Próximos passos sugeridos (para o desenvolvedor)
+Com todo esse material, você tem:
+
+Wireframes das telas (morador e gestor) alinhados à visão
+
+Diagramas de arquitetura e fluxos
+
+Contratos de API para os módulos críticos
+
+Textos de onboarding prontos
+
+Sugestão de ordem de implementação técnica:
+
+MVP funcional (2‑3 meses)
+
+Feed básico + reservas + atendimento com SLA
+
+Dashboard financeiro do gestor
+
+Onboarding simples
+
+Camada de inteligência (2 meses)
+
+Agregação anônima de incidentes (antecipação)
+
+Geração de respostas empáticas (IA)
+
+Timeline viva manual (síndico insere marcos)
+
+Diferenciais completos (2 meses)
+
+Mediação silenciosa anônima
+
+Preditivo de conflitos
+
+Índice de Saúde automático
+
+FAQ automático

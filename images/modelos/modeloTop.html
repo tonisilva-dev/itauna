@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TOP AI — 3D Carousel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+
+/* =========================================================
+   TOKENS
+   ========================================================= */
+:root {
+  --cyan:   #57d8ff;
+  --blue:   #5a84ff;
+  --text:   #ecf4ff;
+  --muted:  #91a0be;
+  --muted2: #7180a1;
+  --line:   rgba(125,157,224,.12);
+
+  --grad: linear-gradient(135deg,#72e3ff,#669dff);
+
+  --sh-xl: 0 32px 96px rgba(0,0,0,.65);
+  --sh-lg: 0 18px 54px rgba(0,0,0,.38);
+  --sh-md: 0 10px 28px rgba(0,0,0,.22);
+
+  --r-xl: 28px;
+  --r-lg: 20px;
+  --r-md: 14px;
+  --r-sm: 10px;
+}
+
+/* =========================================================
+   RESET / BASE
+   ========================================================= */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  min-height:100vh;
+  font-family:"Inter",system-ui,sans-serif;
+  background: radial-gradient(circle at 22% 18%,rgba(78,108,199,.16),transparent 26%),
+              radial-gradient(circle at 78% 14%,rgba(28,193,255,.14),transparent 24%),
+              linear-gradient(180deg,#0c1221,#080f1a);
+  color:var(--text);
+  overflow-x:hidden;
+}
+a{color:inherit;text-decoration:none}
+button,input{font:inherit}
+
+/* =========================================================
+   AMBIENT BG
+   ========================================================= */
+.bg-orb{position:fixed;inset:0;pointer-events:none;z-index:0}
+.orb{position:absolute;border-radius:50%;filter:blur(90px)}
+.orb-a{width:420px;height:420px;top:60px;left:8%;background:rgba(71,105,255,.18)}
+.orb-b{width:480px;height:480px;top:40px;right:6%;background:rgba(20,197,255,.14)}
+.orb-c{width:300px;height:300px;bottom:60px;left:46%;background:rgba(61,120,255,.12)}
+.bg-grid{
+  position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    linear-gradient(rgba(112,145,212,.12) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(112,145,212,.12) 1px,transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(circle at 50% 40%,black 40%,transparent 78%);
+  opacity:.09;
+}
+.bg-noise{
+  position:fixed;inset:0;pointer-events:none;z-index:0;
+  opacity:.045;
+  background-image:radial-gradient(rgba(255,255,255,.28) .45px,transparent .45px);
+  background-size:8px 8px;
+  mix-blend-mode:soft-light;
+}
+
+/* =========================================================
+   CAROUSEL OUTER WRAPPER
+   ========================================================= */
+.stage-wrap{
+  position:relative;z-index:1;
+  width:100%;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:48px 0 80px;
+  gap:0;
+}
+
+/* =========================================================
+   3-D STAGE
+   ========================================================= */
+.stage{
+  position:relative;
+  width:100%;
+  max-width:1320px;
+  padding:0 24px;
+  /* perspective on the stage makes each panel rotate in 3-D */
+  perspective:2200px;
+  perspective-origin:50% 48%;
+  height:740px;
+}
+
+/* =========================================================
+   SLIDES — base
+   ========================================================= */
+.slide{
+  position:absolute;
+  /* centred by default */
+  left:50%;
+  top:0;
+  width:min(640px,86vw);
+  height:100%;
+  transform-origin:center center;
+  transform:translateX(-50%) rotateY(0deg) scale(1);
+  transform-style:preserve-3d;
+  transition:
+    transform  .72s cubic-bezier(.36,.07,.19,.97),
+    opacity    .72s cubic-bezier(.36,.07,.19,.97),
+    filter     .72s ease,
+    z-index      0s;
+  border-radius:var(--r-xl);
+  overflow:hidden;
+  /* glass surface */
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.032),rgba(255,255,255,.008)),
+    linear-gradient(160deg,rgba(13,20,35,.9),rgba(8,13,24,.97));
+  border:1px solid var(--line);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.055),
+    inset 0 0 0 1px rgba(255,255,255,.015),
+    var(--sh-xl);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+}
+
+/* inner radial tint per slide */
+.slide::before{
+  content:"";
+  position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(circle at 18% 0%,rgba(99,161,255,.13),transparent 30%),
+    radial-gradient(circle at 88% 20%,rgba(25,194,255,.10),transparent 26%);
+}
+
+/* =========================================================
+   SLIDE POSITIONS
+   ========================================================= */
+.slide.pos-active{
+  z-index:10;
+  opacity:1;
+  filter:brightness(1) blur(0px);
+  transform:translateX(-50%) rotateY(0deg) scale(1);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.065),
+    inset 0 0 0 1px rgba(255,255,255,.02),
+    0 0 0 1px rgba(87,216,255,.08),
+    0 40px 110px rgba(0,0,0,.72),
+    0 0 70px rgba(87,216,255,.08);
+}
+
+.slide.pos-prev{
+  z-index:3;
+  opacity:.72;
+  filter:brightness(.72) blur(0px) saturate(.8);
+  transform:translateX(calc(-50% - 46%)) rotateY(16deg) scale(.72);
+}
+
+.slide.pos-next{
+  z-index:3;
+  opacity:.72;
+  filter:brightness(.72) blur(0px) saturate(.8);
+  transform:translateX(calc(-50% + 46%)) rotateY(-16deg) scale(.72);
+}
+
+/* slides further away (>1 step from active) are hidden */
+.slide.pos-far-prev,
+.slide.pos-far-next{
+  z-index:0;
+  opacity:0;
+  pointer-events:none;
+  transform:translateX(-50%) rotateY(0deg) scale(.5);
+}
+
+/* =========================================================
+   PANEL INNER LAYOUT
+   ========================================================= */
+.panel-head{
+  position:relative;z-index:2;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:22px 28px 18px;
+  border-bottom:1px solid rgba(255,255,255,.04);
+}
+.logo{
+  display:inline-flex;align-items:center;gap:10px;
+  font-weight:800;letter-spacing:.1em;font-size:12.5px;
+}
+.logo-mark{
+  width:9px;height:9px;border-radius:50%;
+  background:var(--grad);
+  box-shadow:0 0 0 3.5px rgba(87,216,255,.1),0 0 20px rgba(87,216,255,.5);
+}
+.top-nav{display:flex;gap:18px;color:var(--muted);font-size:12px}
+.top-nav a:hover{color:#fff}
+.top-actions{display:flex;gap:9px}
+
+.btn{
+  cursor:pointer;border:0;
+  border-radius:11px;font-weight:800;font-size:12.5px;
+  padding:10px 15px;
+  transition:transform .18s,box-shadow .18s,background .18s;
+}
+.btn:hover{transform:translateY(-1px)}
+.btn-primary{
+  color:#07101c;background:var(--grad);
+  box-shadow:0 10px 28px rgba(76,164,255,.30);
+}
+.btn-ghost{
+  color:#d3dff6;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+}
+
+.panel-body{
+  position:relative;z-index:2;
+  display:flex;flex-direction:column;
+  padding:28px 28px 120px;
+  gap:22px;
+  height:calc(100% - 65px);
+  overflow:hidden;
+}
+
+.eyebrow{
+  font-size:10.5px;font-weight:800;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--cyan);
+}
+.section-h{
+  font-size:clamp(26px,3.8vw,36px);font-weight:900;
+  letter-spacing:-.045em;line-height:1.08;
+}
+.section-h span{
+  background:var(--grad);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.section-sub{font-size:13.5px;color:var(--muted);line-height:1.72;max-width:500px}
+
+/* =========================================================
+   SLIDE 1 — PRICING
+   ========================================================= */
+.billing-switch{
+  display:inline-flex;gap:7px;padding:5px;
+  border-radius:999px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.06);
+}
+.billing-btn{
+  padding:9px 15px;border-radius:999px;
+  background:transparent;color:#d1dcf2;border:0;cursor:pointer;
+  font-size:12px;font-weight:600;
+  transition:background .25s,color .25s;
+}
+.billing-btn.on{
+  color:#07101c;
+  background:var(--grad);
+  font-weight:800;
+}
+
+.pricing-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+}
+.price-card{
+  position:relative;
+  padding:16px;border-radius:18px;
+  border:1px solid rgba(125,157,224,.1);
+  background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.01)),rgba(255,255,255,.02);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+  transition:border-color .25s,transform .25s;
+}
+.price-card:hover{border-color:rgba(87,216,255,.22);transform:translateY(-3px)}
+.price-card.featured{
+  transform:translateY(-6px);
+  border-color:rgba(87,216,255,.26);
+  background:
+    radial-gradient(circle at top center,rgba(87,216,255,.16),transparent 44%),
+    linear-gradient(180deg,rgba(21,34,58,.88),rgba(10,17,29,.98));
+}
+.popular-badge{
+  position:absolute;top:12px;right:12px;
+  padding:5px 9px;border-radius:999px;
+  font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+  color:#07101c;background:var(--grad);
+}
+.plan-name{font-weight:700;font-size:13px;margin-bottom:8px;color:#e9f2ff}
+.price-val{
+  display:flex;align-items:flex-start;gap:3px;margin-bottom:6px;
+}
+.price-val .cur{font-size:14px;color:var(--cyan);transform:translateY(8px)}
+.price-val .num{
+  font-size:36px;font-weight:900;letter-spacing:-.06em;
+}
+.price-card.featured .num{
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.price-desc{font-size:11.5px;color:var(--muted);margin-bottom:10px;min-height:32px;line-height:1.5}
+.feat-list{list-style:none;font-size:11.5px;color:var(--muted);line-height:2}
+.feat-list li::before{content:"✓ ";color:var(--cyan)}
+.btn-card{
+  display:block;width:100%;padding:10px;border-radius:11px;text-align:center;
+  font-size:12px;font-weight:800;cursor:pointer;border:0;
+  margin-top:12px;
+  transition:transform .18s,background .18s;
+}
+.btn-card:hover{transform:translateY(-1px)}
+.price-card:not(.featured) .btn-card{
+  color:#eef5ff;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);
+}
+
+.cta-row{display:flex;gap:10px}
+
+/* =========================================================
+   SLIDE 2 — HERO
+   ========================================================= */
+.hero-split{
+  display:grid;grid-template-columns:1.1fr .9fr;gap:24px;align-items:center;
+}
+.stats-row{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px;
+}
+.stat-num{
+  font-size:26px;font-weight:900;letter-spacing:-.05em;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.stat-lbl{font-size:11px;color:var(--muted);margin-top:3px}
+
+/* AI Chip */
+.chip-wrap{position:relative;display:flex;align-items:center;justify-content:center}
+.chip-ambient{
+  position:absolute;width:240px;height:240px;border-radius:50%;
+  background:radial-gradient(circle,rgba(19,186,255,.2),rgba(19,186,255,.06),transparent 70%);
+  filter:blur(14px);
+  animation:breathe 4s ease-in-out infinite;
+}
+.chip{
+  position:relative;width:230px;height:230px;border-radius:26px;
+  background:linear-gradient(145deg,rgba(15,25,43,.98),rgba(9,14,24,.98));
+  border:1px solid rgba(102,132,204,.2);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.025),
+    0 28px 56px rgba(0,0,0,.34),
+    0 0 44px rgba(24,186,255,.09);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+}
+.chip-ring{position:absolute;border-radius:22px;border:1px solid rgba(87,216,255,.1)}
+.chip-ring-1{inset:14px}
+.chip-ring-2{inset:36px;border-color:rgba(90,132,255,.13)}
+.chip-core{
+  position:relative;z-index:2;
+  font-size:82px;font-weight:900;letter-spacing:-.06em;color:#7fe7ff;
+  text-shadow:0 0 10px rgba(127,231,255,.8),0 0 28px rgba(24,186,255,.35),0 0 50px rgba(90,132,255,.25);
+}
+.trace{position:absolute;background:linear-gradient(90deg,transparent,rgba(87,216,255,.55),transparent)}
+.trace-top,.trace-bottom{width:1px;left:50%;transform:translateX(-50%);height:64px}
+.trace-top{top:18px}
+.trace-bottom{bottom:18px}
+.trace-l,.trace-r{height:1px;top:50%;transform:translateY(-50%);width:68px}
+.trace-l{left:14px}
+.trace-r{right:14px}
+.node{position:absolute;width:7px;height:7px;border-radius:50%;background:#79e6ff;box-shadow:0 0 14px rgba(121,230,255,.7)}
+.n1{top:80px;left:50%;transform:translateX(-50%)}
+.n2{bottom:80px;left:50%;transform:translateX(-50%)}
+.n3{top:50%;left:82px;transform:translateY(-50%)}
+.n4{top:50%;right:82px;transform:translateY(-50%)}
+
+/* hero lower flex */
+.hero-lower{
+  display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;
+  padding-top:16px;border-top:1px solid rgba(255,255,255,.04);
+  margin-top:auto;
+}
+.hex-cluster{position:relative;width:190px;height:130px;flex-shrink:0}
+.hex{
+  position:absolute;width:56px;height:64px;
+  clip-path:polygon(25% 6%,75% 6%,100% 50%,75% 94%,25% 94%,0 50%);
+  background:linear-gradient(180deg,rgba(58,94,170,.36),rgba(16,28,48,.94));
+  border:1px solid rgba(122,154,232,.15);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 14px 20px rgba(0,0,0,.26);
+}
+.hx1{left:0;top:36px}
+.hx2{left:44px;top:2px}
+.hx3{left:44px;top:68px}
+.hx4{left:88px;top:36px}
+.hx5{left:132px;top:68px}
+
+/* =========================================================
+   SLIDE 3 — AGENTS
+   ========================================================= */
+.accordion{display:flex;flex-direction:column;gap:10px}
+.acc-item{
+  border-radius:14px;overflow:hidden;
+  border:1px solid rgba(125,157,224,.1);
+  background:rgba(255,255,255,.015);
+}
+.acc-trigger{
+  width:100%;border:0;background:transparent;color:#eef5ff;
+  padding:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  text-align:left;cursor:pointer;font-size:13px;
+}
+.acc-icon{
+  width:30px;height:30px;display:grid;place-items:center;flex-shrink:0;
+  border-radius:999px;background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.09);color:var(--cyan);font-size:14px;
+  transition:transform .25s,background .25s;
+}
+.acc-item.open .acc-icon{background:rgba(87,216,255,.15);transform:rotate(45deg)}
+.acc-body{
+  max-height:0;overflow:hidden;padding:0 16px;
+  color:var(--muted);font-size:12.5px;line-height:1.72;
+  transition:max-height .28s ease,padding .28s ease;
+}
+.acc-item.open .acc-body{max-height:120px;padding:0 16px 14px}
+
+.adoption-box{
+  padding:18px;border-radius:16px;
+  border:1px solid rgba(125,157,224,.1);
+  background:
+    radial-gradient(circle at top left,rgba(87,216,255,.08),transparent 44%),
+    rgba(255,255,255,.02);
+  display:flex;gap:14px;align-items:flex-start;
+}
+.adopt-icon{
+  width:38px;height:38px;flex-shrink:0;border-radius:12px;
+  display:grid;place-items:center;font-size:16px;
+  background:linear-gradient(135deg,rgba(87,216,255,.18),rgba(90,132,255,.18));
+  color:#99e7ff;
+}
+.adopt-body strong{display:block;font-size:13px;margin-bottom:5px}
+.adopt-body p{font-size:12px;color:var(--muted);line-height:1.6}
+
+/* =========================================================
+   BADGES BAR (bottom inside each slide)
+   ========================================================= */
+.panel-badges{
+  position:absolute;bottom:0;left:0;right:0;z-index:3;
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:1px;background:rgba(255,255,255,.04);
+  border-top:1px solid rgba(255,255,255,.04);
+  border-radius:0 0 var(--r-xl) var(--r-xl);overflow:hidden;
+}
+.badge-item{
+  min-height:56px;
+  background:rgba(255,255,255,.018);
+  display:flex;align-items:center;justify-content:center;
+  gap:9px;font-size:12px;font-weight:500;color:#e7f0fe;
+}
+.badge-icon{color:var(--cyan);text-shadow:0 0 16px rgba(87,216,255,.5)}
+
+/* =========================================================
+   CAROUSEL CONTROLS
+   ========================================================= */
+.controls{
+  position:relative;z-index:5;
+  display:flex;align-items:center;justify-content:center;
+  gap:28px;
+  margin-top:36px;
+}
+.ctrl-btn{
+  width:46px;height:46px;border-radius:50%;cursor:pointer;
+  border:1px solid rgba(125,157,224,.22);
+  background:rgba(255,255,255,.04);
+  color:var(--cyan);font-size:18px;
+  display:grid;place-items:center;
+  transition:all .24s;
+}
+.ctrl-btn:hover{
+  background:rgba(87,216,255,.16);
+  border-color:var(--cyan);
+  box-shadow:0 0 22px rgba(87,216,255,.38);
+  transform:scale(1.06);
+}
+.dots{display:flex;gap:8px;align-items:center}
+.dot{
+  width:9px;height:9px;border-radius:50%;cursor:pointer;
+  background:rgba(255,255,255,.2);
+  border:1px solid rgba(87,216,255,.28);
+  transition:all .3s;
+}
+.dot.on{
+  width:26px;border-radius:5px;
+  background:var(--cyan);border-color:var(--cyan);
+  box-shadow:0 0 14px rgba(87,216,255,.65);
+}
+
+/* slide label */
+.slide-label{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%, -50%);
+  white-space:nowrap;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--cyan);
+  opacity:0;
+  transition:opacity .3s;
+  pointer-events:none;
+  text-shadow:0 0 16px rgba(87,216,255,.8);
+}
+.slide.pos-prev .slide-label,
+.slide.pos-next .slide-label{
+  opacity:1;
+}
+
+/* =========================================================
+   TOAST
+   ========================================================= */
+.toast{
+  position:fixed;bottom:24px;left:50%;
+  transform:translateX(-50%) translateY(16px);
+  opacity:0;pointer-events:none;z-index:99;
+  padding:12px 18px;border-radius:12px;font-size:13px;
+  color:#edf5ff;background:rgba(9,15,27,.92);
+  border:1px solid rgba(125,157,224,.16);
+  box-shadow:var(--sh-md);transition:220ms ease;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* =========================================================
+   ANIMATIONS
+   ========================================================= */
+@keyframes breathe{
+  0%,100%{transform:scale(1);opacity:.85}
+  50%{transform:scale(1.08);opacity:1}
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media(max-width:1000px){
+  .stage{height:680px}
+  .slide{width:min(580px,88vw)}
+  .slide.pos-prev{transform:translateX(calc(-50% - 42%)) rotateY(14deg) scale(.7)}
+  .slide.pos-next{transform:translateX(calc(-50% + 42%)) rotateY(-14deg) scale(.7)}
+}
+@media(max-width:720px){
+  .top-nav,.btn-ghost{display:none}
+  .stage{height:auto;min-height:580px;perspective:none}
+  .slide{
+    position:relative;left:auto;top:auto;
+    width:calc(100vw - 32px);height:auto;
+    transform:none!important;opacity:1!important;filter:none!important;
+    display:none;
+  }
+  .slide.pos-active{display:flex;flex-direction:column}
+  .slide.pos-prev,.slide.pos-next{display:none}
+  .pricing-grid{grid-template-columns:1fr}
+  .hero-split{grid-template-columns:1fr}
+  .stats-row{grid-template-columns:repeat(3,1fr)}
+}
+  </style>
+</head>
+<body>
+
+<!-- BG -->
+<div class="bg-orb">
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="orb orb-c"></div>
+</div>
+<div class="bg-grid"></div>
+<div class="bg-noise"></div>
+
+<div class="stage-wrap">
+
+  <!-- ===================== 3-D STAGE ===================== -->
+  <div class="stage" id="stage">
+
+    <!-- ========== SLIDE A: PRICING ========== -->
+    <div class="slide" id="slide-0" data-label="Pricing">
+      <span class="slide-label">Pricing</span>
+
+      <div class="panel-head">
+        <div class="logo"><span class="logo-mark"></span>TOP</div>
+        <nav class="top-nav">
+          <a href="#">Home</a>
+          <a href="#">Plans</a>
+          <a href="#">Docs</a>
+        </nav>
+        <div class="top-actions">
+          <button class="btn btn-ghost">Sign In</button>
+          <button class="btn btn-primary">Get Started</button>
+        </div>
+      </div>
+
+      <div class="panel-body">
+        <div>
+          <p class="eyebrow">Pricing</p>
+          <h2 class="section-h">Find the Best Plan<br/>for Your <span>AI Journey</span></h2>
+        </div>
+
+        <div class="billing-switch" id="billSwitch">
+          <button class="billing-btn on" data-mode="monthly">Monthly</button>
+          <button class="billing-btn" data-mode="yearly">Yearly <span style="font-size:10px;color:var(--cyan)">–20%</span></button>
+        </div>
+
+        <div class="pricing-grid">
+          <!-- Starter -->
+          <article class="price-card">
+            <div class="plan-name">Starter</div>
+            <div class="price-val"><span class="cur">$</span><span class="num" data-monthly="0" data-yearly="0">0</span></div>
+            <div class="price-desc">Perfect for trying the platform</div>
+            <ul class="feat-list">
+              <li>AI prompt kit</li>
+              <li>1 workspace</li>
+              <li>Basic automation</li>
+            </ul>
+            <button class="btn-card">Get Started</button>
+          </article>
+          <!-- Basic (featured) -->
+          <article class="price-card featured">
+            <div class="popular-badge">Popular</div>
+            <div class="plan-name">Basic</div>
+            <div class="price-val"><span class="cur">$</span><span class="num" data-monthly="20" data-yearly="16">20</span></div>
+            <div class="price-desc">For growing AI product teams</div>
+            <ul class="feat-list">
+              <li>Advanced workflows</li>
+              <li>Priority support</li>
+              <li>Team collab</li>
+            </ul>
+            <button class="btn-card btn-primary">Choose Plan</button>
+          </article>
+          <!-- Plus -->
+          <article class="price-card">
+            <div class="plan-name">Plus</div>
+            <div class="price-val"><span class="cur">$</span><span class="num" data-monthly="39" data-yearly="31">39</span></div>
+            <div class="price-desc">For production-scale operations</div>
+            <ul class="feat-list">
+              <li>Unlimited projects</li>
+              <li>Enterprise analytics</li>
+              <li>Custom components</li>
+            </ul>
+            <button class="btn-card">Upgrade</button>
+          </article>
+        </div>
+
+        <div class="cta-row" style="margin-top:auto">
+          <button class="btn btn-primary">View All Plans</button>
+          <button class="btn btn-ghost">Compare Features</button>
+        </div>
+      </div>
+
+      <div class="panel-badges">
+        <div class="badge-item"><span class="badge-icon">✦</span>Global Style Guide</div>
+        <div class="badge-item"><span class="badge-icon">◈</span>Well Organized Layer</div>
+        <div class="badge-item"><span class="badge-icon">⌘</span>Fully Customizable</div>
+      </div>
+    </div>
+
+    <!-- ========== SLIDE B: HERO ========== -->
+    <div class="slide" id="slide-1" data-label="Platform">
+      <span class="slide-label">Platform</span>
+
+      <div class="panel-head">
+        <div class="logo"><span class="logo-mark"></span>TOP</div>
+        <nav class="top-nav">
+          <a href="#">Home</a>
+          <a href="#">Company</a>
+          <a href="#">Products</a>
+          <a href="#">Pricing</a>
+        </nav>
+        <div class="top-actions">
+          <button class="btn btn-ghost">Sign In</button>
+          <button class="btn btn-primary">Get Started</button>
+        </div>
+      </div>
+
+      <div class="panel-body" style="gap:18px">
+        <p class="eyebrow">AI Development Platform</p>
+
+        <div class="hero-split">
+          <div>
+            <h2 class="section-h">Powering <span>the Future</span><br/>of AI Development</h2>
+            <p class="section-sub" style="margin-top:12px">Robust and scalable framework for seamless integration across modern intelligent systems.</p>
+            <div class="stats-row" style="margin-top:18px">
+              <div><div class="stat-num">50%</div><div class="stat-lbl">Faster Dev Time</div></div>
+              <div><div class="stat-num">20+</div><div class="stat-lbl">AI Libraries</div></div>
+              <div><div class="stat-num">3×</div><div class="stat-lbl">Performance</div></div>
+            </div>
+          </div>
+
+          <div class="chip-wrap">
+            <div class="chip-ambient"></div>
+            <div class="chip">
+              <div class="chip-ring chip-ring-1"></div>
+              <div class="chip-ring chip-ring-2"></div>
+              <div class="chip-core">AI</div>
+              <span class="trace trace-top"></span>
+              <span class="trace trace-bottom"></span>
+              <span class="trace trace-l"></span>
+              <span class="trace trace-r"></span>
+              <span class="node n1"></span>
+              <span class="node n2"></span>
+              <span class="node n3"></span>
+              <span class="node n4"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-lower">
+          <div class="hex-cluster">
+            <span class="hex hx1"></span>
+            <span class="hex hx2"></span>
+            <span class="hex hx3"></span>
+            <span class="hex hx4"></span>
+            <span class="hex hx5"></span>
+          </div>
+          <div>
+            <p class="eyebrow" style="margin-bottom:8px">Infrastructure</p>
+            <h3 style="font-size:20px;font-weight:900;letter-spacing:-.03em;line-height:1.15">Build with TOP for<br/>Greater Flexibility</h3>
+            <p style="font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.72">Modular layers, reusable workflows and polished design system for teams that need speed, scalability and control.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-badges">
+        <div class="badge-item"><span class="badge-icon">✦</span>Global Style Guide</div>
+        <div class="badge-item"><span class="badge-icon">◈</span>Well Organized Layer</div>
+        <div class="badge-item"><span class="badge-icon">⌘</span>Fully Customizable</div>
+      </div>
+    </div>
+
+    <!-- ========== SLIDE C: AGENTS ========== -->
+    <div class="slide" id="slide-2" data-label="Agents">
+      <span class="slide-label">Agents</span>
+
+      <div class="panel-head">
+        <div class="logo"><span class="logo-mark"></span>TOP</div>
+        <nav class="top-nav">
+          <a href="#">Agents</a>
+          <a href="#">Adoption</a>
+          <a href="#">Safety</a>
+        </nav>
+        <div class="top-actions">
+          <button class="btn btn-ghost">Sign In</button>
+          <button class="btn btn-primary">Build Agent</button>
+        </div>
+      </div>
+
+      <div class="panel-body" style="gap:18px">
+        <div>
+          <p class="eyebrow">Agents & Adoption</p>
+          <h2 class="section-h">Smart <span>Tools</span> for You<br/>to Build Perfect Agents</h2>
+        </div>
+
+        <div class="accordion" id="accordion">
+          <article class="acc-item open">
+            <button class="acc-trigger">
+              <span>Agent orchestration and prompt chaining</span>
+              <span class="acc-icon">↗</span>
+            </button>
+            <div class="acc-body">Combine prompts, tools and outputs into a controlled workflow with reusable building blocks.</div>
+          </article>
+          <article class="acc-item">
+            <button class="acc-trigger">
+              <span>Prebuilt templates and modular components</span>
+              <span class="acc-icon">↗</span>
+            </button>
+            <div class="acc-body">Launch faster with editable templates for support, research and internal AI products.</div>
+          </article>
+          <article class="acc-item">
+            <button class="acc-trigger">
+              <span>Monitoring, safety and output consistency</span>
+              <span class="acc-icon">↗</span>
+            </button>
+            <div class="acc-body">Add guardrails, auditing and performance insight without losing speed.</div>
+          </article>
+        </div>
+
+        <div>
+          <p class="eyebrow" style="margin-bottom:10px">Adoption</p>
+          <h3 style="font-size:22px;font-weight:900;letter-spacing:-.035em;line-height:1.15;margin-bottom:14px">Make It <span style="background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent">Easier</span> for<br/>Teams to Adopt AI</h3>
+          <div class="adoption-box">
+            <div class="adopt-icon">⚡</div>
+            <div class="adopt-body">
+              <strong>Fast and Scalable</strong>
+              <p>Move from concept to deployment through a cleaner product flow without rigid constraints.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-badges">
+        <div class="badge-item"><span class="badge-icon">✦</span>Global Style Guide</div>
+        <div class="badge-item"><span class="badge-icon">◈</span>Well Organized Layer</div>
+        <div class="badge-item"><span class="badge-icon">⌘</span>Fully Customizable</div>
+      </div>
+    </div>
+
+  </div><!-- /.stage -->
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <button class="ctrl-btn" id="prevBtn">←</button>
+    <div class="dots">
+      <span class="dot on" data-s="0"></span>
+      <span class="dot" data-s="1"></span>
+      <span class="dot" data-s="2"></span>
+    </div>
+    <button class="ctrl-btn" id="nextBtn">→</button>
+  </div>
+
+</div><!-- /.stage-wrap -->
+
+<div class="toast" id="toast"></div>
+
+<!-- =========================================================
+     JAVASCRIPT
+     ========================================================= -->
+<script>
+/* ——— state ——— */
+const TOTAL = 3;
+let cur = 1;          // hero is center on load
+let autoTimer;
+
+/* ——— elements ——— */
+const slides  = [...document.querySelectorAll(".slide")];
+const dots    = [...document.querySelectorAll(".dot")];
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const toast   = document.getElementById("toast");
+let toastT;
+
+/* ——— position assignment ——— */
+function posClass(slideIdx){
+  const diff = ((slideIdx - cur) % TOTAL + TOTAL) % TOTAL;
+  // diff=0 → active, diff=1 → next, diff=TOTAL-1 → prev
+  if(diff === 0) return "pos-active";
+  if(diff === 1) return "pos-next";
+  if(diff === TOTAL - 1) return "pos-prev";
+  return diff <= Math.floor(TOTAL/2) ? "pos-far-next" : "pos-far-prev";
+}
+
+function render(){
+  slides.forEach((s, i)=>{
+    s.className = "slide " + posClass(i);
+  });
+  dots.forEach((d, i)=>{
+    d.classList.toggle("on", i === cur);
+  });
+}
+
+/* ——— navigation ——— */
+function goTo(idx){
+  cur = ((idx % TOTAL) + TOTAL) % TOTAL;
+  render();
+}
+function next(){ goTo(cur + 1); resetAuto(); }
+function prev(){ goTo(cur - 1); resetAuto(); }
+
+/* ——— auto-play ——— */
+function startAuto(){ autoTimer = setInterval(next, 5000); }
+function stopAuto(){  clearInterval(autoTimer); }
+function resetAuto(){ stopAuto(); startAuto(); }
+
+/* ——— event listeners ——— */
+nextBtn.addEventListener("click", next);
+prevBtn.addEventListener("click", prev);
+dots.forEach(d => d.addEventListener("click", ()=>{ goTo(+d.dataset.s); resetAuto(); }));
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="ArrowRight") next();
+  if(e.key==="ArrowLeft")  prev();
+});
+
+/* click on non-active slide → jump to it */
+slides.forEach((s, i)=>{
+  s.addEventListener("click", ()=>{
+    if(!s.classList.contains("pos-active")){ goTo(i); resetAuto(); }
+  });
+});
+
+/* pause on hover */
+const wrap = document.querySelector(".stage");
+wrap.addEventListener("mouseenter", stopAuto);
+wrap.addEventListener("mouseleave", startAuto);
+
+/* ——— billing toggle (Slide A) ——— */
+const billBtns  = document.querySelectorAll(".billing-btn");
+const priceNums = document.querySelectorAll(".num");
+
+function animNum(el, to){
+  const from = +el.textContent || 0, s = performance.now();
+  (function tick(now){
+    const p = Math.min((now-s)/480,1), e = 1-Math.pow(1-p,3);
+    el.textContent = Math.round(from + (to-from)*e);
+    if(p<1) requestAnimationFrame(tick);
+  })(performance.now());
+}
+
+billBtns.forEach(b=>{
+  b.addEventListener("click", ()=>{
+    const mode = b.dataset.mode;
+    billBtns.forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    priceNums.forEach(n=>{
+      animNum(n, +(n.dataset[mode]||0));
+    });
+    showToast(mode==="monthly" ? "Monthly billing active" : "Yearly billing — save 20%");
+  });
+});
+
+/* ——— accordion (Slide C) ——— */
+document.querySelectorAll(".acc-trigger").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const item = btn.closest(".acc-item");
+    const isOpen = item.classList.contains("open");
+    document.querySelectorAll(".acc-item").forEach(i=>i.classList.remove("open"));
+    if(!isOpen) item.classList.add("open");
+  });
+});
+
+/* ——— counter (hero stats) ——— */
+const io = new IntersectionObserver(entries=>{
+  entries.forEach(en=>{
+    if(!en.isIntersecting) return;
+    const el = en.target;
+    // skip if already animated
+    if(el._done) return; el._done = true;
+    const t = +(el.dataset.counter||0);
+    const s = performance.now();
+    (function tick(now){
+      const p = Math.min((now-s)/1400,1), e = 1-Math.pow(1-p,3);
+      el.textContent = Math.round(t*e);
+      if(p<1) requestAnimationFrame(tick);
+    })(performance.now());
+    io.unobserve(el);
+  });
+},{threshold:.4});
+document.querySelectorAll("[data-counter]").forEach(el=>io.observe(el));
+
+/* ——— toast ——— */
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add("show");
+  clearTimeout(toastT);
+  toastT = setTimeout(()=>toast.classList.remove("show"), 1900);
+}
+
+/* ——— init ——— */
+render();
+startAuto();
+</script>
+</body>
+</html>

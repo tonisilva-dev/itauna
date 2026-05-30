@@ -1,0 +1,467 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================
+   DESIGN TOKENS — modeloTop.html
+   ========================================================= */
+:root {
+  --cyan:   #57d8ff;
+  --blue:   #5a84ff;
+  --red:    #ef4444;
+  --green:  #10b981;
+  --yellow: #f59e0b;
+  --text:   #ecf4ff;
+  --muted:  #91a0be;
+  --muted2: #7180a1;
+  --line:   rgba(125,157,224,.12);
+
+  --grad:   linear-gradient(135deg, #72e3ff, #669dff);
+  --grad-r: linear-gradient(135deg, #669dff, #72e3ff);
+
+  --sh-xl: 0 32px 96px rgba(0,0,0,.65);
+  --sh-lg: 0 18px 54px rgba(0,0,0,.38);
+  --sh-md: 0 10px 28px rgba(0,0,0,.22);
+
+  --r-xl: 28px;
+  --r-lg: 20px;
+  --r-md: 14px;
+  --r-sm: 10px;
+}
+
+/* =========================================================
+   RESET / BASE
+   ========================================================= */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html {
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background:
+      radial-gradient(circle at 22% 18%, rgba(78,108,199,.16), transparent 26%),
+      radial-gradient(circle at 78% 14%, rgba(28,193,255,.14), transparent 24%),
+      linear-gradient(180deg, #0c1221, #080f1a);
+    background-attachment: fixed;
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  #root { min-height: 100vh; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: #0e1525; }
+  ::-webkit-scrollbar-thumb { background: rgba(125,157,224,.3); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
+
+  a { color: inherit; text-decoration: none; }
+  button, input, select, textarea { font: inherit; }
+}
+
+/* =========================================================
+   AMBIENT BACKGROUND — orbs + grid + noise (fixed layers)
+   ========================================================= */
+@layer components {
+
+  /* Applied to the orb wrapper div in AppLayout */
+  .bg-orbs {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  }
+  .bg-orb {
+    position: absolute; border-radius: 50%; filter: blur(90px);
+  }
+  .bg-orb-a {
+    width: 420px; height: 420px; top: 60px; left: 8%;
+    background: rgba(71,105,255,.18);
+  }
+  .bg-orb-b {
+    width: 480px; height: 480px; top: 40px; right: 6%;
+    background: rgba(20,197,255,.14);
+  }
+  .bg-orb-c {
+    width: 300px; height: 300px; bottom: 60px; left: 46%;
+    background: rgba(61,120,255,.12);
+  }
+  .bg-grid {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      linear-gradient(rgba(112,145,212,.12) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(112,145,212,.12) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(circle at 50% 40%, black 40%, transparent 78%);
+    opacity: .09;
+  }
+  .bg-noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    opacity: .045;
+    background-image: radial-gradient(rgba(255,255,255,.28) .45px, transparent .45px);
+    background-size: 8px 8px;
+    mix-blend-mode: soft-light;
+  }
+
+  /* ─── Cards — glassmorphism ─── */
+  .card {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.032), rgba(255,255,255,.008)),
+      linear-gradient(160deg, rgba(13,20,35,.90), rgba(8,13,24,.97));
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.055),
+      inset 0 0 0 1px rgba(255,255,255,.015),
+      var(--sh-lg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: clamp(0.875rem, 3vw, 1.5rem);
+  }
+  .card::before {
+    content: "";
+    position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+    background:
+      radial-gradient(circle at 18% 0%, rgba(99,161,255,.13), transparent 30%),
+      radial-gradient(circle at 88% 20%, rgba(25,194,255,.10), transparent 26%);
+  }
+  .card { position: relative; }
+
+  .card-hover { transition: all 0.28s cubic-bezier(.36,.07,.19,.97); cursor: pointer; }
+  .card-hover:hover {
+    border-color: rgba(87,216,255,.22);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.065),
+      inset 0 0 0 1px rgba(255,255,255,.02),
+      0 0 0 1px rgba(87,216,255,.08),
+      0 24px 64px rgba(0,0,0,.55),
+      0 0 48px rgba(87,216,255,.07);
+    transform: translateY(-2px);
+  }
+
+  /* ─── Buttons ─── */
+  .btn-primary {
+    background: var(--grad);
+    color: #07101c;
+    font-weight: 800;
+    font-size: 0.8125rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 11px;
+    border: none;
+    cursor: pointer;
+    transition: transform .18s, box-shadow .18s, filter .18s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    box-shadow: 0 10px 28px rgba(76,164,255,.30);
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 36px rgba(87,216,255,.42);
+    filter: brightness(1.08);
+  }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; filter: none; }
+
+  .btn-secondary {
+    color: #d3dff6;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.09);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 11px;
+    cursor: pointer;
+    transition: transform .18s, background .18s, border-color .18s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+  }
+  .btn-secondary:hover {
+    transform: translateY(-1px);
+    background: rgba(255,255,255,.08);
+    border-color: rgba(87,216,255,.28);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    transition: background .18s, color .18s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,.06); color: var(--text); }
+
+  .btn-danger {
+    background: rgba(239,68,68,.1);
+    color: #ef4444;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 11px;
+    border: 1px solid rgba(239,68,68,.25);
+    cursor: pointer;
+    transition: background .18s, color .18s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .btn-danger:hover { background: #ef4444; color: #fff; }
+
+  /* ─── Inputs & Selects ─── */
+  .input {
+    background: rgba(255,255,255,.03);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    padding: 0.625rem 1rem;
+    color: var(--text);
+    font-size: 0.875rem;
+    width: 100%;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .input::placeholder { color: var(--muted2); }
+  .input:focus {
+    border-color: rgba(87,216,255,.45);
+    box-shadow: 0 0 0 3px rgba(87,216,255,.10);
+  }
+
+  /* Select — aparência consistente com o tema escuro */
+  select.input,
+  select[class~="input"] {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2391a0be' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    padding-right: 2.25rem;
+    cursor: pointer;
+  }
+  select.input:focus,
+  select[class~="input"]:focus {
+    border-color: rgba(87,216,255,.45);
+    box-shadow: 0 0 0 3px rgba(87,216,255,.10);
+  }
+  /* Opções do select — fundo escuro em todos os browsers */
+  select.input option,
+  select[class~="input"] option {
+    background: #0e1828;
+    color: #ecf4ff;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+  }
+  select.input option:checked,
+  select[class~="input"] option:checked {
+    background: rgba(87,216,255,.18);
+    color: var(--cyan);
+  }
+  select.input option:disabled,
+  select[class~="input"] option:disabled {
+    color: var(--muted2);
+  }
+  .input-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 0.375rem;
+    display: block;
+    letter-spacing: .02em;
+  }
+
+  /* ─── Badges ─── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 0.375rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.7rem; font-weight: 700; letter-spacing: .06em;
+  }
+  .badge-green  { background: rgba(16,185,129,.12);  color: #10b981; border: 1px solid rgba(16,185,129,.22); }
+  .badge-red    { background: rgba(239,68,68,.12);   color: #ef4444; border: 1px solid rgba(239,68,68,.22); }
+  .badge-yellow { background: rgba(245,158,11,.12);  color: #f59e0b; border: 1px solid rgba(245,158,11,.22); }
+  .badge-blue   { background: rgba(90,132,255,.14);  color: #7ba8ff; border: 1px solid rgba(90,132,255,.25); }
+  .badge-teal   { background: rgba(87,216,255,.12);  color: var(--cyan); border: 1px solid rgba(87,216,255,.22); }
+  .badge-gray   { background: rgba(255,255,255,.06); color: var(--muted); border: 1px solid rgba(255,255,255,.1); }
+  .badge-purple { background: rgba(139,92,246,.12);  color: #a78bfa; border: 1px solid rgba(139,92,246,.22); }
+
+  /* ─── Nav items ─── */
+  .nav-item {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.6rem 0.875rem; border-radius: var(--r-md);
+    color: var(--muted2); transition: all 0.18s ease;
+    font-size: 0.855rem; font-weight: 500; cursor: pointer;
+    text-decoration: none;
+    border: 1px solid transparent;
+  }
+  .nav-item:hover {
+    color: var(--text);
+    background: rgba(255,255,255,.05);
+    border-color: var(--line);
+  }
+  .nav-item-active {
+    color: var(--cyan) !important;
+    background: rgba(87,216,255,.1) !important;
+    border-color: rgba(87,216,255,.18) !important;
+  }
+
+  /* ─── Glow & decorative ─── */
+  .teal-glow {
+    color: var(--cyan);
+    text-shadow: 0 0 24px rgba(87,216,255,.55);
+  }
+  .grad-text {
+    background: var(--grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .dot-online {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 8px rgba(16,185,129,.7);
+    animation: pulse 2s infinite;
+    flex-shrink: 0;
+  }
+
+  /* ─── Animations ─── */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); opacity: .85; }
+    50%       { transform: scale(1.08); opacity: 1; }
+  }
+  .animate-fade-in  { animation: fadeIn   0.25s ease-out; }
+  .animate-slide-up { animation: slideUp  0.35s ease-out; }
+  .animate-slide-in { animation: slideInLeft 0.3s ease-out; }
+
+  /* ─── Responsive grids ─── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  @media (min-width: 1024px) {
+    .stat-grid { grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  }
+  .stat-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  @media (min-width: 1024px) {
+    .stat-grid-3 { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* ─── Table ─── */
+  .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-responsive table { min-width: 520px; }
+
+  /* ─── Sidebar ─── */
+  .sidebar-enter { transform: translateX(-100%); }
+  .sidebar-enter-active { transform: translateX(0); transition: transform 0.28s ease; }
+
+  /* ─── Typography helpers ─── */
+  .kpi-value {
+    font-size: clamp(1.25rem, 5vw, 2rem);
+    font-weight: 900;
+    color: var(--text);
+  }
+  .page-title {
+    font-size: clamp(1.15rem, 4vw, 1.6rem);
+    font-weight: 800;
+    color: var(--text);
+  }
+  .eyebrow {
+    font-size: 10.5px; font-weight: 800; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--cyan);
+  }
+
+  /* ─── Dividers ─── */
+  .divide-y > * + * { border-top: 1px solid var(--line); }
+
+  /* =========================================================
+     STEVE JOBS SIGNATURE — POLIMENTOS SENSORIAIS PREMIUM
+     ========================================================= */
+
+  /* Animação do Lago Vivo */
+  @keyframes lake-breathe {
+    0%, 100% {
+      transform: scale(1) translate(0, 0);
+      opacity: 0.08;
+    }
+    50% {
+      transform: scale(1.03) translate(1px, -1px);
+      opacity: 0.125;
+    }
+  }
+  .animate-lake-breathe {
+    animation: lake-breathe 28s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+
+  /* Auras Coloridas nos StatCards baseadas no ícone */
+  .stat-card-premium {
+    transition: all 0.3s cubic-bezier(.36,.07,.19,.97) !important;
+  }
+  .stat-card-premium:hover {
+    border-color: var(--icon-glow-color, rgba(87, 216, 255, 0.22)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.075),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+      0 0 0 1px var(--icon-glow-color, rgba(87, 216, 255, 0.08)),
+      0 24px 64px rgba(0, 0, 0, 0.58),
+      0 0 35px var(--icon-glow-color, rgba(87, 216, 255, 0.15)) !important;
+    transform: translateY(-2px);
+  }
+
+  /* Shimmer Metálico Fluido no Letreiro */
+  @keyframes textShimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .shimmer-text {
+    background: linear-gradient(90deg, #ffffff 0%, #72e3ff 30%, #ffffff 60%, #72e3ff 80%, #ffffff 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: textShimmer 7.5s linear infinite;
+    will-change: background-position;
+  }
+
+  /* ── Hero expand: card cresce até preencher a área de conteúdo ── */
+  @keyframes menu-burst {
+    0% {
+      transform: translate(0, 0) scaleX(1) scaleY(1);
+      border-radius: 14px;
+      opacity: 1;
+    }
+    100% {
+      transform: translate(var(--tx), var(--ty)) scaleX(var(--sx)) scaleY(var(--sy));
+      border-radius: 22px;
+      opacity: 0.97;
+    }
+  }
+}

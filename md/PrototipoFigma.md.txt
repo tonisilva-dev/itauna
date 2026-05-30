@@ -1,0 +1,238 @@
+Perfeito. Vou criar uma **descrição textual detalhada de um protótipo navegável no Figma**, contemplando as jornadas do morador e do gestor, além das transições, microinterações e comportamentos esperados. O texto está estruturado para que um designer de UX/UI possa implementar diretamente no Figma (modo prototype), com links, overlays, delays e animações.
+
+---
+
+# Protótipo Navegável – Plataforma de Convivência e Confiança Condominial
+
+## Estrutura Geral do Projeto no Figma
+
+- **Pages** (páginas separadas):
+  1. `Login / Onboarding`
+  2. `Home do Morador (Feed Inteligente)`
+  3. `Eventos (Morador)`
+  4. `Mediação Silenciosa (Morador)`
+  5. `Timeline Viva (Morador)`
+  6. `Dashboard do Gestor`
+  7. `Alertas Preventivos (Gestor)`
+  8. `Detalhe de Ocorrência (Gestor)`
+  9. `Perfil / Configurações`
+
+- **Componentes reutilizáveis**:
+  - Bottom navigation (morador)
+  - Header com notificações e avatar
+  - Card de evento (com estado normal, expandido, inscrito)
+  - Card de ocorrência (status, prazo)
+  - Botão de ação primário/secundário
+  - Modal de confirmação
+  - Toast de notificação (animação de entrada)
+
+- **Estilos**:
+  - Cores: azul escuro (#0A2540) para headers, azul claro (#0077B6) para ações, cinza claro (#F7F9FC) para fundos, verde (#2E8B57) para sucesso/confiança, vermelho suave (#D9534F) para alertas.
+  - Tipografia: Inter (títulos, corpo), tamanhos responsivos (mobile-first, até 375px de largura).
+  - Sombras e bordas arredondadas (8px) para cards.
+
+---
+
+## 1. Tela: Login / Onboarding
+
+### Layout
+
+**Frame 1 – Onboarding (primeiro acesso)**  
+*Aparece apenas se usuário nunca logou.*
+
+- **Carrossel de 3 slides** (com gesto de arraste e dots indicadores):
+  1. *“Seu condomínio que funciona em silêncio”* – Ilustração de pessoas convivendo sem conflito.
+  2. *“Resolvemos problemas antes que você reclame”* – Ilustração de engrenagem com check.
+  3. *“Privacidade e transparência, lado a lado”* – Ícone de escudo e olho.
+
+- **Botão “Começar”** (centralizado, cor primária). Ao clicar, vai para a tela de login.
+
+**Frame 2 – Login**  
+- Campo: `E-mail` (texto, placeholder "seu@email.com")  
+- Campo: `Senha` (password, placeholder "••••••")  
+- Link “Esqueci minha senha” (abre modal de recuperação)  
+- Botão “Entrar” (primário).  
+- Opção “Entrar como gestor” (link pequeno) – alterna para login com permissões de síndico.
+
+**Frame 3 – Primeiro acesso (pós-login, perfil morador)**  
+- **Mensagem de boas-vindas personalizada**: *“Olá, [nome]! Vamos preparar sua experiência.”*  
+- **Checklist simples**:  
+  - [ ] Confirmar meu número de unidade (campo numérico)  
+  - [ ] Aceitar política de privacidade (link para documento)  
+  - [ ] Permitir notificações push (botão “Ativar”)  
+- Botão “Ir para o Feed” (primário). Ao clicar, navega para `Home do Morador`.
+
+### Interações e transições
+
+- Ao clicar em “Começar” → animação de fade-out do carrossel, fade-in do login.
+- Ao clicar em “Entrar” (sucesso) → transição para a tela de primeiro acesso (se for novo) ou direto para Feed (se já existir).
+- Ao clicar em “Ativar notificações” → simula um prompt do navegador (no Figma, um overlay com dois botões: “Permitir” e “Agora não”).
+- Após checklist completo → botão “Ir para o Feed” fica habilitado (muda de cinza para cor primária).
+
+---
+
+## 2. Jornada do Morador (bottom navigation com 4 ícones)
+
+### 2.1 Tela: Feed Inteligente (Home)
+
+**Layout (scroll vertical)**  
+- **Header**:  
+  - Logo “Chácaras Itaúna” (esquerda)  
+  - Ícone de sino (notificações) e avatar do morador (direita) – clique no avatar abre `Perfil / Configurações`.
+
+- **Feed de cards** (ordem cronológica, mais recente primeiro):  
+  1. **Card “Resolvido silenciosamente”** (fundo verde claro, ícone de check):  
+     - Texto: *“O problema de cheiro no corredor do bloco 3 foi identificado e corrigido hoje.”*  
+     - Timestamp: *“2h atrás”*  
+     - Botão “Ver detalhes” (abre modal com explicação técnica anônima).  
+  2. **Card “Síndico falando”** (fundo branco, avatar do síndico):  
+     - Texto em primeira pessoa: *“Pessoal, amanhã o lago passará por limpeza programada das 8h às 12h. Peço desculpas pelo cheiro temporário. Compensamos com churrasqueira livre no sábado.”*  
+     - Reações: ícone 👍 (12) – clicar aumenta contador e destaca.  
+     - Botão “Comentar” (abre campo de comentário moderado – máximo 140 caracteres).  
+  3. **Card “Memória viva”**:  
+     - Texto: *“Há 1 ano: reformamos o playground com investimento de R$ 15 mil. Hoje, 98% aprovam.”*  
+     - Botão “Ver antes/depois” → navega para a Timeline Viva (na data específica).  
+
+- **Pull-to-refresh** (simular: ao arrastar para baixo, mostra indicador de carregamento e novos cards aparecem).
+
+**Interações**  
+- Ao clicar em um card → expande suavemente (aumenta altura, mostra mais informações).  
+- Ao clicar em “Ver detalhes” (card resolvido) → abre **modal overlay** com:  
+  - *“Como resolvemos: inspeção nos dutos de lixo – nenhum morador foi identificado.”*  
+  - Botão “Fechar”.  
+- Ao clicar em “Comentar” → o card se expande, exibe campo de texto e botão “Enviar”. Após enviar, aparece o comentário moderado (simular que a IA aprovou).  
+- Clique no sininho → abre **painel lateral (right sidebar)** com lista de notificações (ex: “Assembleia amanhã”, “Sua reserva foi confirmada”).
+
+### 2.2 Tela: Eventos (acessada pela bottom nav)
+
+**Layout** (conforme wireframe já descrito, com adições de interatividade)  
+- **Toggle “Próximos / Passados”** – em modo “Próximos”, mostra cards de eventos futuros.  
+- **Card de evento** (exemplo: Festa Junina):  
+  - Título, data, local, número de inscritos.  
+  - **Indicador de “dica preventiva”** (ícone de lâmpada) – ao clicar, abre **tooltip** com texto: *“No ano passado houve fila no estacionamento. Este ano teremos 30 vagas extras.”*  
+  - Botão “Inscrever-se” → clicar abre **modal de confirmação** com campos adicionais (número de convidados, restrições alimentares). Após confirmar, botão muda para “Inscrito” (desabilitado, com ícone de check).  
+  - Link “Dúvidas frequentes” → abre **overlay** com FAQ (perguntas com setas expansíveis).  
+
+- **Evento passado** (toggle “Passados”):  
+  - Card com fotos (carrossel), taxa de satisfação (ex: “4.8 ★”), botão “Ver resumo” (abre modal com estatísticas e depoimentos anônimos).
+
+**Interações**  
+- Ao clicar no card do evento (exceto botões) → expande mostrando descrição completa, link para mapa/local e botão “Adicionar ao calendário”.  
+- Após inscrever-se, o sistema mostra um **toast** (canto inferior direito) com mensagem: *“Inscrição confirmada! Você receberá lembretes.”*  
+- Em evento passado, clicar em foto abre lightbox (zoom).
+
+### 2.3 Tela: Mediação Silenciosa (acessada pela bottom nav)
+
+**Layout** (centralizado, formulário simples)  
+- **Título**: *“Relatar incômodo anonimamente”*  
+- **Subtítulo**: *“Você nunca será identificado. Se outros moradores relatarem o mesmo problema, o síndico será alertado de forma agregada.”*  
+- **Selector de tema** (botões tipo chips):  
+  `Barulho` `Cheiro` `Uso de área comum` `Estacionamento` `Outro`  
+- **Campo de texto** (textarea): *“Descreva o que está acontecendo (opcional)”*  
+- **Botão “Enviar anonimamente”** (primário).  
+- **Link “Como funciona?”** → abre modal com explicação (anexo de mensagem neutra, limiar de 3 relatos).  
+
+**Interações**  
+- Ao clicar em enviar → mostra **modal de confirmação**: *“Seu relato foi registrado. Nenhum dado seu foi armazenado. Obrigado por ajudar a melhorar a convivência.”*  
+- Botão “Ok” → fecha modal, limpa formulário, exibe toast de sucesso.  
+- Se o usuário tentar enviar sem selecionar tema → destaque em vermelho no chip + mensagem de erro flutuante.
+
+### 2.4 Tela: Timeline Viva (acessada pela bottom nav)
+
+**Layout** (visualização de linha do tempo, estilo vertical com marcadores)  
+- **Header**: “Nossa História” + ícone de filtro (por ano).  
+- **Filtro**: `2026` `2025` `2024` (botões em linha).  
+- **Lista de cards** (ano atual selecionado):  
+  - Cada card contém: mês, título, investimento, economia/anual, foto antes/depois (thumbnail), ícone de “antes/depois”.  
+  - Ao clicar no card, expande com mais detalhes e link para “Ver no mapa” (se aplicável).  
+- **Banner de onboarding** (aparece apenas para novos moradores, na primeira visita):  
+  - Texto: *“Bem-vindo! Em 2024, trocamos a caldeira, reformamos o playground e reduzimos a taxa de água em 15%.”*  
+  - Botão “Explorar” (rola suavemente para o card de 2024).  
+
+**Interações**  
+- Ao clicar em uma foto “antes/depois” → abre lightbox com duas imagens lado a lado e slider de comparação (simulação Figma: imagem única com divisória móvel).  
+- Ao trocar o filtro de ano, os cards trocam com **fade transition**.  
+- Clique em “Ver no mapa” (quando obra tem localização) → abre modal com um mapa estático (imagem placeholder).
+
+---
+
+## 3. Jornada do Gestor (Síndico / Administrador)
+
+### 3.1 Tela: Dashboard do Gestor
+
+**Layout** (acesso via login com perfil de síndico ou link “Entrar como gestor”)  
+- **Header**: título “Dashboard”, ícone de configurações, avatar.  
+- **Cards de KPIs** (linha superior, 2 colunas):  
+  - **Financeiro**: Receitas R$ 48,45k, Despesas R$ 23,1k, Saldo R$ 25,35k, Variação +3,2% (verde).  
+  - **Índice de Saúde**: Satisfação 86% (+2), Conflitos resolvidos 92%, Tempo médio resp. 4,2h (-0,5h), Reincidência 7% (-1%).  
+- **Seção “Alertas Preventivos”** (fundo amarelo claro, borda laranja):  
+  - Card: *“Tendência detectada: 5 menções ao lago nas últimas 48h (cheiro/iluminação). Sugerimos inspeção.”*  
+  - Botões: “Ver detalhes anônimos” (abre modal), “Marcar como resolvido” (muda o card para cinza, com timestamp).  
+- **Seção “Próximos eventos com potencial de atrito”**:  
+  - “Festa Junina: ativar plano de estacionamento extra (sugerido)” – botão “Aplicar sugestão”.  
+- **Botão “Exportar relatório”** (canto inferior direito).
+
+**Interações**  
+- Ao clicar em “Ver detalhes anônimos” → **modal** com gráfico de barras simples (número de relatos por dia, sem identificação).  
+- Ao clicar em “Marcar como resolvido” → toast “Alerta registrado como resolvido. A IA continuará monitorando.”  
+- Ao clicar em “Aplicar sugestão” → modal de confirmação: *“Deseja enviar comunicado aos moradores sobre vagas extras?”* – Sim/Não. Se Sim, dispara um card no feed dos moradores automaticamente.
+
+### 3.2 Tela: Lista de Ocorrências (Gestor)
+
+**Acesso:** via menu lateral (não detalhado, mas pode ser um item no header).
+
+**Layout**  
+- **Tabela / cards** de ocorrências abertas:  
+  - Cada item mostra: título, categoria, data, status (Pendente / Em análise / Concluído), prazo restante (verde se ok, vermelho se atrasado).  
+  - Botão “Responder” → abre **modal de resposta com IA**.  
+- **Campo de busca e filtro** (por status, categoria).  
+
+**Modal de resposta com IA**  
+- Campo de texto pré-preenchido com rascunho gerado (ex: *“Olá [nome], recebemos sua solicitação. O técnico irá visitar na quinta.”* )  
+- Botão “Aprovar e enviar” – envia mensagem e atualiza status.  
+- Botão “Editar” – permite alterar o texto.  
+- Checkbox “Enviar cópia anônima para a timeline?” (se for uma melhoria estrutural).
+
+### 3.3 Tela: Alertas Preventivos (Gestor) – página dedicada
+
+**Acesso:** clicando em “Ver todos os alertas” no dashboard.
+
+**Layout**  
+- Lista de alertas históricos e ativos, com indicador de status (resolvido / pendente).  
+- Cada alerta tem: tema, área, número de relatos anônimos, janela de tempo, sugestão de ação, botão “Marcar resolvido”.  
+- Possibilidade de “Configurar limiar” (slider para definir a partir de quantos relatos gerar alerta: 3, 5, 10).  
+
+**Interações**  
+- Ao clicar em “Marcar resolvido” → campo de texto para adicionar nota (opcional) e depois confirmação.
+
+---
+
+## 4. Componentes de navegação e transições globais
+
+- **Bottom navigation (morador)**: ícones ativos com cor primária, inativos com cinza. Ao clicar, a tela central muda com **slide horizontal** (para frente/trás) ou fade.  
+- **Header**: ao clicar no avatar, abre um menu suspenso (configurações, logout).  
+- **Notificações (sino)**: painel lateral que desliza da direita; ao clicar em uma notificação, fecha o painel e navega para a tela correspondente (ex: clicar em “Lembrete de assembleia” leva para a tela de Eventos).  
+- **Toasts**: aparecem a partir do canto inferior direito com animação de deslize, somem após 3 segundos.  
+- **Modals**: fundo escurecido (overlay), modal centralizado com botão de fechar (X). Ao clicar fora, fecha.  
+
+---
+
+## 5. Instruções para o designer no Figma (modo prototype)
+
+1. **Crie as páginas** listadas no início.  
+2. **Converta cada card / botão em componente** para facilitar a edição global.  
+3. **Use Auto Layout** para responsividade (especialmente pilha vertical de cards).  
+4. **No modo prototype**:  
+   - Conecte os botões de navegação (bottom nav) às respectivas páginas com a interação “On click → Navigate to → Slide left/right”.  
+   - Para modais, use “Open overlay” e escolha “Modal” com fechamento ao clicar fora.  
+   - Para toasts, crie um componente toast separado e use “Open overlay” com “Manual” (não fecha automaticamente – mas no Figma pode ser um frame que aparece e depois some com delay – use “After delay” de 3000ms).  
+   - Para pull-to-refresh, infelizmente o Figma não suporta gesto de arraste, mas pode ser simulado com um botão “Carregar mais” ou um timer.  
+5. **Adicione microfones** (tiny animations) em hover nos botões: mudança de cor, escala 1.02.  
+6. **Teste o fluxo completo**:  
+   - Login → Onboarding → Feed → Eventos → Inscrever-se → Voltar.  
+   - Feed → Mediação → Enviar anônimo → Toast.  
+   - Login como gestor → Dashboard → Ver alerta → Marcar resolvido.  
+
+---
+
+Com esse descritivo, o designer consegue construir um protótipo funcional no Figma que representará fielmente a proposta de “infraestrutura emocional invisível”. Se precisar de ajustes ou mais detalhes (ex: estados de carregamento, telas de erro), é só sinalizar.

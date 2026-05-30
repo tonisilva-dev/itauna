@@ -1,0 +1,62 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                   DEPLOY RÁPIDO — CONDOMÍNIO ITAÚNA                      ║
+║                         (SEM VERSIONAMENTO GIT)                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ MODO RÁPIDO (3 segundos)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Abra PowerShell na pasta frontend/
+
+2. Execute:
+   .\deploy.ps1
+
+3. Aguarde (30-60 segundos)
+
+4. Copie a URL do navegador
+
+✅ Pronto! Aplicação está ao vivo.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔧 SE DER ERRO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ "Vercel not found"
+   → npm install -g vercel
+
+❌ "Not authenticated"
+   → vercel login
+
+❌ "Build failed"
+   → npm run build (verifique erros)
+
+❌ "Environment variables"
+   → vercel env list
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 O QUE ESTÁ DEPLOYADO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Login com Copa 2026 (background temático)
+✓ Fontes aumentadas em 73% (mais legível)
+✓ Landing page responsiva
+✓ Carrosseis para moradores
+✓ Gráfico financeiro (receitas vs despesas)
+✓ Modais para formulários
+✓ Mobile-first design
+✓ Vercel CDN global
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌐 URL ATUAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+https://frontend-kappa-virid-jy36zjbgla.vercel.app
+
+Test Accounts:
+  Email: admin@itauna.org (admin - vê dashboard)
+  Email: morador@itauna.org (morador - vê carrosseis)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Documentação completa: DEPLOY.md

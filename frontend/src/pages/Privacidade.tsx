@@ -1,0 +1,103 @@
+/**
+ * Privacidade.tsx — Política de Privacidade (LGPD)
+ * Rota pública: /privacidade
+ */
+import { useNavigate } from 'react-router-dom';
+import { Shield, ChevronLeft } from 'lucide-react';
+
+const SECTIONS = [
+  {
+    title: '1. Quem somos',
+    text: 'O Condomínio de Chácaras Itaúna, localizado em Ibiporã – PR, é o controlador dos dados pessoais coletados por meio deste sistema de gestão digital.',
+  },
+  {
+    title: '2. Dados que coletamos',
+    text: 'Coletamos: nome completo, endereço de e-mail, número de telefone, número da chácara e dados de acesso (IP, data/hora de login). Não coletamos dados de pagamento diretamente — transações financeiras são gerenciadas externamente.',
+  },
+  {
+    title: '3. Finalidade do tratamento',
+    text: 'Os dados são utilizados exclusivamente para: autenticação e controle de acesso ao sistema; comunicações administrativas do condomínio; gestão de agendamentos, ocorrências e eventos; cumprimento de obrigações legais.',
+  },
+  {
+    title: '4. Base legal (LGPD art. 7°)',
+    text: 'O tratamento se baseia em: execução de contrato (taxa condominial / regimento interno); legítimo interesse do condomínio na gestão coletiva; e consentimento explícito para comunicações opcionais.',
+  },
+  {
+    title: '5. Compartilhamento de dados',
+    text: 'Seus dados não são vendidos ou compartilhados com terceiros, exceto: prestadores de serviço essenciais (ex: plataforma de hospedagem Supabase, com cláusulas de proteção de dados); autoridades públicas, quando exigido por lei.',
+  },
+  {
+    title: '6. Segurança',
+    text: 'Adotamos medidas técnicas de proteção: criptografia TLS/HTTPS em todas as conexões; autenticação com tokens JWT de curta duração; Row Level Security (RLS) no banco de dados; rate limiting contra ataques de força bruta; sanitização de inputs contra XSS e SQL Injection.',
+  },
+  {
+    title: '7. Seus direitos (LGPD art. 18)',
+    text: 'Você tem direito a: confirmar a existência de tratamento; acessar seus dados; corrigir dados incompletos ou desatualizados; solicitar anonimização, bloqueio ou eliminação; revogar consentimento a qualquer momento. Para exercer esses direitos, contate a administração do condomínio.',
+  },
+  {
+    title: '8. Retenção de dados',
+    text: 'Dados de conta são mantidos enquanto o vínculo com o condomínio estiver ativo. Após encerramento, dados são anonimizados ou excluídos em até 90 dias, exceto obrigações legais que exijam retenção maior.',
+  },
+  {
+    title: '9. Cookies',
+    text: 'Utilizamos apenas cookies essenciais para manter a sessão autenticada. Não utilizamos cookies de rastreamento, publicidade ou analytics de terceiros.',
+  },
+  {
+    title: '10. Contato e DPO',
+    text: 'Dúvidas sobre privacidade: entre em contato com a administração do Condomínio Itaúna presencialmente ou pelo e-mail de gestão cadastrado no sistema.',
+  },
+];
+
+export const Privacidade = () => {
+  const navigate = useNavigate();
+  return (
+    <>
+      {/* Ambient */}
+      <div className="bg-orbs" aria-hidden><div className="bg-orb bg-orb-a"/><div className="bg-orb bg-orb-b"/></div>
+      <div className="bg-grid" aria-hidden/><div className="bg-noise" aria-hidden/>
+
+      <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', padding: 'clamp(1rem,5vw,3rem) clamp(1rem,5vw,2rem)' }}>
+        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+
+          {/* Back */}
+          <button onClick={() => navigate(-1)} className="btn-ghost" style={{ marginBottom: 24, gap: 6, color: 'var(--muted)' }}>
+            <ChevronLeft size={16}/> Voltar
+          </button>
+
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 32 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(87,216,255,.1)', border: '1px solid rgba(87,216,255,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Shield size={22} style={{ color: 'var(--cyan)' }}/>
+            </div>
+            <div>
+              <h1 style={{ fontSize: 'clamp(1.2rem,4vw,1.6rem)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-.03em' }}>
+                Política de Privacidade
+              </h1>
+              <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: 3 }}>
+                Condomínio de Chácaras Itaúna · Versão 1.0 · Vigência: Janeiro 2025 · Lei 13.709/2018 (LGPD)
+              </p>
+            </div>
+          </div>
+
+          {/* Sections */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {SECTIONS.map(s => (
+              <div key={s.title} className="card" style={{ padding: '18px 22px' }}>
+                <h2 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--cyan)', marginBottom: 8, letterSpacing: '.01em' }}>
+                  {s.title}
+                </h2>
+                <p style={{ fontSize: '0.875rem', color: 'var(--muted)', lineHeight: 1.72 }}>{s.text}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Footer note */}
+          <p style={{ fontSize: '0.75rem', color: 'var(--muted2)', textAlign: 'center', marginTop: 32, lineHeight: 1.6 }}>
+            Esta política pode ser atualizada. A versão vigente sempre estará disponível nesta página.<br/>
+            © {new Date().getFullYear()} Condomínio de Chácaras Itaúna — Ibiporã – PR
+          </p>
+        </div>
+      </div>
+    </>
+  );
+};
