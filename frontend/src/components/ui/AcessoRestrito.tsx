@@ -1,4 +1,4 @@
-import { ShieldOff, ArrowLeft, Lock, AlertTriangle, Shield, Crown, TreePine, Home, User } from 'lucide-react';
+import { ShieldOff, ArrowLeft, Lock, AlertTriangle, Crown, TreePine, Home, User } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { PageCarousel3D, type SlideItem } from './PageCarousel3D';
 import { SlidePanel } from './SlidePanel';
@@ -57,6 +57,14 @@ export const AcessoRestrito = () => {
   const location  = useLocation();
   const { user }  = useAuth();
   const meta      = ROUTE_META[location.pathname] ?? { label: 'esta área', action: 'acessar este módulo', icon: '🔒' };
+
+  const roleMap: Record<string, string> = {
+    admin:       'Administrador',
+    sindico:     'Síndico',
+    assistente:  'Assistente',
+    condominino: 'Condômino',
+  };
+  const userRoleLabel = roleMap[user?.role ?? ''] ?? 'Condômino';
 
   const slideRestrito: SlideItem = {
     key: 'acesso-restrito',
@@ -130,7 +138,7 @@ export const AcessoRestrito = () => {
                 {user?.full_name ?? 'Condômino'}
               </p>
               <p style={{ fontSize: '0.66rem', color: 'rgba(255,255,255,0.35)', marginTop: 1 }}>
-                Perfil: Condômino · sem acesso administrativo
+                Perfil: {userRoleLabel} · sem acesso administrativo
               </p>
             </div>
           </div>
@@ -172,9 +180,9 @@ export const AcessoRestrito = () => {
           { icon: '👤', label: 'Condômino' },
         ]}
       >
-        <div className="space-y-2.5 overflow-y-auto pr-0.5 h-full">
+        <div className="space-y-2.5 pr-0.5 h-full">
           {PERFIS.map(p => {
-            const isCurrentUser = p.role === 'Condômino';
+            const isCurrentUser = p.role === userRoleLabel;
             return (
               <div
                 key={p.role}
@@ -240,7 +248,7 @@ export const AcessoRestrito = () => {
   };
 
   return (
-    <div className="w-full min-h-screen flex items-center justify-center overflow-hidden">
+    <div className="w-full h-full">
       <PageCarousel3D slides={[slideRestrito, slidePerfis]} />
     </div>
   );
