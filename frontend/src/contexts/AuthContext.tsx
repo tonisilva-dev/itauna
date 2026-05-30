@@ -38,7 +38,8 @@ function buildFallbackProfile(supabaseUser: any): Profile {
   };
 }
 
-const PROFILE_CACHE_KEY = 'itauna_profile_cache';
+const PROFILE_CACHE_KEY  = 'itauna_profile_cache';
+const BIOMETRIC_LOCK_KEY = 'itauna_biometric_lock';
 
 function saveProfileCache(profile: Profile) {
   try { localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile)); } catch {}
@@ -103,7 +104,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       async (event, sess) => {
         if (event === 'INITIAL_SESSION') {
           setSession(sess ?? null);
-          if (sess?.user) {
+          // Só restaura automaticamente se não há lock biométrico pendente.
+          // Lock é criado no signOut() quando biometria está ativa — exige
+          // autenticação explícita via restoreSession() para reentrar.
+          const biometricLocked = localStorage.getItem(BIOMETRIC_LOCK_KEY) === '1';
+          if (sess?.user && !biometricLocked) {
             const cached = loadProfileCache();
             if (cached && cached.id === sess.user.id) setUser(cached);
             const profile = await fetchProfile(sess.user);
@@ -113,6 +118,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           settle();
 
         } else if (event === 'SIGNED_IN') {
+          localStorage.removeItem(BIOMETRIC_LOCK_KEY);
           setSession(sess);
           setLoading(true);
           try {
@@ -155,7 +161,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (getBiometricState().enabled) {
       // Logout suave: mantém sessão Supabase no localStorage para o login biométrico.
-      // O onAuthStateChange NÃO é disparado — estado React limpo manualmente acima.
+      // O lock impede que INITIAL_SESSION restaure o usuário sem autenticação real.
+      localStorage.setItem(BIOMETRIC_LOCK_KEY, '1');
       return;
     }
 
@@ -164,9 +171,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Lê a sessão Supabase que ainda existe no localStorage (após logout suave)
   // e reconstrói o estado React. Retorna true se a sessão foi restaurada.
+  // Chamado pela tela de Login após autenticação biométrica bem-sucedida.
+  // Limpa o lock e restaura o estado React a partir da sessão preservada.
   const restoreSession = useCallback(async (): Promise<boolean> => {
     const { data: { session: sess } } = await supabase.auth.getSession();
     if (!sess?.user) return false;
+    localStorage.removeItem(BIOMETRIC_LOCK_KEY);
     setSession(sess);
     const profile = await fetchProfile(sess.user);
     setUser(profile);
