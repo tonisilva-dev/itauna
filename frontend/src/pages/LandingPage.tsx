@@ -713,7 +713,7 @@ export const LandingPage = () => {
               Nossos Pilares
             </p>
             <h2 style={{ fontSize: 'clamp(20px,5vw,34px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 16 }}>
-              Sete <span style={gradStyle}>Promessas</span> que Guiam Tudo
+              Sete <span style={gradStyle}>Valores</span> que Guiam Tudo
             </h2>
           </div>
 
@@ -828,7 +828,7 @@ export const LandingPage = () => {
 
       <div
         className="relative z-10 w-full overflow-hidden"
-        style={{ height: '100dvh', paddingTop: 'clamp(58px,11vw,78px)', boxSizing: 'border-box' }}
+        style={{ height: '100dvh', paddingTop: 'calc(clamp(58px,11vw,78px) + 27px)', boxSizing: 'border-box' }}
       >
         <PageCarousel3D slides={slides} />
       </div>

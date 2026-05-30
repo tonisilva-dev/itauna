@@ -13,7 +13,8 @@
   flex-direction: column;
   align-items: center;
   overflow: hidden;
-  padding: 8px 0 0;
+  padding: 0;
+  gap: 10px; /* 10px entre o palco e a barra de controles */
 }
 
 /* ── Palco 3D: cresce para preencher o espaço ── */
@@ -33,7 +34,7 @@
   position: absolute;
   left: 50%;
   top: 0;
-  width: min(500px, 78vw);
+  width: min(635px, 78vw); /* 500 × 1.27 */
   height: 100%;
   transform-origin: center center;
   transform: translateX(-50%) rotateY(0deg) scale(1);
@@ -224,7 +225,7 @@
    DESKTOP GRANDE (> 1280px)
    ========================================================== */
 @media (min-width: 1281px) {
-  .page-slide           { width: min(580px, 76vw); }
+  .page-slide            { width: min(737px, 76vw); } /* 580 × 1.27 */
   .page-slide.pos-active { width: min(820px, 76vw); }
 }
 
@@ -232,7 +233,7 @@
    DESKTOP MÉDIO (1025 – 1280px)
    ========================================================== */
 @media (min-width: 1025px) and (max-width: 1280px) {
-  .page-slide           { width: min(520px, 76vw); }
+  .page-slide            { width: min(660px, 76vw); } /* 520 × 1.27 */
   .page-slide.pos-active { width: min(740px, 76vw); }
 }
 
@@ -261,7 +262,7 @@
    MOBILE (≤ 768px)
    ========================================================== */
 @media (max-width: 768px) {
-  .page-stage-wrap { padding: 4px 0 0; }
+  .page-stage-wrap { gap: 6px; }
   .page-stage      { perspective: 1200px; padding: 0 8px; }
 
   .page-slide           { width: min(180px, 64vw); border-radius: 18px; }

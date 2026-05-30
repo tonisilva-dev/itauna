@@ -80,7 +80,7 @@ export const QuemSomos = () => {
             Nossos Pilares
           </p>
           <h2 style={{ fontSize: 'clamp(24px,5vw,40px)', fontWeight: 900, lineHeight: 1.1, marginBottom: 32, color: '#fff' }}>
-            Sete Promessas que Guiam Tudo o que Fazemos
+            Sete Valores que Guiam Tudo o que Fazemos
           </h2>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'clamp(16px,2.5vw,24px)' }}>
