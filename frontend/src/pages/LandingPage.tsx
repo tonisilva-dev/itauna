@@ -70,7 +70,7 @@ const Navbar = () => (
 const Shell = ({ children, badges }: { children: React.ReactNode; badges?: { icon: string; label: string }[] }) => (
   <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
     <div style={{
-      flex: 1, overflowY: 'auto',
+      flex: 1, overflowY: 'auto', minHeight: 0,
       padding: 'clamp(16px,4vw,28px) clamp(16px,4vw,28px) clamp(12px,3vw,20px)',
       display: 'flex', flexDirection: 'column', gap: 'clamp(10px,2.5vw,16px)',
       scrollbarWidth: 'none',
@@ -558,7 +558,7 @@ export const LandingPage = () => {
 
     /* ── SLIDE 7: Quem Somos ── */
     {
-      key: 'slide-quem-somos',
+      key: 'slide-identidade',
       label: 'Quem Somos',
       content: (
         <Shell badges={[
@@ -747,7 +747,10 @@ export const LandingPage = () => {
 
       <Navbar />
 
-      <div className="relative z-10 w-full h-screen overflow-hidden">
+      <div
+        className="relative z-10 w-full overflow-hidden"
+        style={{ height: '100dvh', paddingTop: 'clamp(58px,11vw,78px)', boxSizing: 'border-box' }}
+      >
         <PageCarousel3D slides={slides} />
       </div>
     </>
