@@ -826,11 +826,43 @@ export const LandingPage = () => {
 
       <Navbar />
 
-      <div
-        className="relative z-10 w-full overflow-hidden"
-        style={{ height: '100dvh', paddingTop: 'calc(clamp(58px,11vw,78px) + 27px)', boxSizing: 'border-box' }}
-      >
-        <PageCarousel3D slides={slides} />
+      <div className="relative z-10 w-full flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
+
+        {/* Área do carousel */}
+        <div
+          className="flex-1 min-h-0 overflow-hidden"
+          style={{ paddingTop: 'calc(clamp(58px,11vw,78px) + 27px)', boxSizing: 'border-box' }}
+        >
+          <PageCarousel3D slides={slides} />
+        </div>
+
+        {/* Rodapé — somente desktop (≥ 1024 px) */}
+        <footer
+          className="hidden lg:flex items-center justify-center flex-shrink-0"
+          style={{
+            gap: 14, padding: '7px 24px',
+            fontSize: 11, letterSpacing: '0.025em',
+            color: 'rgba(255,255,255,0.30)',
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+            background: 'rgba(6,10,20,0.50)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+          }}
+        >
+          <span>© 2025 Condomínio de Chácaras Itaúna — Ibiporã – PR</span>
+          <span style={{ color: 'rgba(255,255,255,0.14)' }}>•</span>
+          <span>Todos os direitos reservados</span>
+          <span style={{ color: 'rgba(255,255,255,0.14)' }}>•</span>
+          <Link
+            to="/login"
+            style={{ color: 'rgba(255,255,255,0.50)', textDecoration: 'none', fontWeight: 600, transition: 'color 0.2s' }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#57d8ff')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.50)')}
+          >
+            Área do condômino
+          </Link>
+        </footer>
+
       </div>
     </>
   );
