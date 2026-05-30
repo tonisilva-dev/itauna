@@ -31,6 +31,7 @@ const Portaria        = lazy(() => import('./pages/portaria/Portaria').then(m =>
 const QuemSomos       = lazy(() => import('./pages/QuemSomos').then(m => ({ default: m.QuemSomos })));
 const TelefonesUteis         = lazy(() => import('./pages/TelefonesUteis').then(m => ({ default: m.TelefonesUteis })));
 const ResponsabilidadeSocial = lazy(() => import('./pages/ResponsabilidadeSocial').then(m => ({ default: m.ResponsabilidadeSocial })));
+const AcessoQR               = lazy(() => import('./pages/AcessoQR').then(m => ({ default: m.AcessoQR })));
 const Privacidade     = lazy(() => import('./pages/Privacidade').then(m => ({ default: m.Privacidade })));
 const Preview         = lazy(() => import('./pages/Preview').then(m => ({ default: m.Preview })));
 
@@ -130,6 +131,9 @@ export default function App() {
             <Route path="/moradores"   element={<GestorRoute><Moradores /></GestorRoute>} />
             <Route path="/acessos"     element={<GestorRoute><GestaoAcessos /></GestorRoute>} />
           </Route>
+
+          {/* Acesso QR — pública (visitantes sem login) */}
+          <Route path="/acesso" element={<AcessoQR />} />
 
           {/* Política de Privacidade — pública */}
           <Route path="/privacidade" element={<Privacidade />} />

@@ -1016,6 +1016,70 @@ export async function deleteSecretaria(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/* ─── Portaria: Solicitações QR ───────────────────────────────── */
+
+export interface DbSolicitacao {
+  id: string;
+  chacara_numero: string;
+  visitante_nome: string;
+  visitante_tel: string | null;
+  visitante_veiculo: string | null;
+  motivo: string | null;
+  status: 'pendente' | 'aprovado' | 'negado' | 'cancelado';
+  resolved_by: string | null;
+  resolved_at: string | null;
+  observacao: string | null;
+  registro_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function insertSolicitacao(
+  payload: Pick<DbSolicitacao, 'chacara_numero' | 'visitante_nome' | 'visitante_tel' | 'visitante_veiculo' | 'motivo'>
+): Promise<DbSolicitacao> {
+  const { data, error } = await db
+    .from('portaria_solicitacoes').insert(payload).select().single();
+  if (error) throw error;
+  return data as DbSolicitacao;
+}
+
+export async function fetchSolicitacoesPendentes(): Promise<DbSolicitacao[]> {
+  const { data, error } = await db
+    .from('portaria_solicitacoes')
+    .select('*')
+    .eq('status', 'pendente')
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as DbSolicitacao[];
+}
+
+export async function fetchSolicitacaoById(id: string): Promise<DbSolicitacao | null> {
+  const { data, error } = await db
+    .from('portaria_solicitacoes').select('*').eq('id', id).single();
+  if (error) return null;
+  return data as DbSolicitacao;
+}
+
+export async function resolverSolicitacao(
+  id: string,
+  status: 'aprovado' | 'negado' | 'cancelado',
+  resolvedBy: string,
+  observacao?: string,
+  registroId?: string,
+): Promise<void> {
+  const { error } = await db
+    .from('portaria_solicitacoes')
+    .update({
+      status,
+      resolved_by: resolvedBy,
+      resolved_at: new Date().toISOString(),
+      observacao: observacao ?? null,
+      registro_id: registroId ?? null,
+    })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 /* ─── Campanhas Sociais ────────────────────────────────────────── */
 
 export interface DbCampanha {

@@ -271,6 +271,24 @@ export interface AreaComum {
   updated_at: string;
 }
 
+export type SolicitacaoStatus = 'pendente' | 'aprovado' | 'negado' | 'cancelado';
+
+export interface PortariaSolicitacao {
+  id: string;
+  chacara_numero: string;
+  visitante_nome: string;
+  visitante_tel?: string | null;
+  visitante_veiculo?: string | null;
+  motivo?: string | null;
+  status: SolicitacaoStatus;
+  resolved_by?: string | null;
+  resolved_at?: string | null;
+  observacao?: string | null;
+  registro_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type CampanhaCategoria = 'Solidariedade' | 'Sazonais' | 'Saúde' | 'Educação' | 'Meio Ambiente' | 'Geral';
 export type CampanhaStatus   = 'ativa' | 'encerrada' | 'planejada';
 
@@ -343,7 +361,8 @@ export type Database = {
       areas_comuns:           { Row: AreaComum;            Insert: Partial<AreaComum>;            Update: Partial<AreaComum> };
       telefones_uteis:        { Row: TelefoneUtil;          Insert: Partial<TelefoneUtil>;          Update: Partial<TelefoneUtil> };
       telefones_secretarias:  { Row: TelefoneSecretaria;   Insert: Partial<TelefoneSecretaria>;   Update: Partial<TelefoneSecretaria> };
-      campanhas_sociais:      { Row: CampanhaSocial;       Insert: Partial<CampanhaSocial>;       Update: Partial<CampanhaSocial> };
+      campanhas_sociais:        { Row: CampanhaSocial;         Insert: Partial<CampanhaSocial>;         Update: Partial<CampanhaSocial> };
+      portaria_solicitacoes:    { Row: PortariaSolicitacao;   Insert: Partial<PortariaSolicitacao>;   Update: Partial<PortariaSolicitacao> };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

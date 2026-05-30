@@ -1,24 +1,48 @@
 import { gotoSlide } from '../../utils/format';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Shield, Car, User, Clock, CheckCircle2, Plus, Loader2,
-  Trash2, UserPlus, AlertTriangle, History, Package, Wrench,
-  ChevronRight, CalendarDays,
+  Trash2, UserPlus, AlertTriangle, Package, Wrench,
+  CalendarDays, QrCode, Download, Check, X,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
 import { StatCard } from '../../components/ui/StatCard';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import QRCode from 'qrcode';
 import {
   fetchPortariaHoje, fetchPortariaByDate, fetchPortariaByChacara,
   fetchPortariaAutorizados, fetchPortariaAutorizadosByChacara,
   insertPortariaEntrada, registerPortariaSaida,
   insertPortariaAutorizado, removePortariaAutorizado,
-  type DbPortariaRegistro, type DbPortariaAutorizado,
+  fetchSolicitacoesPendentes, resolverSolicitacao,
+  type DbPortariaRegistro, type DbPortariaAutorizado, type DbSolicitacao,
 } from '@/lib/supabase-queries';
+
+/* ── Apito (Web Audio API) — doorbell de duas notas ── */
+function tocarApito() {
+  try {
+    const ctx  = new AudioContext();
+    const play = (freq: number, start: number, dur: number) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, ctx.currentTime + start);
+      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + dur + 0.05);
+    };
+    play(880,  0,    0.28); // ♩ primeira nota
+    play(1320, 0.30, 0.45); // ♩♩ segunda nota (mais alta e sustentada)
+  } catch {}
+}
 
 const GREEN  = '#10b981';
 const CYAN   = '#57d8ff';
@@ -55,6 +79,16 @@ export const Portaria = () => {
   const [removeId, setRemoveId]     = useState<string | null>(null);
   const [removeName, setRemoveName] = useState('');
 
+  // Solicitações QR
+  const [solicitacoes, setSolicitacoes]   = useState<DbSolicitacao[]>([]);
+  const [resolvendo, setResolvendo]       = useState<string | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // Gerador QR
+  const [qrChacara, setQrChacara]   = useState('');
+  const [qrDataUrl, setQrDataUrl]   = useState<string | null>(null);
+  const [qrLoading, setQrLoading]   = useState(false);
+
   // Form entrada
   const [nome, setNome]       = useState('');
   const [veiculo, setVeiculo] = useState('');
@@ -81,6 +115,107 @@ export const Portaria = () => {
       .catch(() => toast.error('Erro ao carregar dados da portaria.'))
       .finally(() => setLoading(false));
   }, [user, isGestor]);
+
+  // ── Realtime: escuta novas solicitações QR (gestor only) ─────────
+  useEffect(() => {
+    if (!isGestor) return;
+
+    // Carrega pendentes existentes
+    fetchSolicitacoesPendentes().then(setSolicitacoes).catch(() => {});
+
+    // Inscreve no canal
+    channelRef.current = supabase
+      .channel('portaria-qr-solicitacoes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'portaria_solicitacoes',
+      }, payload => {
+        const nova = payload.new as DbSolicitacao;
+        if (nova.status === 'pendente') {
+          tocarApito();
+          setSolicitacoes(prev => [nova, ...prev]);
+          toast('🔔 Nova solicitação de acesso!', {
+            duration: 6000,
+            style: { background: 'rgba(87,216,255,0.15)', border: '1px solid rgba(87,216,255,0.4)', color: '#fff' },
+          });
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'portaria_solicitacoes',
+      }, payload => {
+        const upd = payload.new as DbSolicitacao;
+        // Remove da lista quando resolvida
+        if (upd.status !== 'pendente') {
+          setSolicitacoes(prev => prev.filter(s => s.id !== upd.id));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      channelRef.current?.unsubscribe();
+    };
+  }, [isGestor]);
+
+  const handleResolver = useCallback(async (
+    sol: DbSolicitacao,
+    acao: 'aprovado' | 'negado',
+  ) => {
+    if (!user) return;
+    setResolvendo(sol.id);
+    try {
+      let registroId: string | undefined;
+
+      if (acao === 'aprovado') {
+        // Cria registro de entrada automaticamente
+        const entrada = await insertPortariaEntrada({
+          nome:           sol.visitante_nome,
+          veiculo:        sol.visitante_veiculo ?? null,
+          tipo:           'visitante',
+          destino:        `Chácara ${sol.chacara_numero}`,
+          registrado_por: user.id,
+        });
+        registroId = entrada.id;
+        setVisitas(prev => [entrada, ...prev]);
+        if (histDate === TODAY) setHistVisitas(prev => [entrada, ...prev]);
+        toast.success(`Entrada de ${sol.visitante_nome} registrada.`);
+      } else {
+        toast(`Acesso de ${sol.visitante_nome} negado.`, { icon: '🚫' });
+      }
+
+      await resolverSolicitacao(sol.id, acao, user.id, undefined, registroId);
+      setSolicitacoes(prev => prev.filter(s => s.id !== sol.id));
+    } catch {
+      toast.error('Erro ao processar solicitação.');
+    } finally {
+      setResolvendo(null);
+    }
+  }, [user, histDate, TODAY]);
+
+  // ── Gerador de QR Code ────────────────────────────────────────
+  const gerarQR = useCallback(async () => {
+    if (!qrChacara.trim()) return;
+    setQrLoading(true);
+    try {
+      const url = `${window.location.origin}/acesso?c=${qrChacara.padStart(3, '0')}`;
+      const dataUrl = await QRCode.toDataURL(url, {
+        width: 320, margin: 2,
+        color: { dark: '#ffffff', light: '#07101c' },
+      });
+      setQrDataUrl(dataUrl);
+    } catch { toast.error('Erro ao gerar QR Code.'); }
+    finally { setQrLoading(false); }
+  }, [qrChacara]);
+
+  const baixarQR = useCallback(() => {
+    if (!qrDataUrl) return;
+    const a = document.createElement('a');
+    a.href = qrDataUrl;
+    a.download = `qr-chacara-${qrChacara.padStart(3, '0')}.png`;
+    a.click();
+  }, [qrDataUrl, qrChacara]);
 
   // Histórico por data — usa estado separado para não apagar dados ao vivo
   const loadHistDate = async (date: string) => {
@@ -258,6 +393,111 @@ export const Portaria = () => {
         </SlidePanel>
       ),
     },
+
+    /* ── Slide 2: Solicitações QR em tempo real (gestor) ── */
+    ...(isGestor ? [{
+      key: 'portaria-solicitacoes',
+      label: 'QR · Solicitações',
+      content: (
+        <SlidePanel
+          eyebrow="Acesso via QR Code"
+          title={<>Solicitações <span className="grad-text">em Tempo Real</span></>}
+          badges={[
+            { icon: '📡', label: 'Tempo Real' },
+            { icon: solicitacoes.length > 0 ? '🔴' : '🟢', label: `${solicitacoes.length} pendente${solicitacoes.length !== 1 ? 's' : ''}` },
+            { icon: '🔔', label: 'Apito Ativo' },
+          ]}
+          actions={
+            <button onClick={() => gotoSlide(6)} className="btn-primary py-1.5 px-3 text-xs gap-1 flex items-center">
+              <QrCode size={13} /> Gerar QR
+            </button>
+          }
+        >
+          <div className="flex flex-col h-full gap-3">
+            {solicitacoes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center flex-1 gap-3 py-8">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.18)' }}>
+                  <CheckCircle2 size={28} style={{ color: GREEN }} />
+                </div>
+                <div className="text-center">
+                  <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.85rem', marginBottom: 4 }}>Nenhuma solicitação pendente</p>
+                  <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>
+                    Quando um visitante escanear o QR Code,<br />o apito soará e o card aparecerá aqui.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2.5 overflow-y-auto flex-1">
+                {solicitacoes.map(sol => {
+                  const isProc = resolvendo === sol.id;
+                  const tempo  = new Date(sol.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                  return (
+                    <div key={sol.id} className="rounded-2xl p-3.5 space-y-2.5" style={{
+                      background: 'rgba(87,216,255,0.05)',
+                      border: '1px solid rgba(87,216,255,0.22)',
+                      animation: 'pulse-border 2s ease infinite',
+                    }}>
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(87,216,255,0.12)', border: '1px solid rgba(87,216,255,0.25)' }}>
+                          <User size={16} style={{ color: CYAN }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p style={{ fontWeight: 800, color: '#fff', fontSize: '0.85rem' }}>{sol.visitante_nome}</p>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md animate-pulse" style={{ background: 'rgba(245,158,11,0.15)', color: YELLOW, border: '1px solid rgba(245,158,11,0.3)' }}>
+                              PENDENTE
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
+                            Chácara <strong style={{ color: CYAN }}>{sol.chacara_numero}</strong>
+                            {sol.visitante_veiculo ? ` · ${sol.visitante_veiculo}` : ''}
+                            {sol.motivo ? ` · ${sol.motivo}` : ''}
+                          </p>
+                          {sol.visitante_tel && (
+                            <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', marginTop: 1 }}>📞 {sol.visitante_tel}</p>
+                          )}
+                        </div>
+                        <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>
+                          <Clock size={10} style={{ display: 'inline', marginRight: 3 }} />{tempo}
+                        </span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          disabled={isProc}
+                          onClick={() => handleResolver(sol, 'aprovado')}
+                          className="flex-1 py-2 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5"
+                          style={{ background: 'rgba(16,185,129,0.15)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.35)' }}
+                        >
+                          {isProc ? <Loader2 size={12} className="animate-spin" /> : <Check size={13} />}
+                          Liberar entrada
+                        </button>
+                        <button
+                          disabled={isProc}
+                          onClick={() => handleResolver(sol, 'negado')}
+                          className="flex-1 py-2 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5"
+                          style={{ background: 'rgba(239,68,68,0.10)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.25)' }}
+                        >
+                          <X size={13} /> Negar
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Instrução */}
+            <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <p style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', lineHeight: 1.6, textAlign: 'center' }}>
+                🔔 O apito soa automaticamente ao receber nova solicitação.<br />
+                Ao liberar, o registro de entrada é criado automaticamente.
+              </p>
+            </div>
+          </div>
+        </SlidePanel>
+      ),
+    } as SlideItem] : []),
 
     /* ── Slide 2: Histórico + Autorizados ── */
     {
@@ -577,6 +817,89 @@ export const Portaria = () => {
               {submitting ? <><Loader2 size={13} className="animate-spin" /> Registrando...</> : '✓ Confirmar e Liberar Entrada'}
             </button>
           </form>
+        </SlidePanel>
+      ),
+    } as SlideItem] : []),
+
+    /* ── Slide 5: Gerador de QR Code (gestor) ── */
+    ...(isGestor ? [{
+      key: 'portaria-qr',
+      label: 'Gerar QR',
+      content: (
+        <SlidePanel
+          eyebrow="Acesso Sem Fila"
+          title={<>Gerar <span className="grad-text">QR Code</span> de Acesso</>}
+          badges={[
+            { icon: '📱', label: 'Para visitantes' },
+            { icon: '🖨️', label: 'Imprimível' },
+            { icon: '🔒', label: 'Por chácara' },
+          ]}
+        >
+          <div className="flex flex-col gap-4 py-1">
+            <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.65 }}>
+              Gere o QR Code de uma chácara específica para o morador imprimir e fixar na entrada.
+              O visitante escaneia, preenche o nome e a portaria recebe o alerta instantaneamente.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="input-label text-[11px]">Número da Chácara</label>
+                <input
+                  type="text" className="input"
+                  placeholder="Ex: 042"
+                  value={qrChacara}
+                  onChange={e => { setQrChacara(e.target.value.replace(/\D/g, '')); setQrDataUrl(null); }}
+                  maxLength={3}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={gerarQR}
+              disabled={qrLoading || !qrChacara.trim()}
+              className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5"
+            >
+              {qrLoading
+                ? <><Loader2 size={13} className="animate-spin" /> Gerando...</>
+                : <><QrCode size={13} /> Gerar QR Code</>
+              }
+            </button>
+
+            {qrDataUrl && (
+              <div className="flex flex-col items-center gap-3">
+                {/* QR Code */}
+                <div className="rounded-2xl p-4" style={{ background: '#07101c', border: '1px solid rgba(87,216,255,0.18)' }}>
+                  <img src={qrDataUrl} alt={`QR Chácara ${qrChacara}`} style={{ width: 200, height: 200, display: 'block' }} />
+                </div>
+
+                {/* Info */}
+                <div className="text-center">
+                  <p style={{ fontWeight: 800, color: '#fff', fontSize: '0.85rem', marginBottom: 2 }}>
+                    Chácara {qrChacara.padStart(3, '0')}
+                  </p>
+                  <p style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>
+                    {window.location.origin}/acesso?c={qrChacara.padStart(3, '0')}
+                  </p>
+                </div>
+
+                {/* Download */}
+                <button
+                  onClick={baixarQR}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer"
+                  style={{ background: 'rgba(87,216,255,0.10)', color: CYAN, border: '1px solid rgba(87,216,255,0.25)' }}
+                >
+                  <Download size={13} /> Baixar PNG para impressão
+                </button>
+
+                <div className="rounded-xl p-3 w-full" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <p style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', lineHeight: 1.6, textAlign: 'center' }}>
+                    💡 Imprima e fixe na entrada da chácara ou entregue ao morador.
+                    Cada visita gera um alerta exclusivo neste painel.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </SlidePanel>
       ),
     } as SlideItem] : []),
