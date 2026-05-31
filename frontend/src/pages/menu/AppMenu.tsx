@@ -16,7 +16,7 @@ const NIVEL_COLOR: Record<Nivel, string> = {
 };
 
 const NIVEL_LABEL: Record<Nivel, string> = {
-  visitante: 'Área do Visitante',
+  visitante: 'Comunidade',
   morador:   'Área do Morador',
   gestor:    'Gestão',
 };

@@ -3,7 +3,6 @@ import { Suspense, lazy } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from './components/layout/AppLayout';
-import { AdaptiveLayout } from './components/layout/AdaptiveLayout';
 import { PageLoader } from './components/ui/LoadingSpinner';
 import { LgpdBanner } from './components/ui/LgpdBanner';
 import { AcessoRestrito } from './components/ui/AcessoRestrito';
@@ -97,23 +96,22 @@ export default function App() {
           <Route path="/login" element={<Login />} />
 
           {/* ═══════════════════════════════════════════════════════
-              ROTAS COMPARTILHADAS — visitantes E moradores logados
-              ═══════════════════════════════════════════════════════ */}
-          <Route element={<AdaptiveLayout />}>
-            <Route path="/quem-somos"       element={<QuemSomos />} />
-            <Route path="/galeria"          element={<Galeria />} />
-            <Route path="/classificados"    element={<Classificados />} />
-            <Route path="/eventos"          element={<Eventos />} />
-            <Route path="/telefones-uteis"          element={<TelefonesUteis />} />
-            <Route path="/responsabilidade-social"  element={<ResponsabilidadeSocial />} />
-          </Route>
-
-          {/* ═══════════════════════════════════════════════════════
-              ÁREA PRIVADA — moradores e administradores
+              ÁREA PRIVADA — login obrigatório para TODAS as rotas
               ═══════════════════════════════════════════════════════ */}
           <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-            {/* ── Morador ── */}
+
+            {/* ── Menu principal ── */}
             <Route path="/dashboard"        element={<AppMenu />} />
+
+            {/* ── Comunidade (todos os condôminos) ── */}
+            <Route path="/galeria"                 element={<Galeria />} />
+            <Route path="/eventos"                 element={<Eventos />} />
+            <Route path="/classificados"           element={<Classificados />} />
+            <Route path="/telefones-uteis"         element={<TelefonesUteis />} />
+            <Route path="/responsabilidade-social" element={<ResponsabilidadeSocial />} />
+            <Route path="/quem-somos"              element={<QuemSomos />} />
+
+            {/* ── Morador ── */}
             <Route path="/agendamentos"     element={<Agendamentos />} />
             <Route path="/portaria"         element={<Portaria />} />
             <Route path="/ocorrencias"      element={<Ocorrencias />} />
@@ -121,15 +119,14 @@ export default function App() {
             <Route path="/documentos"       element={<Documentos />} />
             <Route path="/achados-perdidos" element={<AchadosPerdidos />} />
             <Route path="/perfil"           element={<Perfil />} />
+            <Route path="/financeiro"       element={<Financeiro />} />
+            <Route path="/parceiros"        element={<Parceiros />} />
 
-            {/* ── Compartilhado morador + gestor ── */}
-            <Route path="/financeiro"  element={<Financeiro />} />
-            <Route path="/parceiros"   element={<Parceiros />} />
+            {/* ── Gestor (admin + síndico) ── */}
+            <Route path="/unidades"  element={<GestorRoute><Unidades /></GestorRoute>} />
+            <Route path="/moradores" element={<GestorRoute><Moradores /></GestorRoute>} />
+            <Route path="/acessos"   element={<GestorRoute><GestaoAcessos /></GestorRoute>} />
 
-            {/* ── Administrador ── */}
-            <Route path="/unidades"    element={<GestorRoute><Unidades /></GestorRoute>} />
-            <Route path="/moradores"   element={<GestorRoute><Moradores /></GestorRoute>} />
-            <Route path="/acessos"     element={<GestorRoute><GestaoAcessos /></GestorRoute>} />
           </Route>
 
           {/* Acesso QR — pública (visitantes sem login) */}
