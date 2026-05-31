@@ -122,6 +122,7 @@ export default function App() {
             <Route path="/achados-perdidos" element={<AchadosPerdidos />} />
             <Route path="/perfil"           element={<Perfil />} />
             <Route path="/financeiro"       element={<Financeiro />} />
+            <Route path="/gestao-financeira" element={<GestorRoute><Financeiro /></GestorRoute>} />
             <Route path="/parceiros"        element={<Parceiros />} />
 
             {/* ── Gestor (admin + síndico) ── */}

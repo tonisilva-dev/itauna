@@ -4,7 +4,7 @@ import {
   DollarSign, Shield, Bell, Calendar, AlertCircle, Image,
   FileText, Tag, Search, Building2, TreePine, Home, Users,
   ShieldCheck, Zap, Lock, BarChart3, Phone, Leaf,
-  TrendingUp, ClipboardList,
+  TrendingUp, ClipboardList, Eye,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -42,7 +42,7 @@ const MODULES: ModuleCard[] = [
   { path: '/responsabilidade-social',label: 'Resp. Social', desc: 'Resíduos e campanhas solidárias',Icon: Leaf,      color: '#10b981', bg: 'rgba(16,185,129,0.12)',  nivel: 'visitante' },
 
   // ── Morador (login obrigatório) ────────────────────────────────
-  { path: '/financeiro',       label: 'Financeiro',   desc: 'Rateios e prestação de contas',   Icon: DollarSign,  color: '#10b981', bg: 'rgba(16,185,129,0.15)',  nivel: 'morador' },
+  { path: '/financeiro',       label: 'Transparência', desc: 'Rateios, saldo e demonstrações',  Icon: Eye,         color: '#10b981', bg: 'rgba(16,185,129,0.15)',  nivel: 'morador' },
   { path: '/comunicados',      label: 'Comunicados',  desc: 'Avisos com prioridade visual',    Icon: Bell,        color: '#f59e0b', bg: 'rgba(245,158,11,0.13)',  nivel: 'morador' },
   { path: '/agendamentos',     label: 'Agendamentos', desc: 'Reserva de áreas comuns',         Icon: Calendar,    color: '#5a84ff', bg: 'rgba(90,132,255,0.13)',  nivel: 'morador' },
   { path: '/ocorrencias',      label: 'Ocorrências',  desc: 'Chamados com workflow completo',  Icon: AlertCircle, color: '#ef4444', bg: 'rgba(239,68,68,0.13)',   nivel: 'morador' },
@@ -57,6 +57,9 @@ const MODULES: ModuleCard[] = [
   { path: '/acessos',            label: 'Acessos',     desc: 'Permissões e perfis de acesso',    Icon: ShieldCheck,  color: '#5a84ff', bg: 'rgba(90,132,255,0.12)',  nivel: 'gestor' },
   { path: '/analise-cenarios',   label: 'Cenários',    desc: 'Simulador de impacto orçamentário',Icon: TrendingUp,   color: '#10b981', bg: 'rgba(16,185,129,0.12)',  nivel: 'gestor' },
   { path: '/checklist-servicos', label: 'Checklist',   desc: 'Tomada de serviço e contratações', Icon: ClipboardList,color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  nivel: 'gestor' },
+
+  // ── Gestão (admin + síndico — private CRUD) ────────────────────
+  { path: '/gestao-financeira',  label: 'Gestão Financeira', desc: 'Receitas, despesas e rateios (CRUD)', Icon: DollarSign, color: '#ef4444', bg: 'rgba(239,68,68,0.15)', nivel: 'gestor' },
 ];
 
 const FEATURES = [
