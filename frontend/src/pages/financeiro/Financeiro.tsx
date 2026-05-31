@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { DollarSign, Plus, TrendingDown, Wallet, Search, RefreshCw, TrendingUp, CheckCircle2, Loader2, Calendar, Home, AlertTriangle } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { DollarSign, Plus, TrendingDown, Wallet, Search, RefreshCw, TrendingUp, CheckCircle2, Loader2, Calendar, Home, AlertTriangle, Eye, LockKeyhole } from 'lucide-react';
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatCard } from '../../components/ui/StatCard';
@@ -603,7 +604,69 @@ const FinanceiroGestor = () => {
   );
 };
 
+/* ── Roteador inteligente baseado na URL ─────────────────────────── */
 export const Financeiro = () => {
   const { isGestor } = useAuth();
-  return isGestor ? <FinanceiroGestor /> : <FinanceiroMorador />;
+  const location = useLocation();
+  const isGestaoMode = location.pathname === '/gestao-financeira';
+
+  return (
+    <div className="relative w-full h-full">
+      {/* Indicador visual do modo (estado da arte) */}
+      <div
+        className="absolute top-0 left-0 right-0 h-1 z-40 transition-all duration-300"
+        style={{
+          background: isGestaoMode
+            ? 'linear-gradient(90deg, rgba(239,68,68,0.6) 0%, rgba(239,68,68,0.3) 100%)'
+            : 'linear-gradient(90deg, rgba(16,185,129,0.6) 0%, rgba(16,185,129,0.3) 100%)',
+        }}
+      />
+
+      {/* Badge de modo flutuante (canto superior direito) */}
+      <div
+        className="absolute top-3 right-3 z-30 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[10px] font-bold transition-all duration-300"
+        style={{
+          background: isGestaoMode
+            ? 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.08))'
+            : 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.08))',
+          border: `1px solid ${isGestaoMode ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)'}`,
+          backdropFilter: 'blur(8px)',
+        }}
+      >
+        {isGestaoMode ? (
+          <>
+            <LockKeyhole size={11} style={{ color: '#ef4444' }} />
+            <span style={{ color: '#fca5a5' }}>GESTÃO FINANCEIRA</span>
+          </>
+        ) : (
+          <>
+            <Eye size={11} style={{ color: '#6ee7b7' }} />
+            <span style={{ color: '#a7f3d0' }}>TRANSPARÊNCIA</span>
+          </>
+        )}
+      </div>
+
+      {/* Componente renderizado com transição suave */}
+      <div
+        style={{
+          animation: 'fadeIn 0.3s ease-out forwards',
+          opacity: 0,
+        }}
+      >
+        <style>{`
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+              transform: translateY(4px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}</style>
+        {isGestaoMode ? <FinanceiroGestor /> : <FinanceiroMorador />}
+      </div>
+    </div>
+  );
 };
