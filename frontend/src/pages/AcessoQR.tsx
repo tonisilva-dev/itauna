@@ -1,337 +1,438 @@
 /**
- * AcessoQR — Página pública acessada pelo visitante ao escanear o QR Code.
- * URL: /acesso          → visitante digita a chácara destino
- * URL: /acesso?c=045    → chácara pré-preenchida pelo QR da chácara
+ * AcessoQR — Experiência do visitante ao escanear o QR Code.
+ * URL: /acesso?p=1  ou  /acesso?p=2
  *
- * Fluxo: formulário → insert na portaria_solicitacoes → tela de espera
- * (polling a cada 4s) → tela de aprovado / negado.
+ * Wizard 3 passos: Nome → CPF → Aguardando → Resultado
+ * Design: zero barreira, máxima clareza, responsivo, acessível.
  */
-import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { TreePine, Shield, CheckCircle2, XCircle, Clock, Loader2 } from 'lucide-react';
-import { insertSolicitacao, fetchSolicitacaoById } from '../lib/supabase-queries';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { TreePine, ChevronRight, ArrowLeft, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import {
+  insertSolicitacao, fetchSolicitacaoById, isPortariaBusy,
+  fetchConviteByCpf, fetchRecorrenteByCpf,
+} from '../lib/supabase-queries';
 
+/* ── Paleta ── */
 const CYAN  = '#57d8ff';
 const GREEN = '#10b981';
 const RED   = '#ef4444';
 
-const inp: React.CSSProperties = {
-  width: '100%', background: 'rgba(255,255,255,0.07)',
-  border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12,
-  color: '#fff', padding: '12px 14px', fontSize: 15, outline: 'none',
-  boxSizing: 'border-box',
-};
-const lbl: React.CSSProperties = {
-  fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.45)',
-  textTransform: 'uppercase', letterSpacing: '0.08em',
-  display: 'block', marginBottom: 6,
-};
+/* ── Formatar CPF: 000.000.000-00 ── */
+function fmtCpf(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0,3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
+  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+}
 
-/* ── Tela de espera — polling a cada 4s ── */
-const TelaEspera = ({
-  solicitacaoId, nome, chacara,
-}: { solicitacaoId: string; nome: string; chacara: string }) => {
-  const [status, setStatus] = useState<'pendente' | 'aprovado' | 'negado' | 'cancelado'>('pendente');
-  const [dots, setDots] = useState('');
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+/* ── Mascarar CPF para exibição: ***.456.789-** ── */
+function maskCpf(raw: string): string {
+  const d = raw.replace(/\D/g, '');
+  if (d.length < 11) return fmtCpf(raw);
+  return `***.${d.slice(3,6)}.${d.slice(6,9)}-**`;
+}
 
-  useEffect(() => {
-    // Animação de pontos
-    const dt = setInterval(() => setDots(d => d.length >= 3 ? '' : d + '.'), 600);
+type Step = 'nome' | 'cpf' | 'busy' | 'waiting' | 'approved' | 'denied';
 
-    // Polling de status a cada 4s
-    pollRef.current = setInterval(async () => {
-      const sol = await fetchSolicitacaoById(solicitacaoId);
-      if (sol && sol.status !== 'pendente') {
-        setStatus(sol.status as any);
-        clearInterval(pollRef.current!);
-      }
-    }, 4000);
+/* ── Componente de passo — wrapper com animação ── */
+const StepWrap = ({ children, dir = 'in' }: { children: React.ReactNode; dir?: 'in' | 'out' }) => (
+  <div style={{
+    animation: `slideIn 0.28s cubic-bezier(0.25,0.46,0.45,0.94) both`,
+    width: '100%',
+  }}>
+    {children}
+  </div>
+);
 
-    return () => {
-      clearInterval(dt);
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [solicitacaoId]);
-
-  if (status === 'aprovado') return (
-    <div style={{ textAlign: 'center', padding: '32px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-      <div style={{
-        width: 72, height: 72, borderRadius: '50%',
-        background: `${GREEN}18`, border: `2px solid ${GREEN}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        animation: 'pulse 1.5s ease infinite',
-      }}>
-        <CheckCircle2 size={36} style={{ color: GREEN }} />
-      </div>
-      <div>
-        <p style={{ fontSize: 22, fontWeight: 900, color: GREEN, marginBottom: 6 }}>Entrada Liberada!</p>
-        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>
-          Seja bem-vindo(a), <strong style={{ color: '#fff' }}>{nome}</strong>.<br />
-          Pode se dirigir à <strong style={{ color: '#fff' }}>Chácara {chacara}</strong>.
-        </p>
-      </div>
-      <div style={{
-        padding: '10px 20px', borderRadius: 12,
-        background: `${GREEN}12`, border: `1px solid ${GREEN}28`,
-        fontSize: 12, color: 'rgba(255,255,255,0.5)',
-      }}>
-        Apresente esta tela ao porteiro se solicitado.
-      </div>
-    </div>
-  );
-
-  if (status === 'negado' || status === 'cancelado') return (
-    <div style={{ textAlign: 'center', padding: '32px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-      <div style={{
-        width: 72, height: 72, borderRadius: '50%',
-        background: `${RED}18`, border: `2px solid ${RED}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <XCircle size={36} style={{ color: RED }} />
-      </div>
-      <div>
-        <p style={{ fontSize: 20, fontWeight: 900, color: RED, marginBottom: 6 }}>Acesso não autorizado</p>
-        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6 }}>
-          Dirija-se à portaria para mais informações.
-        </p>
-      </div>
-    </div>
-  );
-
-  return (
-    <div style={{ textAlign: 'center', padding: '32px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-      <div style={{
-        width: 72, height: 72, borderRadius: '50%',
-        background: 'rgba(87,216,255,0.10)', border: `2px solid ${CYAN}55`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Clock size={32} style={{ color: CYAN }} />
-      </div>
-      <div>
-        <p style={{ fontSize: 18, fontWeight: 800, color: '#fff', marginBottom: 8 }}>
-          Aguardando liberação{dots}
-        </p>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7 }}>
-          Sua solicitação foi enviada à portaria.<br />
-          Em instantes você receberá a confirmação.
-        </p>
-      </div>
-      <div style={{
-        padding: '12px 18px', borderRadius: 12,
-        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-        fontSize: 12, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6,
-      }}>
-        <strong style={{ color: 'rgba(255,255,255,0.65)' }}>{nome}</strong><br />
-        Chácara <strong style={{ color: CYAN }}>{chacara.padStart(3, '0')}</strong>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
-        <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} />
-        verificando status automaticamente
-      </div>
-    </div>
-  );
-};
-
-/* ══════════════════════════════════════════════════════════════════
-   PÁGINA PRINCIPAL
-══════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════ */
 export const AcessoQR = () => {
-  const [params] = useSearchParams();
-  const chacaraParam = params.get('c') ?? '';
+  const [params]     = useSearchParams();
+  const portariaId   = parseInt(params.get('p') ?? '1') as 1 | 2;
 
-  const [chacara,  setChacara]  = useState(chacaraParam);
-  const [nome,     setNome]     = useState('');
-  const [tel,      setTel]      = useState('');
-  const [veiculo,  setVeiculo]  = useState('');
-  const [motivo,   setMotivo]   = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [solicitacaoId, setSolicitacaoId] = useState<string | null>(null);
-  const [lastSubmit, setLastSubmit] = useState(0); // rate limiting client-side
+  const [step, setStep]       = useState<Step>('nome');
+  const [nome, setNome]       = useState('');
+  const [cpf, setCpf]         = useState('');
+  const [solId, setSolId]     = useState<string | null>(null);
+  const [dots, setDots]       = useState('');
+  const pollRef               = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nomeRef               = useRef<HTMLInputElement>(null);
+  const cpfRef                = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => { nomeRef.current?.focus(); }, []);
+
+  /* Animação de espera */
+  useEffect(() => {
+    if (step !== 'waiting' && step !== 'busy') return;
+    const t = setInterval(() => setDots(d => d.length >= 3 ? '' : d + '.'), 600);
+    return () => clearInterval(t);
+  }, [step]);
+
+  /* Polling quando aguardando */
+  useEffect(() => {
+    if (step !== 'waiting' || !solId) return;
+    pollRef.current = setInterval(async () => {
+      const sol = await fetchSolicitacaoById(solId);
+      if (!sol || sol.status === 'pendente') return;
+      clearInterval(pollRef.current!);
+      setStep(sol.status === 'aprovado' ? 'approved' : 'denied');
+    }, 3500);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [step, solId]);
+
+  /* Retry quando portaria ocupada */
+  useEffect(() => {
+    if (step !== 'busy') return;
+    const t = setInterval(async () => {
+      const busy = await isPortariaBusy(portariaId);
+      if (!busy) { clearInterval(t); handleSubmit(); }
+    }, 5000);
+    return () => clearInterval(t);
+  }, [step]);
+
+  const handleNome = (e: React.FormEvent) => {
     e.preventDefault();
-    const now = Date.now();
-    if (now - lastSubmit < 60_000) {
-      alert('Aguarde 1 minuto antes de enviar outra solicitação.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const sol = await insertSolicitacao({
-        chacara_numero:    chacara.padStart(3, '0'),
-        visitante_nome:    nome.trim(),
-        visitante_tel:     tel.trim() || null,
-        visitante_veiculo: veiculo.trim() || null,
-        motivo:            motivo.trim() || null,
-      });
-      setLastSubmit(now);
-      setSolicitacaoId(sol.id);
-    } catch {
-      alert('Erro ao enviar solicitação. Tente novamente ou dirija-se à portaria.');
-    } finally {
-      setSubmitting(false);
-    }
+    if (!nome.trim()) return;
+    setStep('cpf');
+    setTimeout(() => cpfRef.current?.focus(), 100);
   };
 
+  const handleCpf = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
+    setCpf(fmtCpf(raw));
+  };
+
+  const handleSubmit = useCallback(async () => {
+    const cpfClean = cpf.replace(/\D/g, '');
+
+    try {
+      /* Verificar se portaria está ocupada */
+      const busy = await isPortariaBusy(portariaId);
+      if (busy) { setStep('busy'); return; }
+
+      /* Buscar convite ou recorrente pelo CPF */
+      const [convite, recorrente] = await Promise.all([
+        fetchConviteByCpf(cpfClean),
+        fetchRecorrenteByCpf(cpfClean),
+      ]);
+
+      /* Criar solicitação */
+      const sol = await insertSolicitacao({
+        chacara_numero:  convite?.chacara_numero ?? recorrente?.chacara_numero ?? '—',
+        visitante_nome:  nome.trim(),
+        visitante_cpf:   cpfClean || null,
+        portaria_id:     portariaId,
+        status:          'pendente',
+        convite_id:      convite?.id ?? null,
+        recorrente_id:   recorrente?.id ?? null,
+        origem:          'qr',
+      } as any);
+
+      setSolId(sol.id);
+      setStep('waiting');
+    } catch {
+      alert('Erro de conexão. Dirija-se à portaria.');
+    }
+  }, [cpf, nome, portariaId]);
+
+  const handleConfirmCpf = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cpfClean = cpf.replace(/\D/g, '');
+    if (cpfClean.length !== 11) { cpfRef.current?.focus(); return; }
+    await handleSubmit();
+  };
+
+  /* ── Render ── */
   return (
     <div style={{
       minHeight: '100svh',
-      background: 'linear-gradient(180deg, #07101c 0%, #0d1a2e 100%)',
+      background: 'linear-gradient(160deg, #070f1c 0%, #0d1a30 100%)',
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      padding: 'clamp(24px,5vw,48px) clamp(16px,4vw,24px)',
+      justifyContent: 'center',
+      padding: 'clamp(24px,6vw,56px) clamp(20px,5vw,32px)',
       fontFamily: 'Inter, system-ui, sans-serif',
+      color: '#fff',
     }}>
 
-      {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: 36, width: '100%', maxWidth: 440 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 20 }}>
-          <div style={{
-            width: 44, height: 44, borderRadius: 13,
-            background: 'linear-gradient(135deg,#72e3ff,#669dff)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 24px rgba(87,216,255,0.35)',
-          }}>
-            <TreePine size={22} color="#07101c" />
-          </div>
-          <div style={{ textAlign: 'left' }}>
-            <p style={{ fontWeight: 900, fontSize: 16, color: '#fff', lineHeight: 1 }}>Itaúna</p>
-            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>Chácaras · Ibiporã – PR</p>
-          </div>
-        </div>
-
+      {/* Logo */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 7,
-          padding: '6px 14px', borderRadius: 20,
-          background: 'rgba(87,216,255,0.08)', border: '1px solid rgba(87,216,255,0.20)',
-          marginBottom: 16,
+          width: 44, height: 44, borderRadius: 13,
+          background: 'linear-gradient(135deg,#72e3ff,#669dff)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 0 28px rgba(87,216,255,0.30)',
         }}>
-          <Shield size={13} style={{ color: CYAN }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: CYAN, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            Solicitação de Acesso
-          </span>
+          <TreePine size={22} color="#07101c" />
         </div>
-
-        <h1 style={{ fontSize: 'clamp(22px,5vw,30px)', fontWeight: 900, color: '#fff', lineHeight: 1.15, marginBottom: 8 }}>
-          Bem-vindo ao<br />
-          <span style={{ background: 'linear-gradient(135deg,#72e3ff,#669dff)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
-            Condomínio Itaúna
-          </span>
-        </h1>
-        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', lineHeight: 1.6 }}>
-          Preencha seus dados. A portaria receberá sua solicitação e liberará sua entrada.
-        </p>
+        <div>
+          <p style={{ fontWeight: 900, fontSize: 16, lineHeight: 1 }}>Itaúna</p>
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginTop: 2 }}>
+            Portaria {portariaId} · Ibiporã – PR
+          </p>
+        </div>
       </div>
 
-      {/* Card principal */}
+      {/* Card central */}
       <div style={{
-        width: '100%', maxWidth: 440,
-        background: 'rgba(255,255,255,0.04)',
+        width: '100%', maxWidth: 420,
+        background: 'rgba(255,255,255,0.045)',
         border: '1px solid rgba(255,255,255,0.09)',
-        borderRadius: 20,
-        padding: 'clamp(20px,4vw,28px)',
+        borderRadius: 24, padding: 'clamp(28px,6vw,40px)',
+        backdropFilter: 'blur(16px)',
+        boxShadow: '0 32px 80px rgba(0,0,0,0.45)',
       }}>
-        {solicitacaoId ? (
-          <TelaEspera
-            solicitacaoId={solicitacaoId}
-            nome={nome}
-            chacara={chacara.padStart(3, '0')}
-          />
-        ) : (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <span style={lbl}>Seu nome completo *</span>
+
+        {/* ── PASSO 1: Nome ── */}
+        {step === 'nome' && (
+          <StepWrap>
+            <p style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.35)', marginBottom: 6, letterSpacing: '0.06em' }}>
+              PASSO 1 DE 2
+            </p>
+            <h1 style={{ fontSize: 'clamp(24px,5vw,32px)', fontWeight: 900, lineHeight: 1.1, marginBottom: 8 }}>
+              Bem-vindo!
+            </h1>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginBottom: 32, lineHeight: 1.6 }}>
+              Como você se chama?
+            </p>
+            <form onSubmit={handleNome}>
               <input
-                style={inp} required
-                placeholder="Ex: João da Silva"
-                value={nome} onChange={e => setNome(e.target.value)}
+                ref={nomeRef}
+                type="text"
                 autoComplete="name"
+                autoCapitalize="words"
+                placeholder="Seu nome completo"
+                value={nome}
+                onChange={e => setNome(e.target.value)}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.07)',
+                  border: '1.5px solid rgba(255,255,255,0.15)',
+                  borderRadius: 14, color: '#fff',
+                  padding: '16px 18px', fontSize: 17, outline: 'none',
+                  marginBottom: 16,
+                  transition: 'border-color 0.2s',
+                }}
+                onFocus={e => e.target.style.borderColor = CYAN}
+                onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.15)'}
               />
-            </div>
-
-            <div>
-              <span style={lbl}>Chácara destino *</span>
-              <input
-                style={{ ...inp, fontWeight: chacaraParam ? 700 : 400 }}
-                required
-                placeholder="Número · ex: 042"
-                value={chacara}
-                onChange={e => setChacara(e.target.value.replace(/\D/g, ''))}
-                maxLength={3}
-                readOnly={!!chacaraParam}
-              />
-              {chacaraParam && (
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>
-                  Chácara pré-definida pelo QR Code
-                </p>
-              )}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <span style={lbl}>Telefone</span>
-                <input
-                  style={inp} type="tel"
-                  placeholder="(43) 9 ..."
-                  value={tel} onChange={e => setTel(e.target.value)}
-                  autoComplete="tel"
-                />
-              </div>
-              <div>
-                <span style={lbl}>Veículo / Placa</span>
-                <input
-                  style={inp}
-                  placeholder="Ex: Civic / ABC-1234"
-                  value={veiculo} onChange={e => setVeiculo(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <span style={lbl}>Motivo da visita</span>
-              <input
-                style={inp}
-                placeholder="Ex: visita pessoal, entrega, serviço..."
-                value={motivo} onChange={e => setMotivo(e.target.value)}
-              />
-            </div>
-
-            <button
-              type="submit" disabled={submitting}
-              style={{
-                width: '100%', padding: '14px', borderRadius: 13,
-                border: 'none', cursor: submitting ? 'wait' : 'pointer',
-                background: submitting ? 'rgba(87,216,255,0.3)' : 'linear-gradient(135deg,#72e3ff,#669dff)',
-                color: '#07101c', fontWeight: 800, fontSize: 15,
+              <button type="submit" disabled={!nome.trim()} style={{
+                width: '100%', padding: '16px', borderRadius: 14, border: 'none',
+                background: nome.trim()
+                  ? 'linear-gradient(135deg,#72e3ff,#669dff)'
+                  : 'rgba(255,255,255,0.08)',
+                color: nome.trim() ? '#07101c' : 'rgba(255,255,255,0.3)',
+                fontWeight: 800, fontSize: 16, cursor: nome.trim() ? 'pointer' : 'default',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 transition: 'all 0.2s',
-              }}
-            >
-              {submitting
-                ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Enviando...</>
-                : '🔔 Solicitar Entrada'
-              }
-            </button>
-          </form>
+              }}>
+                Continuar <ChevronRight size={18} />
+              </button>
+            </form>
+          </StepWrap>
         )}
+
+        {/* ── PASSO 2: CPF ── */}
+        {step === 'cpf' && (
+          <StepWrap>
+            <button onClick={() => setStep('nome')} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center',
+              gap: 4, fontSize: 13, marginBottom: 20, padding: 0,
+            }}>
+              <ArrowLeft size={14} /> Voltar
+            </button>
+            <p style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.35)', marginBottom: 6, letterSpacing: '0.06em' }}>
+              PASSO 2 DE 2
+            </p>
+            <h1 style={{ fontSize: 'clamp(22px,5vw,30px)', fontWeight: 900, lineHeight: 1.1, marginBottom: 4 }}>
+              {nome.split(' ')[0]}, qual seu CPF?
+            </h1>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 32, lineHeight: 1.6 }}>
+              Usado somente para confirmar sua identidade na portaria.
+            </p>
+            <form onSubmit={handleConfirmCpf}>
+              <input
+                ref={cpfRef}
+                type="tel"
+                inputMode="numeric"
+                placeholder="000.000.000-00"
+                value={cpf}
+                onChange={handleCpf}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.07)',
+                  border: '1.5px solid rgba(255,255,255,0.15)',
+                  borderRadius: 14, color: '#fff',
+                  padding: '16px 18px', fontSize: 22,
+                  letterSpacing: '0.12em', outline: 'none',
+                  marginBottom: 16, textAlign: 'center',
+                  transition: 'border-color 0.2s',
+                  fontFamily: 'monospace',
+                }}
+                onFocus={e => e.target.style.borderColor = CYAN}
+                onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.15)'}
+              />
+
+              {/* Indicador de progresso do CPF */}
+              <div style={{ display: 'flex', gap: 4, marginBottom: 24, justifyContent: 'center' }}>
+                {Array.from({ length: 11 }).map((_, i) => (
+                  <div key={i} style={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    background: i < cpf.replace(/\D/g,'').length ? CYAN : 'rgba(255,255,255,0.15)',
+                    transition: 'background 0.15s',
+                  }} />
+                ))}
+              </div>
+
+              <button
+                type="submit"
+                disabled={cpf.replace(/\D/g,'').length !== 11}
+                style={{
+                  width: '100%', padding: '16px', borderRadius: 14, border: 'none',
+                  background: cpf.replace(/\D/g,'').length === 11
+                    ? 'linear-gradient(135deg,#72e3ff,#669dff)'
+                    : 'rgba(255,255,255,0.08)',
+                  color: cpf.replace(/\D/g,'').length === 11 ? '#07101c' : 'rgba(255,255,255,0.3)',
+                  fontWeight: 800, fontSize: 16,
+                  cursor: cpf.replace(/\D/g,'').length === 11 ? 'pointer' : 'default',
+                  transition: 'all 0.2s',
+                }}>
+                🔔 Chamar portaria
+              </button>
+            </form>
+          </StepWrap>
+        )}
+
+        {/* ── PORTARIA OCUPADA ── */}
+        {step === 'busy' && (
+          <StepWrap>
+            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: '50%', margin: '0 auto 20px',
+                background: 'rgba(245,158,11,0.12)', border: '2px solid rgba(245,158,11,0.4)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                animation: 'pulse 2s ease infinite',
+              }}>
+                <Clock size={28} style={{ color: '#f59e0b' }} />
+              </div>
+              <h2 style={{ fontSize: 22, fontWeight: 900, color: '#f59e0b', marginBottom: 10 }}>
+                Portaria ocupada
+              </h2>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7 }}>
+                A portaria está atendendo outro visitante.<br />
+                Você será chamado automaticamente<br />
+                assim que ela ficar disponível{dots}
+              </p>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', marginTop: 20 }}>
+                Portaria {portariaId} · aguardando liberação
+              </p>
+            </div>
+          </StepWrap>
+        )}
+
+        {/* ── AGUARDANDO ── */}
+        {step === 'waiting' && (
+          <StepWrap>
+            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: '50%', margin: '0 auto 20px',
+                background: `${CYAN}14`, border: `2px solid ${CYAN}50`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                animation: 'pulse 1.8s ease infinite',
+              }}>
+                <TreePine size={28} style={{ color: CYAN }} />
+              </div>
+              <h2 style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 10 }}>
+                Aguardando{dots}
+              </h2>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7 }}>
+                Sua solicitação foi enviada à portaria.<br />
+                Em instantes você receberá a confirmação.
+              </p>
+              <div style={{
+                marginTop: 24, padding: '12px 20px', borderRadius: 12,
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+              }}>
+                <p style={{ fontSize: 13, color: '#fff', fontWeight: 700 }}>{nome}</p>
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
+                  CPF: {maskCpf(cpf)} · Portaria {portariaId}
+                </p>
+              </div>
+            </div>
+          </StepWrap>
+        )}
+
+        {/* ── APROVADO ── */}
+        {step === 'approved' && (
+          <StepWrap>
+            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+              <div style={{
+                width: 72, height: 72, borderRadius: '50%', margin: '0 auto 20px',
+                background: `${GREEN}14`, border: `2px solid ${GREEN}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                animation: 'popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) both',
+              }}>
+                <CheckCircle2 size={36} style={{ color: GREEN }} />
+              </div>
+              <h2 style={{ fontSize: 26, fontWeight: 900, color: GREEN, marginBottom: 10 }}>
+                Entrada liberada!
+              </h2>
+              <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.65)', lineHeight: 1.7 }}>
+                Seja muito bem-vindo(a),<br />
+                <strong style={{ color: '#fff' }}>{nome}</strong>.
+              </p>
+              <div style={{
+                marginTop: 24, padding: '14px 20px', borderRadius: 14,
+                background: `${GREEN}0c`, border: `1px solid ${GREEN}28`,
+                fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 1.6,
+              }}>
+                Apresente esta tela ao porteiro se solicitado.
+              </div>
+            </div>
+          </StepWrap>
+        )}
+
+        {/* ── NEGADO ── */}
+        {step === 'denied' && (
+          <StepWrap>
+            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+              <div style={{
+                width: 72, height: 72, borderRadius: '50%', margin: '0 auto 20px',
+                background: `${RED}14`, border: `2px solid ${RED}50`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <XCircle size={36} style={{ color: RED }} />
+              </div>
+              <h2 style={{ fontSize: 24, fontWeight: 900, color: RED, marginBottom: 10 }}>
+                Acesso não autorizado
+              </h2>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7 }}>
+                Dirija-se à portaria para mais informações.
+              </p>
+            </div>
+          </StepWrap>
+        )}
+
       </div>
 
       {/* Rodapé */}
-      <div style={{ marginTop: 32, textAlign: 'center' }}>
-        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', lineHeight: 1.6 }}>
-          Sua solicitação é registrada e auditada.<br />
-          Em caso de emergência, dirija-se diretamente à portaria.
-        </p>
-        <Link to="/" style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', textDecoration: 'none', marginTop: 8, display: 'inline-block' }}>
-          Condomínio Itaúna · Ibiporã – PR
-        </Link>
-      </div>
+      <p style={{ marginTop: 28, fontSize: 11, color: 'rgba(255,255,255,0.2)', textAlign: 'center' }}>
+        Condomínio Chácaras Itaúna · Ibiporã – PR
+      </p>
 
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(20px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
         @keyframes pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
-          50% { box-shadow: 0 0 0 12px rgba(16,185,129,0); }
+          0%, 100% { box-shadow: 0 0 0 0 rgba(87,216,255,0.3); }
+          50%       { box-shadow: 0 0 0 14px rgba(87,216,255,0); }
+        }
+        @keyframes popIn {
+          from { opacity: 0; transform: scale(0.5); }
+          to   { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>

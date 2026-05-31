@@ -1129,6 +1129,151 @@ export async function deleteChecklistItem(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/* ─── Portaria: Convites ───────────────────────────────────────── */
+
+export interface DbConvite {
+  id: string;
+  morador_id: string;
+  chacara_numero: string;
+  visitante_nome: string;
+  visitante_cpf: string | null;
+  visitante_tel: string | null;
+  tipo: 'convidado' | 'prestador' | 'entrega';
+  data_visita: string;
+  num_pessoas: number;
+  observacao: string | null;
+  status: 'ativo' | 'usado' | 'expirado' | 'cancelado';
+  portaria_id: number | null;
+  created_at: string;
+  updated_at: string;
+  // join
+  morador?: { full_name: string; unit_number: number | null; phone: string | null };
+}
+
+export interface DbRecorrente {
+  id: string;
+  morador_id: string;
+  chacara_numero: string;
+  nome: string;
+  cpf: string | null;
+  telefone: string | null;
+  tipo: 'convidado' | 'prestador' | 'entrega';
+  dias_semana: string[];
+  vigencia_inicio: string;
+  vigencia_fim: string | null;
+  ativo: boolean;
+  observacao: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+const TODAY_STR = () => new Date().toISOString().slice(0, 10);
+
+export async function fetchMeusConvites(moradorId: string): Promise<DbConvite[]> {
+  const { data, error } = await db
+    .from('portaria_convites')
+    .select('*')
+    .eq('morador_id', moradorId)
+    .gte('data_visita', TODAY_STR())
+    .order('data_visita')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as DbConvite[];
+}
+
+export async function fetchConvitesHoje(): Promise<DbConvite[]> {
+  const { data, error } = await db
+    .from('portaria_convites')
+    .select('*, morador:profiles!morador_id(full_name, unit_number, phone)')
+    .eq('data_visita', TODAY_STR())
+    .eq('status', 'ativo')
+    .order('created_at');
+  if (error) throw error;
+  return (data ?? []) as DbConvite[];
+}
+
+export async function fetchConviteByCpf(cpf: string): Promise<DbConvite | null> {
+  const cpfClean = cpf.replace(/\D/g, '');
+  const { data } = await db
+    .from('portaria_convites')
+    .select('*, morador:profiles!morador_id(full_name, unit_number, phone)')
+    .eq('visitante_cpf', cpfClean)
+    .eq('data_visita', TODAY_STR())
+    .eq('status', 'ativo')
+    .maybeSingle();
+  return data as DbConvite | null;
+}
+
+export async function insertConvite(payload: Omit<DbConvite, 'id' | 'created_at' | 'updated_at' | 'morador'>): Promise<DbConvite> {
+  const clean = { ...payload, visitante_cpf: payload.visitante_cpf?.replace(/\D/g, '') || null };
+  const { data, error } = await db.from('portaria_convites').insert(clean).select().single();
+  if (error) throw error;
+  return data as DbConvite;
+}
+
+export async function updateConvite(id: string, payload: Partial<DbConvite>): Promise<void> {
+  const { error } = await db.from('portaria_convites').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export async function cancelarConvite(id: string): Promise<void> {
+  const { error } = await db.from('portaria_convites').update({ status: 'cancelado' }).eq('id', id);
+  if (error) throw error;
+}
+
+/* ─── Portaria: Recorrentes ────────────────────────────────────── */
+
+export async function fetchMeusRecorrentes(moradorId: string): Promise<DbRecorrente[]> {
+  const { data, error } = await db
+    .from('portaria_recorrentes')
+    .select('*')
+    .eq('morador_id', moradorId)
+    .order('nome');
+  if (error) throw error;
+  return (data ?? []) as DbRecorrente[];
+}
+
+export async function fetchRecorrenteByCpf(cpf: string): Promise<DbRecorrente | null> {
+  const cpfClean = cpf.replace(/\D/g, '');
+  const hoje = TODAY_STR();
+  const { data } = await db
+    .from('portaria_recorrentes')
+    .select('*')
+    .eq('cpf', cpfClean)
+    .eq('ativo', true)
+    .lte('vigencia_inicio', hoje)
+    .or(`vigencia_fim.is.null,vigencia_fim.gte.${hoje}`)
+    .maybeSingle();
+  return data as DbRecorrente | null;
+}
+
+export async function insertRecorrente(payload: Omit<DbRecorrente, 'id' | 'created_at' | 'updated_at'>): Promise<DbRecorrente> {
+  const clean = { ...payload, cpf: payload.cpf?.replace(/\D/g, '') || null };
+  const { data, error } = await db.from('portaria_recorrentes').insert(clean).select().single();
+  if (error) throw error;
+  return data as DbRecorrente;
+}
+
+export async function updateRecorrente(id: string, payload: Partial<DbRecorrente>): Promise<void> {
+  const { error } = await db.from('portaria_recorrentes').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteRecorrente(id: string): Promise<void> {
+  const { error } = await db.from('portaria_recorrentes').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/* ─── Portaria: verifica se portaria está ocupada ──────────────── */
+
+export async function isPortariaBusy(portariaId: number): Promise<boolean> {
+  const query: any = db
+    .from('portaria_solicitacoes')
+    .select('id', { count: 'exact', head: true });
+  const { count } = await query.eq('portaria_id', portariaId).eq('status', 'pendente');
+  return (count ?? 0) > 0;
+}
+
 /* ─── Portaria: Solicitações QR ───────────────────────────────── */
 
 export interface DbSolicitacao {
@@ -1143,12 +1288,18 @@ export interface DbSolicitacao {
   resolved_at: string | null;
   observacao: string | null;
   registro_id: string | null;
+  portaria_id: number | null;
+  visitante_cpf: string | null;
+  num_pessoas: number | null;
+  convite_id: string | null;
+  recorrente_id: string | null;
+  origem: 'qr' | 'manual' | 'whatsapp' | null;
   created_at: string;
   updated_at: string;
 }
 
 export async function insertSolicitacao(
-  payload: Pick<DbSolicitacao, 'chacara_numero' | 'visitante_nome' | 'visitante_tel' | 'visitante_veiculo' | 'motivo'>
+  payload: Partial<DbSolicitacao>
 ): Promise<DbSolicitacao> {
   const { data, error } = await db
     .from('portaria_solicitacoes').insert(payload).select().single();
@@ -1156,12 +1307,14 @@ export async function insertSolicitacao(
   return data as DbSolicitacao;
 }
 
-export async function fetchSolicitacoesPendentes(): Promise<DbSolicitacao[]> {
-  const { data, error } = await db
+export async function fetchSolicitacoesPendentes(portariaId?: number): Promise<DbSolicitacao[]> {
+  let q = db
     .from('portaria_solicitacoes')
     .select('*')
     .eq('status', 'pendente')
     .order('created_at', { ascending: true });
+  if (portariaId) q = q.eq('portaria_id', portariaId);
+  const { data, error } = await q;
   if (error) throw error;
   return (data ?? []) as DbSolicitacao[];
 }
