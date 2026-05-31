@@ -31,6 +31,8 @@ const QuemSomos       = lazy(() => import('./pages/QuemSomos').then(m => ({ defa
 const TelefonesUteis         = lazy(() => import('./pages/TelefonesUteis').then(m => ({ default: m.TelefonesUteis })));
 const ResponsabilidadeSocial = lazy(() => import('./pages/ResponsabilidadeSocial').then(m => ({ default: m.ResponsabilidadeSocial })));
 const AcessoQR               = lazy(() => import('./pages/AcessoQR').then(m => ({ default: m.AcessoQR })));
+const AnaliseCenarios        = lazy(() => import('./pages/financeiro/AnaliseCenarios').then(m => ({ default: m.AnaliseCenarios })));
+const ChecklistServicos      = lazy(() => import('./pages/servicos/ChecklistServicos').then(m => ({ default: m.ChecklistServicos })));
 const Privacidade     = lazy(() => import('./pages/Privacidade').then(m => ({ default: m.Privacidade })));
 const Preview         = lazy(() => import('./pages/Preview').then(m => ({ default: m.Preview })));
 
@@ -123,9 +125,11 @@ export default function App() {
             <Route path="/parceiros"        element={<Parceiros />} />
 
             {/* ── Gestor (admin + síndico) ── */}
-            <Route path="/unidades"  element={<GestorRoute><Unidades /></GestorRoute>} />
-            <Route path="/moradores" element={<GestorRoute><Moradores /></GestorRoute>} />
-            <Route path="/acessos"   element={<GestorRoute><GestaoAcessos /></GestorRoute>} />
+            <Route path="/unidades"          element={<GestorRoute><Unidades /></GestorRoute>} />
+            <Route path="/moradores"         element={<GestorRoute><Moradores /></GestorRoute>} />
+            <Route path="/acessos"           element={<GestorRoute><GestaoAcessos /></GestorRoute>} />
+            <Route path="/analise-cenarios"  element={<GestorRoute><AnaliseCenarios /></GestorRoute>} />
+            <Route path="/checklist-servicos" element={<GestorRoute><ChecklistServicos /></GestorRoute>} />
 
           </Route>
 

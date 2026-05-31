@@ -271,6 +271,50 @@ export interface AreaComum {
   updated_at: string;
 }
 
+export type CenarioTipo   = 'contratacao' | 'terceirizacao' | 'obra' | 'equipamento' | 'seguranca' | 'financiamento' | 'reajuste' | 'outro';
+export type CenarioStatus = 'rascunho' | 'em_analise' | 'aprovado' | 'rejeitado';
+
+export interface CenarioOrcamentario {
+  id: string;
+  titulo: string;
+  tipo: CenarioTipo;
+  descricao?: string | null;
+  custo_mensal: number;
+  custo_unico: number;
+  periodo_meses?: number | null;
+  data_inicio?: string | null;
+  status: CenarioStatus;
+  num_unidades: number;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServicoChecklist {
+  id: string;
+  servico: string;
+  prestador?: string | null;
+  contato?: string | null;
+  data_inicio?: string | null;
+  data_fim?: string | null;
+  valor?: number | null;
+  status: 'aberto' | 'em_andamento' | 'concluido' | 'cancelado';
+  observacoes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  itens?: ServicoChecklistItem[];
+}
+
+export interface ServicoChecklistItem {
+  id: string;
+  checklist_id: string;
+  descricao: string;
+  concluido: boolean;
+  ordem: number;
+  created_at: string;
+}
+
 export type SolicitacaoStatus = 'pendente' | 'aprovado' | 'negado' | 'cancelado';
 
 export interface PortariaSolicitacao {
@@ -362,7 +406,10 @@ export type Database = {
       telefones_uteis:        { Row: TelefoneUtil;          Insert: Partial<TelefoneUtil>;          Update: Partial<TelefoneUtil> };
       telefones_secretarias:  { Row: TelefoneSecretaria;   Insert: Partial<TelefoneSecretaria>;   Update: Partial<TelefoneSecretaria> };
       campanhas_sociais:        { Row: CampanhaSocial;         Insert: Partial<CampanhaSocial>;         Update: Partial<CampanhaSocial> };
-      portaria_solicitacoes:    { Row: PortariaSolicitacao;   Insert: Partial<PortariaSolicitacao>;   Update: Partial<PortariaSolicitacao> };
+      portaria_solicitacoes:      { Row: PortariaSolicitacao;     Insert: Partial<PortariaSolicitacao>;     Update: Partial<PortariaSolicitacao> };
+      cenarios_orcamentarios:     { Row: CenarioOrcamentario;   Insert: Partial<CenarioOrcamentario>;   Update: Partial<CenarioOrcamentario> };
+      servicos_checklist:         { Row: ServicoChecklist;       Insert: Partial<ServicoChecklist>;       Update: Partial<ServicoChecklist> };
+      servicos_checklist_itens:   { Row: ServicoChecklistItem;   Insert: Partial<ServicoChecklistItem>;   Update: Partial<ServicoChecklistItem> };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

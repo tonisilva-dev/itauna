@@ -1016,6 +1016,119 @@ export async function deleteSecretaria(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/* ─── Análise de Cenários ──────────────────────────────────────── */
+
+export interface DbCenario {
+  id: string;
+  titulo: string;
+  tipo: string;
+  descricao: string | null;
+  custo_mensal: number;
+  custo_unico: number;
+  periodo_meses: number | null;
+  data_inicio: string | null;
+  status: 'rascunho' | 'em_analise' | 'aprovado' | 'rejeitado';
+  num_unidades: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchCenarios(): Promise<DbCenario[]> {
+  const { data, error } = await db
+    .from('cenarios_orcamentarios')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as DbCenario[];
+}
+
+export async function insertCenario(payload: Omit<DbCenario, 'id' | 'created_at' | 'updated_at'>): Promise<DbCenario> {
+  const { data, error } = await db
+    .from('cenarios_orcamentarios').insert(payload).select().single();
+  if (error) throw error;
+  return data as DbCenario;
+}
+
+export async function updateCenario(id: string, payload: Partial<DbCenario>): Promise<void> {
+  const { error } = await db.from('cenarios_orcamentarios').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteCenario(id: string): Promise<void> {
+  const { error } = await db.from('cenarios_orcamentarios').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/* ─── Checklist do Tomador de Serviço ─────────────────────────── */
+
+export interface DbChecklist {
+  id: string;
+  servico: string;
+  prestador: string | null;
+  contato: string | null;
+  data_inicio: string | null;
+  data_fim: string | null;
+  valor: number | null;
+  status: 'aberto' | 'em_andamento' | 'concluido' | 'cancelado';
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string;
+  itens?: DbChecklistItem[];
+}
+
+export interface DbChecklistItem {
+  id: string;
+  checklist_id: string;
+  descricao: string;
+  concluido: boolean;
+  ordem: number;
+  created_at: string;
+}
+
+export async function fetchChecklists(): Promise<DbChecklist[]> {
+  const { data, error } = await db
+    .from('servicos_checklist')
+    .select('*, itens:servicos_checklist_itens(id, checklist_id, descricao, concluido, ordem, created_at)')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as DbChecklist[];
+}
+
+export async function insertChecklist(payload: Omit<DbChecklist, 'id' | 'created_at' | 'updated_at' | 'itens'>): Promise<DbChecklist> {
+  const { data, error } = await db
+    .from('servicos_checklist').insert(payload).select().single();
+  if (error) throw error;
+  return data as DbChecklist;
+}
+
+export async function updateChecklist(id: string, payload: Partial<DbChecklist>): Promise<void> {
+  const { error } = await db.from('servicos_checklist').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteChecklist(id: string): Promise<void> {
+  const { error } = await db.from('servicos_checklist').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function insertChecklistItem(payload: Omit<DbChecklistItem, 'id' | 'created_at'>): Promise<DbChecklistItem> {
+  const { data, error } = await db
+    .from('servicos_checklist_itens').insert(payload).select().single();
+  if (error) throw error;
+  return data as DbChecklistItem;
+}
+
+export async function toggleChecklistItem(id: string, concluido: boolean): Promise<void> {
+  const { error } = await db
+    .from('servicos_checklist_itens').update({ concluido }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteChecklistItem(id: string): Promise<void> {
+  const { error } = await db.from('servicos_checklist_itens').delete().eq('id', id);
+  if (error) throw error;
+}
+
 /* ─── Portaria: Solicitações QR ───────────────────────────────── */
 
 export interface DbSolicitacao {
