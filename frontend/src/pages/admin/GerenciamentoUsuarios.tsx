@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, UserPlus, Trash2, Edit2, Save, X, Mail, Shield, Phone, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import { Users, UserPlus, Trash2, Save, Mail, Shield, Phone, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SlidePanel } from '../../components/ui/SlidePanel';
 import { StatCard } from '../../components/ui/StatCard';
@@ -8,7 +8,18 @@ import { supabase } from '@/lib/supabase';
 import { PageCarousel3D } from '../../components/ui/PageCarousel3D';
 import type { SlideItem } from '../../components/ui/PageCarousel3D';
 import { gotoSlide } from '../../utils/format';
-import type { Profile } from '@/types/database';
+
+interface Usuario {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  phone?: string | null;
+  cpf?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 const ROLES = [
   { value: 'admin', label: '👑 Admin', color: '#f59e0b' },
@@ -19,16 +30,15 @@ const ROLES = [
 
 export const GerenciamentoUsuarios = () => {
   const { user } = useAuth();
-  const [usuarios, setUsuarios] = useState<Profile[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   // Form novo usuário
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [role, setRole] = useState<'admin' | 'sindico' | 'assistente' | 'visualizador'>('assistente');
+  const [role, setRole] = useState<string>('assistente');
   const [telefone, setTelefone] = useState('');
   const [cpf, setCpf] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -37,12 +47,11 @@ export const GerenciamentoUsuarios = () => {
   useEffect(() => {
     const loadUsuarios = async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase
           .from('profiles')
           .select('*')
-          .neq('unit_number', null) // Exclui moradores com unit_number
           .in('role', ['admin', 'sindico', 'assistente', 'visualizador'])
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false }) as any);
 
         if (error) throw error;
         setUsuarios(data || []);
@@ -76,13 +85,13 @@ export const GerenciamentoUsuarios = () => {
         password: senha,
         email_confirm: true,
         user_metadata: { full_name: nome.trim(), role },
-      });
+      } as any);
 
       if (authError) throw authError;
       if (!authData.user) throw new Error('Erro ao criar usuário');
 
       // Criar profile
-      const { error: profileError } = await supabase.from('profiles').insert({
+      const { error: profileError } = await (supabase.from('profiles').insert({
         id: authData.user.id,
         email: email.trim(),
         full_name: nome.trim(),
@@ -92,16 +101,16 @@ export const GerenciamentoUsuarios = () => {
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      });
+      } as any) as any);
 
       if (profileError) throw profileError;
 
       // Recarregar lista
-      const { data: newUsuarios } = await supabase
+      const { data: newUsuarios } = await (supabase
         .from('profiles')
         .select('*')
         .in('role', ['admin', 'sindico', 'assistente', 'visualizador'])
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) as any);
 
       setUsuarios(newUsuarios || []);
       toast.success(`Usuário ${nome} criado com sucesso!`);
@@ -126,11 +135,12 @@ export const GerenciamentoUsuarios = () => {
     if (!confirm(`Desativar ${usuarioNome}? Esta ação pode ser reversível.`)) return;
 
     try {
-      const { error } = await supabase
+      const result: any = (supabase as any)
         .from('profiles')
         .update({ is_active: false })
         .eq('id', usuarioId);
 
+      const { error } = await result;
       if (error) throw error;
       setUsuarios(prev => prev.map(u => u.id === usuarioId ? { ...u, is_active: false } : u));
       toast.success(`${usuarioNome} desativado`);
