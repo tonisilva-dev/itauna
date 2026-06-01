@@ -122,6 +122,28 @@ export async function createAnnouncement(
   return data as DbAnnouncement;
 }
 
+export async function updateAnnouncement(
+  id: string,
+  payload: Partial<Omit<DbAnnouncement, 'id' | 'created_at' | 'created_by'>>
+): Promise<DbAnnouncement> {
+  const { data, error } = await db
+    .from('announcements')
+    .update(payload)
+    .eq('id', id)
+    .select('*, profiles!created_by(full_name)')
+    .single();
+  if (error) throw error;
+  return data as DbAnnouncement;
+}
+
+export async function deleteAnnouncement(id: string): Promise<void> {
+  const { error } = await db
+    .from('announcements')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
+
 /* ─── Documentos ───────────────────────────────────────────────── */
 
 export async function fetchDocuments(isGestor = false): Promise<DbDocument[]> {
@@ -144,6 +166,28 @@ export async function insertDocument(payload: {
     .single();
   if (error) throw error;
   return data as DbDocument;
+}
+
+export async function updateDocument(
+  id: string,
+  payload: Partial<Omit<DbDocument, 'id' | 'created_at'>>
+): Promise<DbDocument> {
+  const { data, error } = await db
+    .from('documents')
+    .update(payload)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DbDocument;
+}
+
+export async function deleteDocument(id: string): Promise<void> {
+  const { error } = await db
+    .from('documents')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
 }
 
 /* ─── Eventos ──────────────────────────────────────────────────── */
@@ -185,6 +229,28 @@ export async function insertEvent(payload: {
     .single();
   if (error) throw error;
   return data as DbEvent;
+}
+
+export async function updateEvent(
+  id: string,
+  payload: Partial<Omit<DbEvent, 'id' | 'created_at' | 'created_by'>>
+): Promise<DbEvent> {
+  const { data, error } = await db
+    .from('events')
+    .update(payload)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DbEvent;
+}
+
+export async function deleteEvent(id: string): Promise<void> {
+  const { error } = await db
+    .from('events')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
 }
 
 export async function fetchInscricoes(eventId: string): Promise<DbInscricao[]> {
@@ -434,6 +500,20 @@ export async function toggleResidentActive(id: string, active: boolean): Promise
   if (error) throw error;
 }
 
+export async function updateResident(
+  id: string,
+  payload: Partial<Omit<DbResident, 'id' | 'created_at' | 'updated_at'>>
+): Promise<DbResident> {
+  const { data, error } = await db
+    .from('profiles')
+    .update({ ...payload, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DbResident;
+}
+
 /* ─── Áreas Comuns ─────────────────────────────────────────────── */
 
 export async function fetchAreasComuns(apenasAtivas = true): Promise<DbAreaComum[]> {
@@ -554,6 +634,20 @@ export async function deleteGaleriaFoto(id: string): Promise<void> {
     .update({ is_active: false })
     .eq('id', id);
   if (error) throw error;
+}
+
+export async function updateGaleriaFoto(
+  id: string,
+  payload: Partial<Omit<DbGaleriaFoto, 'id' | 'created_at' | 'created_by'>>
+): Promise<DbGaleriaFoto> {
+  const { data, error } = await db
+    .from('galeria_fotos')
+    .update(payload)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DbGaleriaFoto;
 }
 
 /* ─── Achados & Perdidos ───────────────────────────────────────── */
