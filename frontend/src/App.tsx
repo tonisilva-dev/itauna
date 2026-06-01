@@ -22,7 +22,8 @@ const Comunicados     = lazy(() => import('./pages/comunicados/Comunicados').the
 const Documentos      = lazy(() => import('./pages/documentos/Documentos').then(m => ({ default: m.Documentos })));
 const Galeria         = lazy(() => import('./pages/galeria/Galeria').then(m => ({ default: m.Galeria })));
 const Parceiros       = lazy(() => import('./pages/parceiros/Parceiros').then(m => ({ default: m.Parceiros })));
-const GestaoAcessos   = lazy(() => import('./pages/admin/GestaoAcessos').then(m => ({ default: m.GestaoAcessos })));
+const GestaoAcessos      = lazy(() => import('./pages/admin/GestaoAcessos').then(m => ({ default: m.GestaoAcessos })));
+const GerenciamentoUsuarios = lazy(() => import('./pages/admin/GerenciamentoUsuarios').then(m => ({ default: m.GerenciamentoUsuarios })));
 const Perfil          = lazy(() => import('./pages/perfil/Perfil').then(m => ({ default: m.Perfil })));
 const Classificados   = lazy(() => import('./pages/classificados/Classificados').then(m => ({ default: m.Classificados })));
 const AchadosPerdidos = lazy(() => import('./pages/achados-perdidos/AchadosPerdidos').then(m => ({ default: m.AchadosPerdidos })));
@@ -128,6 +129,7 @@ export default function App() {
             {/* ── Gestor (admin + síndico) ── */}
             <Route path="/unidades"          element={<GestorRoute><Unidades /></GestorRoute>} />
             <Route path="/moradores"         element={<GestorRoute><Moradores /></GestorRoute>} />
+            <Route path="/usuarios"          element={<GestorRoute><GerenciamentoUsuarios /></GestorRoute>} />
             <Route path="/acessos"           element={<GestorRoute><GestaoAcessos /></GestorRoute>} />
             <Route path="/analise-cenarios"  element={<GestorRoute><AnaliseCenarios /></GestorRoute>} />
             <Route path="/checklist-servicos" element={<GestorRoute><ChecklistServicos /></GestorRoute>} />
