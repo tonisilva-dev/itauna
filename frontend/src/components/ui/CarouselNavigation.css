@@ -92,11 +92,33 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  padding-right: 2px;
 }
 
-.sp-content::-webkit-scrollbar { display: none; }
+/* Scrollbar moderno: fino, transparente, com hover */
+.sp-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sp-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sp-content::-webkit-scrollbar-thumb {
+  background: rgba(87, 216, 255, 0.35);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.sp-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(87, 216, 255, 0.65);
+}
+
+/* Firefox scrollbar */
+.sp-content {
+  scrollbar-color: rgba(87, 216, 255, 0.35) transparent;
+  scrollbar-width: thin;
+}
 
 /* ── FOOTER / BADGES ── */
 .sp-foot {
