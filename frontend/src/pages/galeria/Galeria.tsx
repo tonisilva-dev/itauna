@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Upload, ZoomIn, Plus, Heart, Map, Loader2, Search, Trash2, Image as ImageIcon, TreePine } from 'lucide-react';
+import { Upload, ZoomIn, Plus, Heart, Map, Loader2, Search, Trash2, Image as ImageIcon, TreePine, Edit2, Save, X, AlertTriangle } from 'lucide-react';
 import { gotoSlide } from '../../utils/format';
 import { useAuth } from '@/contexts/AuthContext';
 import { Lightbox, type CarouselPhoto } from '../../components/ui/Carousel';
@@ -7,7 +7,7 @@ import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel
 import { SlidePanel } from '../../components/ui/SlidePanel';
 import { StatCard } from '../../components/ui/StatCard';
 import toast from 'react-hot-toast';
-import { fetchGaleriaFotos, insertGaleriaFoto, deleteGaleriaFoto, type DbGaleriaFoto } from '@/lib/supabase-queries';
+import { fetchGaleriaFotos, insertGaleriaFoto, updateGaleriaFoto, deleteGaleriaFoto, type DbGaleriaFoto } from '@/lib/supabase-queries';
 import { supabase } from '@/lib/supabase';
 
 const CYAN  = '#57d8ff';
@@ -36,6 +36,18 @@ export const Galeria = () => {
   const [submitting, setSubmitting]   = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragging, setDragging]       = useState(false);
+
+  const [editingId, setEditingId]     = useState<string | null>(null);
+  const [deleteId, setDeleteId]       = useState<string | null>(null);
+  const [deleteCaption, setDeleteCaption] = useState('');
+  const [savingEdit, setSavingEdit]   = useState(false);
+
+  const clearForm = () => {
+    setFormCaption('');
+    setFormCategory('Natureza');
+    setSelectedFile(null);
+    setEditingId(null);
+  };
 
   useEffect(() => {
     fetchGaleriaFotos()
@@ -89,7 +101,7 @@ export const Galeria = () => {
       });
       setUploadProgress(100);
       setDbFotos(prev => [...prev, newFoto]);
-      setFormCaption(''); setSelectedFile(null);
+      clearForm();
       if (fileInputRef.current) fileInputRef.current.value = '';
       toast.success('Foto publicada na galeria!');
       gotoSlide(0);
@@ -101,16 +113,39 @@ export const Galeria = () => {
     }
   };
 
-  const [deleteTarget, setDeleteTarget] = useState<DbGaleriaFoto | null>(null);
+  const handleEdit = (f: DbGaleriaFoto) => {
+    setEditingId(f.id);
+    setFormCaption(f.caption);
+    setFormCategory(f.category);
+    gotoSlide(1);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingId || !formCaption.trim()) return;
+    setSavingEdit(true);
+    try {
+      const updated = await updateGaleriaFoto(editingId, {
+        caption: formCaption.trim(),
+        category: formCategory,
+      });
+      setDbFotos(prev => prev.map(f => f.id === editingId ? updated : f));
+      clearForm();
+      toast.success('Foto atualizada com sucesso!');
+      gotoSlide(0);
+    } catch { toast.error('Erro ao atualizar foto.'); }
+    finally { setSavingEdit(false); }
+  };
 
   const handleDelete = async () => {
-    if (!deleteTarget || !isGestor) return;
+    if (!deleteId) return;
     try {
-      await deleteGaleriaFoto(deleteTarget.id);
-      setDbFotos(prev => prev.filter(f => f.id !== deleteTarget.id));
+      await deleteGaleriaFoto(deleteId);
+      setDbFotos(prev => prev.filter(f => f.id !== deleteId));
+      setDeleteId(null);
+      setDeleteCaption('');
       toast.success('Foto removida da galeria.');
     } catch { toast.error('Erro ao remover foto.'); }
-    finally { setDeleteTarget(null); }
   };
 
   // ─────────────────────────────────────────────────────────────────
@@ -202,11 +237,21 @@ export const Galeria = () => {
                       >
                         <ZoomIn size={11} style={{ color: CYAN }} />
                       </button>
+                      {/* Botão edit — visível no hover para gestor */}
+                      {isGestor && dbFoto && (
+                        <button
+                          onClick={() => handleEdit(dbFoto)}
+                          className="absolute top-1 left-1 w-6 h-6 rounded-md bg-black/65 backdrop-blur-sm flex items-center justify-center border border-cyan-500/30 cursor-pointer sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                          title="Editar foto"
+                        >
+                          <Edit2 size={10} style={{ color: CYAN }} />
+                        </button>
+                      )}
                       {/* Botão delete — sempre visível no mobile para gestor */}
                       {isGestor && dbFoto && (
                         <button
-                          onClick={() => setDeleteTarget(dbFoto)}
-                          className="absolute top-1 left-1 w-6 h-6 rounded-md bg-black/65 backdrop-blur-sm flex items-center justify-center border border-red-500/30 cursor-pointer sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                          onClick={() => { setDeleteId(dbFoto.id); setDeleteCaption(dbFoto.caption); }}
+                          className="absolute top-1 right-1 w-6 h-6 rounded-md bg-black/65 backdrop-blur-sm flex items-center justify-center border border-red-500/30 cursor-pointer sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                           title="Remover foto"
                         >
                           <Trash2 size={10} style={{ color: RED }} />
@@ -225,18 +270,18 @@ export const Galeria = () => {
 
   const slideUpload: SlideItem = {
     key: 'galeria-upload',
-    label: 'Adicionar Foto',
+    label: editingId ? 'Editar' : 'Adicionar Foto',
     content: (
       <SlidePanel
-        eyebrow="Publicar na Galeria"
-        title={<>Adicionar <span className="grad-text">Nova Foto</span></>}
+        eyebrow={editingId ? 'Edição de Foto' : 'Publicar na Galeria'}
+        title={<>{editingId ? 'Editar' : 'Adicionar'} <span className="grad-text">{editingId ? 'Foto' : 'Nova Foto'}</span></>}
         badges={[
-          { icon: '✦', label: 'Upload Imediato' },
+          { icon: editingId ? '✏️' : '✦', label: editingId ? 'Modo Edição' : 'Upload Imediato' },
           { icon: '🔒', label: 'Bucket Público' },
           { icon: '⌘', label: 'Máx. 10 MB' },
         ]}
       >
-        <form onSubmit={handleUpload} className="flex flex-col gap-3.5 py-1 text-xs">
+        <form onSubmit={editingId ? handleSaveEdit : handleUpload} className="flex flex-col gap-3.5 py-1 text-xs">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="input-label text-[11px]">Legenda da Foto *</label>
@@ -251,40 +296,42 @@ export const Galeria = () => {
             </div>
           </div>
 
-          {/* Drop zone */}
-          <div>
-            <label className="input-label text-[11px]">Imagem *</label>
-            <label
-              htmlFor="galeria-file"
-              onDragOver={e => { e.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0] ?? null); }}
-              className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed cursor-pointer transition-all"
-              style={{
-                borderColor: dragging ? CYAN : selectedFile ? GREEN : 'rgba(255,255,255,0.1)',
-                background:  dragging ? 'rgba(87,216,255,0.05)' : selectedFile ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)',
-              }}
-            >
-              {selectedFile ? (
-                <>
-                  <ImageIcon size={20} style={{ color: GREEN }} />
-                  <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.75rem' }} className="truncate max-w-full">{selectedFile.name}</p>
-                  <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.4)' }}>
-                    {(selectedFile.size / 1024 / 1024).toFixed(1)} MB · Clique para trocar
-                  </p>
-                </>
-              ) : (
-                <>
-                  <Upload size={20} style={{ color: 'rgba(255,255,255,0.3)' }} />
-                  <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>Arraste ou clique para selecionar</p>
-                  <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.25)' }}>JPG, PNG, WebP · Máx. 10 MB</p>
-                </>
-              )}
-            </label>
-            <input ref={fileInputRef} id="galeria-file" type="file" className="hidden"
-              accept=".jpg,.jpeg,.png,.webp"
-              onChange={e => handleFile(e.target.files?.[0] ?? null)} />
-          </div>
+          {/* Drop zone — só se criar nova foto */}
+          {!editingId && (
+            <div>
+              <label className="input-label text-[11px]">Imagem *</label>
+              <label
+                htmlFor="galeria-file"
+                onDragOver={e => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0] ?? null); }}
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed cursor-pointer transition-all"
+                style={{
+                  borderColor: dragging ? CYAN : selectedFile ? GREEN : 'rgba(255,255,255,0.1)',
+                  background:  dragging ? 'rgba(87,216,255,0.05)' : selectedFile ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)',
+                }}
+              >
+                {selectedFile ? (
+                  <>
+                    <ImageIcon size={20} style={{ color: GREEN }} />
+                    <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.75rem' }} className="truncate max-w-full">{selectedFile.name}</p>
+                    <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.4)' }}>
+                      {(selectedFile.size / 1024 / 1024).toFixed(1)} MB · Clique para trocar
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={20} style={{ color: 'rgba(255,255,255,0.3)' }} />
+                    <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>Arraste ou clique para selecionar</p>
+                    <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.25)' }}>JPG, PNG, WebP · Máx. 10 MB</p>
+                  </>
+                )}
+              </label>
+              <input ref={fileInputRef} id="galeria-file" type="file" className="hidden"
+                accept=".jpg,.jpeg,.png,.webp"
+                onChange={e => handleFile(e.target.files?.[0] ?? null)} />
+            </div>
+          )}
 
           {/* Barra de progresso */}
           {submitting && uploadProgress > 0 && (
@@ -300,14 +347,29 @@ export const Galeria = () => {
             </div>
           )}
 
-          <button type="submit" disabled={submitting || !selectedFile}
-            className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5"
-            style={!selectedFile ? { opacity: 0.45, cursor: 'not-allowed' } : {}}>
-            {submitting
-              ? <><Loader2 size={13} className="animate-spin" /> Publicando...</>
-              : <><Upload size={13} /> Publicar na Galeria</>
-            }
-          </button>
+          <div className="flex gap-2">
+            {editingId && (
+              <button
+                type="button"
+                onClick={() => { clearForm(); gotoSlide(0); }}
+                className="flex-1 px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold hover:bg-white/10 transition-colors"
+              >
+                Cancelar
+              </button>
+            )}
+            <button type="submit" disabled={editingId ? savingEdit : (submitting || !selectedFile)}
+              className="flex-1 btn-primary justify-center py-2.5 text-xs font-bold gap-1.5"
+              style={!editingId && !selectedFile ? { opacity: 0.45, cursor: 'not-allowed' } : {}}>
+              {editingId
+                ? (savingEdit
+                  ? <><Loader2 size={13} className="animate-spin" /> Salvando...</>
+                  : <><Save size={13} /> Atualizar Foto</>)
+                : (submitting
+                  ? <><Loader2 size={13} className="animate-spin" /> Publicando...</>
+                  : <><Upload size={13} /> Publicar na Galeria</>)
+              }
+            </button>
+          </div>
         </form>
       </SlidePanel>
     ),
@@ -349,31 +411,46 @@ export const Galeria = () => {
     ),
   };
 
+  const deleteModal = deleteId && (
+    <div className="fixed inset-0 flex items-center justify-center z-50"
+      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+      <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl p-6 max-w-sm border border-white/10 shadow-2xl"
+        style={{ background: 'linear-gradient(135deg, rgba(30,41,59,0.95), rgba(15,23,42,0.97))' }}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.15)' }}>
+            <AlertTriangle size={18} style={{ color: RED }} />
+          </div>
+          <h3 className="text-base font-bold text-white">Remover Foto?</h3>
+        </div>
+        <p className="text-xs text-white/60 mb-6 leading-relaxed">
+          Você está prestes a remover a foto <strong style={{ color: 'rgba(255,255,255,0.9)' }}>"{deleteCaption}"</strong>. Esta ação não pode ser desfeita.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setDeleteId(null); setDeleteCaption(''); }}
+            className="flex-1 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold hover:bg-white/10 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleDelete}
+            className="flex-1 px-4 py-2.5 rounded-lg text-white text-xs font-bold transition-all"
+            style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', boxShadow: '0 0 16px rgba(239,68,68,0.3)' }}
+          >
+            Remover
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="w-full h-full">
       <PageCarousel3D slides={[slideGaleria, isGestor ? slideUpload : slideSobre]} />
       {lightboxIndex !== null && (
         <Lightbox photos={photoList} initialIndex={lightboxIndex} onClose={() => setLightboxIndex(null)} />
       )}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
-          <div className="rounded-2xl p-5 max-w-xs w-full space-y-4" style={{ background: 'linear-gradient(135deg,rgba(13,20,35,.98),rgba(8,13,24,.99))', border: '1px solid rgba(239,68,68,0.3)' }}>
-            <div className="flex flex-col items-center gap-2 text-center">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)' }}>
-                <Trash2 className="w-5 h-5" style={{ color: RED }} />
-              </div>
-              <h4 style={{ fontWeight: 800, color: '#fff', fontSize: '0.9rem' }}>Remover Foto?</h4>
-              <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
-                "<strong style={{ color: 'rgba(255,255,255,0.7)' }}>{deleteTarget.caption}</strong>" será removida da galeria permanentemente.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2 rounded-xl text-xs font-bold cursor-pointer" style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>Cancelar</button>
-              <button onClick={handleDelete} className="flex-1 py-2 rounded-xl text-xs font-bold cursor-pointer" style={{ background: 'rgba(239,68,68,0.15)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)' }}>Remover</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {deleteModal}
     </div>
   );
 };

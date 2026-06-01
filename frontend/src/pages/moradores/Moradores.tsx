@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Users, Search, Plus, Phone, Mail, Home, ChevronRight,
-  Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Shield, Award, HelpCircle
+  Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Shield, Award, HelpCircle,
+  Edit2, Save, X, Trash2
 } from 'lucide-react';
 import { Avatar } from '../../components/ui/Avatar';
 import { StatCard } from '../../components/ui/StatCard';
 import { unitLabel, formatPhone, maskPhone, maskCPF } from '../../utils/format';
-import { fetchResidents, toggleResidentActive, type DbResident } from '../../lib/supabase-queries';
+import { fetchResidents, toggleResidentActive, updateResident, type DbResident } from '../../lib/supabase-queries';
 import { adminCreateUser, type NewUserPayload } from '../../lib/supabase-admin';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,6 +59,11 @@ export const Moradores = () => {
   const [saving,    setSaving]      = useState(false);
   const [feedback,  setFeedback]    = useState<{ ok: boolean; msg: string } | null>(null);
   const [fieldErr,  setFieldErr]    = useState<Partial<Record<keyof NewUserPayload, string>>>({});
+
+  /* Edição de Morador */
+  const [editingId, setEditingId]   = useState<string | null>(null);
+  const [editForm, setEditForm]     = useState<Partial<DbResident>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
 
   /* ── Carregar moradores ───────────────────────────────────────── */
   const load = useCallback(async () => {
@@ -141,6 +147,37 @@ export const Moradores = () => {
 
   const field = (key: keyof NewUserPayload, value: any) =>
     setForm(prev => ({ ...prev, [key]: value }));
+
+  const handleEditResident = (resident: DbResident) => {
+    setEditingId(resident.id);
+    setEditForm({
+      full_name: resident.full_name,
+      email: resident.email,
+      phone: resident.phone ?? '',
+    });
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingId || !editForm.full_name?.trim()) {
+      toast.error('Nome é obrigatório.');
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const updated = await updateResident(editingId, {
+        full_name: editForm.full_name.trim(),
+        email: editForm.email?.trim() || '',
+        phone: editForm.phone?.trim() || null,
+      });
+      setResidents(prev => prev.map(r => r.id === editingId ? updated : r));
+      if (selected?.id === editingId) setSelected(updated);
+      setEditingId(null);
+      setEditForm({});
+      toast.success('Morador atualizado com sucesso!');
+    } catch { toast.error('Erro ao atualizar morador.'); }
+    finally { setSavingEdit(false); }
+  };
 
   const slides: SlideItem[] = [
     {
@@ -343,22 +380,32 @@ export const Moradores = () => {
                     )}
                   </div>
                   {isGestor && (
-                    <button
-                      onClick={() => handleToggleActive(selected)}
-                      disabled={togglingId === selected.id}
-                      className="w-full justify-center text-xs py-2 rounded-lg flex items-center gap-1.5 transition-all font-semibold"
-                      style={selected.is_active
-                        ? { background: 'rgba(239,68,68,0.12)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.25)' }
-                        : { background: 'rgba(16,185,129,0.12)', color: '#34d399', border: '1px solid rgba(16,185,129,0.25)' }
-                      }
-                    >
-                      {togglingId === selected.id
-                        ? <><Loader2 className="w-3 h-3 animate-spin" /> Aguarde...</>
-                        : selected.is_active
-                          ? <><EyeOff className="w-3 h-3" /> Inativar Morador</>
-                          : <><Eye className="w-3 h-3" /> Reativar Morador</>
-                      }
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditResident(selected)}
+                        className="flex-1 justify-center text-xs py-2 rounded-lg flex items-center gap-1.5 transition-all font-semibold"
+                        style={{ background: 'rgba(87,216,255,0.12)', color: '#67e8f9', border: '1px solid rgba(87,216,255,0.25)' }}
+                        title="Editar dados do morador"
+                      >
+                        <Edit2 className="w-3 h-3" /> Editar
+                      </button>
+                      <button
+                        onClick={() => handleToggleActive(selected)}
+                        disabled={togglingId === selected.id}
+                        className="flex-1 justify-center text-xs py-2 rounded-lg flex items-center gap-1.5 transition-all font-semibold"
+                        style={selected.is_active
+                          ? { background: 'rgba(239,68,68,0.12)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.25)' }
+                          : { background: 'rgba(16,185,129,0.12)', color: '#34d399', border: '1px solid rgba(16,185,129,0.25)' }
+                        }
+                      >
+                        {togglingId === selected.id
+                          ? <><Loader2 className="w-3 h-3 animate-spin" /></>
+                          : selected.is_active
+                            ? <><EyeOff className="w-3 h-3" /></>
+                            : <><Eye className="w-3 h-3" /></>
+                        }
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -369,14 +416,48 @@ export const Moradores = () => {
     },
     {
       key: 'cadastro-morador',
-      label: isGestor ? 'Cadastrar Morador' : 'Canais Oficiais',
+      label: editingId ? 'Editar Morador' : (isGestor ? 'Cadastrar Morador' : 'Canais Oficiais'),
       content: (
         <SlidePanel
-          title={isGestor ? 'Cadastrar Morador' : 'Canais Oficiais'}
-          eyebrow={isGestor ? 'Criação de conta e atribuição de unidade' : 'Organização administrativa e contatos urgentes'}
+          title={editingId ? 'Editar Morador' : (isGestor ? 'Cadastrar Morador' : 'Canais Oficiais')}
+          eyebrow={editingId ? 'Atualização de dados pessoais' : (isGestor ? 'Criação de conta e atribuição de unidade' : 'Organização administrativa e contatos urgentes')}
         >
           <div className="space-y-4 h-full flex flex-col justify-between">
-            {isGestor ? (
+            {isGestor && editingId ? (
+              <form onSubmit={handleSaveEdit} className="space-y-4 flex-1 overflow-y-auto pr-1">
+                <div>
+                  <label className="input-label">Nome Completo *</label>
+                  <input className="input w-full" placeholder="Ex: João da Silva"
+                    value={editForm.full_name ?? ''} onChange={e => setEditForm(prev => ({ ...prev, full_name: e.target.value }))} required />
+                </div>
+
+                <div>
+                  <label className="input-label">E-mail *</label>
+                  <input className="input w-full" type="email" placeholder="morador@email.com"
+                    value={editForm.email ?? ''} onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))} required />
+                </div>
+
+                <div>
+                  <label className="input-label">Telefone</label>
+                  <input className="input w-full" placeholder="(43) 99999-0000"
+                    value={editForm.phone ?? ''} onChange={e => setEditForm(prev => ({ ...prev, phone: maskPhone(e.target.value) }))} />
+                </div>
+
+                <div className="pt-2 flex gap-2">
+                  <button type="button" onClick={() => { setEditingId(null); setEditForm({}); }}
+                    className="flex-1 px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold hover:bg-white/10 transition-colors">
+                    Cancelar
+                  </button>
+                  <button type="submit" className="flex-1 btn-primary justify-center py-2.5 text-xs" disabled={savingEdit}>
+                    {savingEdit ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Salvando…</>
+                    ) : (
+                      <><Save className="w-4 h-4" /> Salvar Alterações</>
+                    )}
+                  </button>
+                </div>
+              </form>
+            ) : isGestor ? (
               <div className="space-y-4 flex-1 overflow-y-auto pr-1">
                 {/* Feedback de cadastro */}
                 {feedback && (

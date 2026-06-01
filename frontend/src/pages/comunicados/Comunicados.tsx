@@ -2,14 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   Bell, Plus, Pin, AlertTriangle, Info, ChevronRight,
   Search, CheckCircle, Loader2, Megaphone, Calendar, User,
-  BookOpen, Car, Waves, Trash2, Volume2, TreePine,
+  BookOpen, Car, Waves, Trash2, Volume2, TreePine, Edit2, Save, X,
 } from 'lucide-react';
 import { formatDate, gotoSlide } from '../../utils/format';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
 import toast from 'react-hot-toast';
-import { fetchAnnouncements, createAnnouncement, type DbAnnouncement } from '@/lib/supabase-queries';
+import { fetchAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement, type DbAnnouncement } from '@/lib/supabase-queries';
 
 const CYAN   = '#57d8ff';
 const GREEN  = '#10b981';
@@ -39,11 +39,14 @@ const CATEGORIES_FIXED = ['Informativo', 'Reunião', 'Manutenção', 'Serviços'
 
 /* ── Card de comunicado — fora do componente para evitar re-mounts ── */
 const AnnCard = ({
-  a, selected, onSelect,
+  a, selected, onSelect, isGestor, onEdit, onDelete,
 }: {
   a: DbAnnouncement;
   selected: DbAnnouncement | null;
   onSelect: (a: DbAnnouncement | null) => void;
+  isGestor: boolean;
+  onEdit: (a: DbAnnouncement) => void;
+  onDelete: (id: string, title: string) => void;
 }) => {
   const cfg = PRIORITY_CONFIG[a.priority as keyof typeof PRIORITY_CONFIG] ?? PRIORITY_CONFIG.normal;
   const isSelected = selected?.id === a.id;
@@ -51,13 +54,14 @@ const AnnCard = ({
 
   return (
     <div
-      onClick={() => onSelect(isSelected ? null : a)}
-      className="flex items-start gap-3 p-3 rounded-2xl border cursor-pointer transition-all"
+      className="flex items-start gap-3 p-3 rounded-2xl border transition-all group"
       style={{
         background:  isSelected ? 'rgba(87,216,255,0.09)' : cfg.highlight,
         borderColor: isSelected ? 'rgba(87,216,255,0.35)' : cfg.border,
         boxShadow:   isUrgent && !isSelected ? `0 0 16px ${RED}14` : 'none',
+        cursor: isGestor ? 'pointer' : 'default',
       }}
+      onClick={() => !isGestor && onSelect(isSelected ? null : a)}
     >
       <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
         style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
@@ -79,7 +83,19 @@ const AnnCard = ({
           <span style={{ color: 'rgba(255,255,255,0.35)' }}>{formatDate(a.created_at)}</span>
         </div>
       </div>
-      <ChevronRight size={12} className="flex-shrink-0 mt-1" style={{ color: isSelected ? CYAN : 'rgba(255,255,255,0.2)' }} />
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {isGestor && (
+          <>
+            <button onClick={() => onEdit(a)} className="p-1 rounded hover:bg-white/10 transition" title="Editar">
+              <Edit2 size={11} style={{ color: CYAN }} />
+            </button>
+            <button onClick={() => onDelete(a.id, a.title)} className="p-1 rounded hover:bg-red-500/20 transition" title="Deletar">
+              <Trash2 size={11} style={{ color: RED }} />
+            </button>
+          </>
+        )}
+        {!isGestor && <ChevronRight size={12} style={{ color: isSelected ? CYAN : 'rgba(255,255,255,0.2)' }} onClick={() => onSelect(isSelected ? null : a)} />}
+      </div>
     </div>
   );
 };
@@ -92,12 +108,26 @@ export const Comunicados = () => {
   const [selected, setSelected]             = useState<DbAnnouncement | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('Todos');
 
+  const [editingId, setEditingId]       = useState<string | null>(null);
+  const [deleteId, setDeleteId]         = useState<string | null>(null);
+  const [deleteName, setDeleteName]     = useState('');
+  const [savingEdit, setSavingEdit]     = useState(false);
+
   const [formTitle, setFormTitle]       = useState('');
   const [formCategory, setFormCategory] = useState('Informativo');
   const [formPriority, setFormPriority] = useState<DbAnnouncement['priority']>('normal');
   const [formPinned, setFormPinned]     = useState(false);
   const [formContent, setFormContent]   = useState('');
   const [submitting, setSubmitting]     = useState(false);
+
+  const clearForm = () => {
+    setFormTitle('');
+    setFormContent('');
+    setFormCategory('Informativo');
+    setFormPriority('normal');
+    setFormPinned(false);
+    setEditingId(null);
+  };
 
   useEffect(() => {
     fetchAnnouncements(60)
@@ -133,11 +163,52 @@ export const Comunicados = () => {
         is_pinned: formPinned, created_by: user!.id,
       });
       setAnnouncements(prev => novo.is_pinned ? [novo, ...prev] : [...prev, novo]);
-      setFormTitle(''); setFormContent(''); setFormPinned(false); setFormPriority('normal');
+      clearForm();
       toast.success('Comunicado publicado com sucesso!');
       gotoSlide(0);
     } catch { toast.error('Erro ao publicar comunicado.'); }
     finally { setSubmitting(false); }
+  };
+
+  const handleEdit = (a: DbAnnouncement) => {
+    setEditingId(a.id);
+    setFormTitle(a.title);
+    setFormContent(a.content);
+    setFormCategory(a.category);
+    setFormPriority(a.priority);
+    setFormPinned(a.is_pinned);
+    gotoSlide(1);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingId || !formTitle.trim() || !formContent.trim()) return;
+    setSavingEdit(true);
+    try {
+      const updated = await updateAnnouncement(editingId, {
+        title: formTitle.trim(),
+        content: formContent.trim(),
+        category: formCategory,
+        priority: formPriority,
+        is_pinned: formPinned,
+      });
+      setAnnouncements(prev => prev.map(a => a.id === editingId ? updated : a));
+      clearForm();
+      toast.success('Comunicado atualizado com sucesso!');
+      gotoSlide(0);
+    } catch { toast.error('Erro ao atualizar comunicado.'); }
+    finally { setSavingEdit(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteAnnouncement(deleteId);
+      setAnnouncements(prev => prev.filter(a => a.id !== deleteId));
+      setDeleteId(null);
+      setDeleteName('');
+      toast.success('Comunicado removido com sucesso!');
+    } catch { toast.error('Erro ao remover comunicado.'); }
   };
 
 
@@ -211,7 +282,17 @@ export const Comunicados = () => {
                   <div className="flex items-center gap-1.5 text-[9px] font-bold text-white/35 uppercase tracking-widest pl-1">
                     <Pin size={9} /> Fixados
                   </div>
-                  {pinned.map(a => <AnnCard key={a.id} a={a} selected={selected} onSelect={setSelected} />)}
+                  {pinned.map(a => (
+                    <AnnCard
+                      key={a.id}
+                      a={a}
+                      selected={selected}
+                      onSelect={setSelected}
+                      isGestor={isGestor}
+                      onEdit={handleEdit}
+                      onDelete={(id, title) => { setDeleteId(id); setDeleteName(title); }}
+                    />
+                  ))}
                 </div>
               )}
 
@@ -221,7 +302,17 @@ export const Comunicados = () => {
                   {pinned.length > 0 && (
                     <div className="text-[9px] font-bold text-white/30 uppercase tracking-widest pl-1">Recentes</div>
                   )}
-                  {others.map(a => <AnnCard key={a.id} a={a} selected={selected} onSelect={setSelected} />)}
+                  {others.map(a => (
+                    <AnnCard
+                      key={a.id}
+                      a={a}
+                      selected={selected}
+                      onSelect={setSelected}
+                      isGestor={isGestor}
+                      onEdit={handleEdit}
+                      onDelete={(id, title) => { setDeleteId(id); setDeleteName(title); }}
+                    />
+                  ))}
                 </div>
               )}
             </div>
@@ -273,21 +364,21 @@ export const Comunicados = () => {
     ),
   };
 
-  /* ── Slide 2: Publicar (gestor) ─────────────────────────────── */
+  /* ── Slide 2: Publicar/Editar (gestor) ─────────────────────────── */
   const slidePublicar: SlideItem = {
     key: 'comunicados-publicar',
-    label: 'Publicar',
+    label: editingId ? 'Editar' : 'Publicar',
     content: (
       <SlidePanel
-        eyebrow="Nova Publicação Oficial"
-        title={<>Publicar <span className="grad-text">Comunicado</span></>}
+        eyebrow={editingId ? 'Edição de Comunicado' : 'Nova Publicação Oficial'}
+        title={<>{editingId ? 'Editar' : 'Publicar'} <span className="grad-text">Comunicado</span></>}
         badges={[
-          { icon: '📣', label: 'Envio Imediato' },
+          { icon: editingId ? '✏️' : '📣', label: editingId ? 'Modo Edição' : 'Envio Imediato' },
           { icon: '🔒', label: 'Painel Seguro' },
           { icon: '⌘', label: 'Notificação Push' },
         ]}
       >
-        <form onSubmit={handleCreate} className="flex flex-col gap-3 py-1 text-xs">
+        <form onSubmit={editingId ? handleSaveEdit : handleCreate} className="flex flex-col gap-3 py-1 text-xs">
 
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
@@ -362,17 +453,28 @@ export const Comunicados = () => {
             </p>
           </div>
 
-          <button
-            type="submit"
-            className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5"
-            disabled={submitting}
-            style={formPriority === 'urgente' ? { background: 'linear-gradient(135deg, #ef4444, #dc2626)', boxShadow: '0 0 24px rgba(239,68,68,0.35)' } : {}}
-          >
-            {submitting
-              ? <><Loader2 size={13} className="animate-spin" /> Publicando...</>
-              : <><Megaphone size={13} /> Publicar Comunicado Oficial</>
-            }
-          </button>
+          <div className="flex gap-2">
+            {editingId && (
+              <button
+                type="button"
+                onClick={() => { clearForm(); gotoSlide(0); }}
+                className="flex-1 px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold hover:bg-white/10 transition-colors"
+              >
+                Cancelar
+              </button>
+            )}
+            <button
+              type="submit"
+              className="flex-1 btn-primary justify-center py-2.5 text-xs font-bold gap-1.5"
+              disabled={editingId ? savingEdit : submitting}
+              style={formPriority === 'urgente' ? { background: 'linear-gradient(135deg, #ef4444, #dc2626)', boxShadow: '0 0 24px rgba(239,68,68,0.35)' } : {}}
+            >
+              {(editingId ? savingEdit : submitting)
+                ? <><Loader2 size={13} className="animate-spin" /> {editingId ? 'Salvando...' : 'Publicando...'}</>
+                : <>{editingId ? <><Save size={13} /> Atualizar Comunicado</> : <><Megaphone size={13} /> Publicar Comunicado Oficial</>}</>
+              }
+            </button>
+          </div>
         </form>
       </SlidePanel>
     ),
@@ -444,9 +546,44 @@ export const Comunicados = () => {
     ),
   };
 
+  /* ── Modal de Delete ─────────────────────────────────────────── */
+  const deleteModal = deleteId && (
+    <div className="fixed inset-0 flex items-center justify-center z-50"
+      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+      <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl p-6 max-w-sm border border-white/10 shadow-2xl"
+        style={{ background: 'linear-gradient(135deg, rgba(30,41,59,0.95), rgba(15,23,42,0.97))' }}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.15)' }}>
+            <AlertTriangle size={18} style={{ color: RED }} />
+          </div>
+          <h3 className="text-base font-bold text-white">Remover Comunicado?</h3>
+        </div>
+        <p className="text-xs text-white/60 mb-6 leading-relaxed">
+          Você está prestes a remover o comunicado <strong style={{ color: 'rgba(255,255,255,0.9)' }}>"{deleteName}"</strong>. Esta ação não pode ser desfeita.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setDeleteId(null); setDeleteName(''); }}
+            className="flex-1 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold hover:bg-white/10 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleDelete}
+            className="flex-1 px-4 py-2.5 rounded-lg text-white text-xs font-bold transition-all"
+            style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', boxShadow: '0 0 16px rgba(239,68,68,0.3)' }}
+          >
+            Remover
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="w-full h-full">
       <PageCarousel3D slides={[slideMural, isGestor ? slidePublicar : slideManual]} />
+      {deleteModal}
     </div>
   );
 };

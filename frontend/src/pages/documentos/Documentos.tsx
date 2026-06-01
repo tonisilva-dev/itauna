@@ -3,13 +3,14 @@ import {
   FileText, Download, Search, Upload, Eye, FileImage,
   FileSpreadsheet, File, Plus, HelpCircle, Loader2,
   BookOpen, Shield, Phone, MessageSquare, ArrowRight,
+  Edit2, Save, X, AlertTriangle, Trash2,
 } from 'lucide-react';
 import { formatDate, gotoSlide } from '../../utils/format';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
 import toast from 'react-hot-toast';
-import { fetchDocuments, insertDocument, type DbDocument } from '@/lib/supabase-queries';
+import { fetchDocuments, insertDocument, updateDocument, deleteDocument, type DbDocument } from '@/lib/supabase-queries';
 import { supabase } from '@/lib/supabase';
 
 const CYAN  = '#57d8ff';
@@ -55,6 +56,20 @@ export const Documentos = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragging, setDragging]         = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [editingId, setEditingId]       = useState<string | null>(null);
+  const [deleteId, setDeleteId]         = useState<string | null>(null);
+  const [deleteName, setDeleteName]     = useState('');
+  const [savingEdit, setSavingEdit]     = useState(false);
+
+  const clearForm = () => {
+    setFormTitle('');
+    setFormDesc('');
+    setFormCategory('Rateios');
+    setFormIsPublic(true);
+    setSelectedFile(null);
+    setEditingId(null);
+  };
 
   useEffect(() => {
     fetchDocuments(isGestor)
@@ -135,7 +150,7 @@ export const Documentos = () => {
 
       setUploadProgress(100);
       setDocuments(prev => [newDoc, ...prev]);
-      setFormTitle(''); setFormDesc(''); setSelectedFile(null);
+      clearForm();
       if (fileInputRef.current) fileInputRef.current.value = '';
       toast.success('Documento publicado com sucesso!');
       gotoSlide(0);
@@ -145,6 +160,45 @@ export const Documentos = () => {
       setSubmitting(false);
       setTimeout(() => setUploadProgress(0), 1200);
     }
+  };
+
+  const handleEdit = (d: DbDocument) => {
+    setEditingId(d.id);
+    setFormTitle(d.title);
+    setFormDesc(d.description);
+    setFormCategory(d.category);
+    setFormIsPublic(d.is_public);
+    gotoSlide(1);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingId || !formTitle.trim()) return;
+    setSavingEdit(true);
+    try {
+      const updated = await updateDocument(editingId, {
+        title: formTitle.trim(),
+        description: formDesc.trim() || formTitle.trim(),
+        category: formCategory,
+        is_public: formIsPublic,
+      });
+      setDocuments(prev => prev.map(d => d.id === editingId ? updated : d));
+      clearForm();
+      toast.success('Documento atualizado com sucesso!');
+      gotoSlide(0);
+    } catch { toast.error('Erro ao atualizar documento.'); }
+    finally { setSavingEdit(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteDocument(deleteId);
+      setDocuments(prev => prev.filter(d => d.id !== deleteId));
+      setDeleteId(null);
+      setDeleteName('');
+      toast.success('Documento removido com sucesso!');
+    } catch { toast.error('Erro ao remover documento.'); }
   };
 
   // ── Slide 1: Biblioteca ─────────────────────────────────────────
@@ -260,6 +314,26 @@ export const Documentos = () => {
                     >
                       <Download size={12} style={{ color: CYAN }} />
                     </button>
+                    {isGestor && (
+                      <>
+                        <button
+                          onClick={() => handleEdit(doc)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                          style={{ background: 'rgba(87,216,255,0.08)', border: '1px solid rgba(87,216,255,0.2)' }}
+                          title="Editar"
+                        >
+                          <Edit2 size={11} style={{ color: CYAN }} />
+                        </button>
+                        <button
+                          onClick={() => { setDeleteId(doc.id); setDeleteName(doc.title); }}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}
+                          title="Deletar"
+                        >
+                          <Trash2 size={11} style={{ color: RED }} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               );
@@ -273,18 +347,18 @@ export const Documentos = () => {
   // ── Slide 2: Upload (gestor) ────────────────────────────────────
   const slidePublicar: SlideItem = {
     key: 'documentos-publicar',
-    label: 'Publicar',
+    label: editingId ? 'Editar' : 'Publicar',
     content: (
       <SlidePanel
-        eyebrow="Publicar na Biblioteca"
-        title={<>Enviar <span className="grad-text">Documento</span></>}
+        eyebrow={editingId ? 'Edição de Documento' : 'Publicar na Biblioteca'}
+        title={<>{editingId ? 'Editar' : 'Enviar'} <span className="grad-text">Documento</span></>}
         badges={[
-          { icon: '✦', label: 'Upload Seguro' },
+          { icon: editingId ? '✏️' : '✦', label: editingId ? 'Modo Edição' : 'Upload Seguro' },
           { icon: '🔒', label: 'Bucket Privado' },
           { icon: '⌘', label: 'Máx. 20 MB' },
         ]}
       >
-        <form onSubmit={handleCreate} className="flex flex-col gap-3 py-1 text-xs">
+        <form onSubmit={editingId ? handleSaveEdit : handleCreate} className="flex flex-col gap-3 py-1 text-xs">
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -306,42 +380,44 @@ export const Documentos = () => {
               value={formDesc} onChange={e => setFormDesc(e.target.value)} />
           </div>
 
-          {/* Drop zone */}
-          <div>
-            <label className="input-label text-[11px]">Arquivo *</label>
-            <label
-              htmlFor="doc-file-input"
-              onDragOver={e => { e.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={handleDrop}
-              className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed cursor-pointer transition-all"
-              style={{
-                borderColor: dragging ? CYAN : selectedFile ? GREEN : 'rgba(255,255,255,0.1)',
-                background:  dragging ? 'rgba(87,216,255,0.05)' : selectedFile ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)',
-              }}
-            >
-              {selectedFile ? (() => {
-                const fi = fileIcon(selectedFile.name.split('.').pop() ?? '');
-                const Fi = fi.icon;
-                return (
+          {/* Drop zone — só se criar novo documento */}
+          {!editingId && (
+            <div>
+              <label className="input-label text-[11px]">Arquivo *</label>
+              <label
+                htmlFor="doc-file-input"
+                onDragOver={e => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={handleDrop}
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed cursor-pointer transition-all"
+                style={{
+                  borderColor: dragging ? CYAN : selectedFile ? GREEN : 'rgba(255,255,255,0.1)',
+                  background:  dragging ? 'rgba(87,216,255,0.05)' : selectedFile ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)',
+                }}
+              >
+                {selectedFile ? (() => {
+                  const fi = fileIcon(selectedFile.name.split('.').pop() ?? '');
+                  const Fi = fi.icon;
+                  return (
+                    <>
+                      <Fi size={22} style={{ color: fi.color }} />
+                      <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.75rem' }} className="truncate max-w-full">{selectedFile.name}</p>
+                      <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>{formatSize(selectedFile.size)} · Clique para trocar</p>
+                    </>
+                  );
+                })() : (
                   <>
-                    <Fi size={22} style={{ color: fi.color }} />
-                    <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.75rem' }} className="truncate max-w-full">{selectedFile.name}</p>
-                    <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>{formatSize(selectedFile.size)} · Clique para trocar</p>
+                    <Upload size={20} style={{ color: 'rgba(255,255,255,0.3)' }} />
+                    <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>Arraste ou clique para selecionar</p>
+                    <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.25)' }}>PDF, Excel, Word, Imagens · Máx. 20 MB</p>
                   </>
-                );
-              })() : (
-                <>
-                  <Upload size={20} style={{ color: 'rgba(255,255,255,0.3)' }} />
-                  <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>Arraste ou clique para selecionar</p>
-                  <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.25)' }}>PDF, Excel, Word, Imagens · Máx. 20 MB</p>
-                </>
-              )}
-            </label>
-            <input ref={fileInputRef} id="doc-file-input" type="file" className="hidden"
-              accept=".pdf,.xlsx,.xls,.docx,.doc,.png,.jpg,.jpeg,.webp"
-              onChange={e => handleFile(e.target.files?.[0] ?? null)} />
-          </div>
+                )}
+              </label>
+              <input ref={fileInputRef} id="doc-file-input" type="file" className="hidden"
+                accept=".pdf,.xlsx,.xls,.docx,.doc,.png,.jpg,.jpeg,.webp"
+                onChange={e => handleFile(e.target.files?.[0] ?? null)} />
+            </div>
+          )}
 
           <div className="flex items-center gap-2.5">
             <input type="checkbox" id="doc-public" className="w-4 h-4 rounded accent-cyan"
@@ -367,14 +443,29 @@ export const Documentos = () => {
             </div>
           )}
 
-          <button type="submit" disabled={submitting || !selectedFile}
-            className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5"
-            style={!selectedFile ? { opacity: 0.45, cursor: 'not-allowed' } : {}}>
-            {submitting
-              ? <><Loader2 size={13} className="animate-spin" /> Publicando...</>
-              : <><Upload size={13} /> Publicar na Biblioteca Digital</>
-            }
-          </button>
+          <div className="flex gap-2">
+            {editingId && (
+              <button
+                type="button"
+                onClick={() => { clearForm(); gotoSlide(0); }}
+                className="flex-1 px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold hover:bg-white/10 transition-colors"
+              >
+                Cancelar
+              </button>
+            )}
+            <button type="submit" disabled={editingId ? savingEdit : (submitting || !selectedFile)}
+              className="flex-1 btn-primary justify-center py-2.5 text-xs font-bold gap-1.5"
+              style={!editingId && !selectedFile ? { opacity: 0.45, cursor: 'not-allowed' } : {}}>
+              {editingId
+                ? (savingEdit
+                  ? <><Loader2 size={13} className="animate-spin" /> Salvando...</>
+                  : <><Save size={13} /> Atualizar Documento</>)
+                : (submitting
+                  ? <><Loader2 size={13} className="animate-spin" /> Publicando...</>
+                  : <><Upload size={13} /> Publicar na Biblioteca Digital</>)
+              }
+            </button>
+          </div>
         </form>
       </SlidePanel>
     ),
@@ -442,9 +533,43 @@ export const Documentos = () => {
     ),
   };
 
+  const deleteModal = deleteId && (
+    <div className="fixed inset-0 flex items-center justify-center z-50"
+      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+      <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl p-6 max-w-sm border border-white/10 shadow-2xl"
+        style={{ background: 'linear-gradient(135deg, rgba(30,41,59,0.95), rgba(15,23,42,0.97))' }}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.15)' }}>
+            <AlertTriangle size={18} style={{ color: RED }} />
+          </div>
+          <h3 className="text-base font-bold text-white">Remover Documento?</h3>
+        </div>
+        <p className="text-xs text-white/60 mb-6 leading-relaxed">
+          Você está prestes a remover o documento <strong style={{ color: 'rgba(255,255,255,0.9)' }}>"{deleteName}"</strong>. Esta ação não pode ser desfeita.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setDeleteId(null); setDeleteName(''); }}
+            className="flex-1 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold hover:bg-white/10 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleDelete}
+            className="flex-1 px-4 py-2.5 rounded-lg text-white text-xs font-bold transition-all"
+            style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', boxShadow: '0 0 16px rgba(239,68,68,0.3)' }}
+          >
+            Remover
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="w-full h-full">
       <PageCarousel3D slides={[slideBiblioteca, isGestor ? slidePublicar : slideFaq]} />
+      {deleteModal}
     </div>
   );
 };

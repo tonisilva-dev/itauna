@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { gotoSlide } from '../../utils/format';
-import { Plus, Calendar as CalendarIcon, ChevronRight, Loader2, Users, Clock, MapPin, Tag, CheckCircle2 } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, ChevronRight, Loader2, Users, Clock, MapPin, Tag, CheckCircle2, Edit2, Save, X, AlertTriangle, Trash2 } from 'lucide-react';
 import { format, parseISO, isFuture, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,7 +9,7 @@ import { SlidePanel } from '../../components/ui/SlidePanel';
 import { StatCard } from '../../components/ui/StatCard';
 import toast from 'react-hot-toast';
 import {
-  fetchAllEvents, insertEvent, fetchInscricoes, fetchInscricoesCount,
+  fetchAllEvents, insertEvent, updateEvent, deleteEvent, fetchInscricoes, fetchInscricoesCount,
   insertInscricao,
   type DbEvent,
 } from '@/lib/supabase-queries';
@@ -56,6 +56,24 @@ export const Eventos = () => {
   const [formMax, setFormMax]           = useState('150');
   const [formDesc, setFormDesc]         = useState('');
   const [submittingEvent, setSubmittingEvent] = useState(false);
+
+  // Editar evento
+  const [editingId, setEditingId]       = useState<string | null>(null);
+  const [deleteId, setDeleteId]         = useState<string | null>(null);
+  const [deleteName, setDeleteName]     = useState('');
+  const [savingEdit, setSavingEdit]     = useState(false);
+
+  const clearForm = () => {
+    setFormTitle('');
+    setFormDesc('');
+    setFormDate(TODAY);
+    setFormStart('18:00');
+    setFormEnd('22:00');
+    setFormLocation('Salão de Festas');
+    setFormCategory('Social');
+    setFormMax('150');
+    setEditingId(null);
+  };
 
   useEffect(() => {
     fetchAllEvents()
@@ -138,11 +156,60 @@ export const Eventos = () => {
         max_participants: formMax ? Number(formMax) : null, created_by: user!.id,
       });
       setEvents(prev => [newEvent, ...prev].sort((a, b) => a.event_date.localeCompare(b.event_date)));
-      setFormTitle(''); setFormDesc(''); setFormDate(TODAY);
+      clearForm();
       toast.success('Evento publicado na agenda!');
       gotoSlide(0);
     } catch { toast.error('Erro ao criar evento.'); }
     finally { setSubmittingEvent(false); }
+  };
+
+  const handleEdit = (e: DbEvent) => {
+    setEditingId(e.id);
+    setFormTitle(e.title);
+    setFormDesc(e.description);
+    setFormDate(e.event_date);
+    setFormStart(e.start_time);
+    setFormEnd(e.end_time);
+    setFormLocation(e.location);
+    setFormCategory(e.category);
+    setFormMax(String(e.max_participants ?? ''));
+    gotoSlide(1);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingId || !formTitle.trim() || !formDesc.trim()) return;
+    if (formEnd <= formStart) { toast.error('Horário de fim deve ser após o início.'); return; }
+    setSavingEdit(true);
+    try {
+      const updated = await updateEvent(editingId, {
+        title: formTitle.trim(),
+        description: formDesc.trim(),
+        event_date: formDate,
+        start_time: formStart,
+        end_time: formEnd,
+        location: formLocation,
+        category: formCategory,
+        max_participants: formMax ? Number(formMax) : null,
+      });
+      setEvents(prev => prev.map(e => e.id === editingId ? updated : e).sort((a, b) => a.event_date.localeCompare(b.event_date)));
+      clearForm();
+      toast.success('Evento atualizado com sucesso!');
+      gotoSlide(0);
+    } catch { toast.error('Erro ao atualizar evento.'); }
+    finally { setSavingEdit(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteEvent(deleteId);
+      setEvents(prev => prev.filter(e => e.id !== deleteId));
+      setDeleteId(null);
+      setDeleteName('');
+      if (selectedEvent?.id === deleteId) setSelectedEvent(null);
+      toast.success('Evento removido com sucesso!');
+    } catch { toast.error('Erro ao remover evento.'); }
   };
 
   // ─────────────────────────────────────────────────────────────────
@@ -235,7 +302,19 @@ export const Eventos = () => {
                         {vagas !== null && <span style={{ color: vagas <= 5 ? YELLOW : 'inherit' }}>{vagas > 0 ? `${vagas} vagas` : '⚠ Esgotado'}</span>}
                       </div>
                     </div>
-                    <ChevronRight size={12} style={{ color: 'rgba(255,255,255,0.2)', flexShrink: 0, marginTop: 4 }} />
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {isGestor && (
+                        <>
+                          <button onClick={(e) => { e.stopPropagation(); handleEdit(ev); }} className="p-1 rounded hover:bg-white/10 transition" title="Editar">
+                            <Edit2 size={11} style={{ color: CYAN }} />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); setDeleteId(ev.id); setDeleteName(ev.title); }} className="p-1 rounded hover:bg-red-500/20 transition" title="Deletar">
+                            <Trash2 size={11} style={{ color: '#ef4444' }} />
+                          </button>
+                        </>
+                      )}
+                      {!isGestor && <ChevronRight size={12} style={{ color: 'rgba(255,255,255,0.2)', marginTop: 4 }} />}
+                    </div>
                   </div>
                 );
               })}
@@ -370,15 +449,15 @@ export const Eventos = () => {
       label: isGestor ? 'Criar Evento' : 'Histórico',
       content: isGestor ? (
         <SlidePanel
-          eyebrow="Publicar na Agenda"
-          title={<>Criar <span className="grad-text">Evento</span></>}
+          eyebrow={editingId ? 'Edição de Evento' : 'Publicar na Agenda'}
+          title={<>{editingId ? 'Editar' : 'Criar'} <span className="grad-text">Evento</span></>}
           badges={[
-            { icon: '✦', label: 'Publicação Imediata' },
+            { icon: editingId ? '✏️' : '✦', label: editingId ? 'Modo Edição' : 'Publicação Imediata' },
             { icon: '🔔', label: 'Notifica Moradores' },
             { icon: '⌘', label: 'Agenda Oficial' },
           ]}
         >
-          <form onSubmit={handleCreateEvent} className="flex flex-col gap-3 py-1 text-xs">
+          <form onSubmit={editingId ? handleSaveEdit : handleCreateEvent} className="flex flex-col gap-3 py-1 text-xs">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="input-label text-[11px]">Título do Evento *</label>
@@ -437,13 +516,24 @@ export const Eventos = () => {
                 value={formDesc} onChange={e => setFormDesc(e.target.value)} required />
             </div>
 
-            <button type="submit" disabled={submittingEvent}
-              className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5">
-              {submittingEvent
-                ? <><Loader2 size={13} className="animate-spin" /> Publicando...</>
-                : <><Plus size={13} /> Publicar na Agenda</>
-              }
-            </button>
+            <div className="flex gap-2">
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={() => { clearForm(); gotoSlide(0); }}
+                  className="flex-1 px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold hover:bg-white/10 transition-colors"
+                >
+                  Cancelar
+                </button>
+              )}
+              <button type="submit" disabled={editingId ? savingEdit : submittingEvent}
+                className="flex-1 btn-primary justify-center py-2.5 text-xs font-bold gap-1.5">
+                {(editingId ? savingEdit : submittingEvent)
+                  ? <><Loader2 size={13} className="animate-spin" /> {editingId ? 'Salvando...' : 'Publicando...'}</>
+                  : <>{editingId ? <><Save size={13} /> Atualizar Evento</> : <><Plus size={13} /> Publicar na Agenda</>}</>
+                }
+              </button>
+            </div>
           </form>
         </SlidePanel>
       ) : (
@@ -490,9 +580,43 @@ export const Eventos = () => {
     },
   ];
 
+  const deleteModal = deleteId && (
+    <div className="fixed inset-0 flex items-center justify-center z-50"
+      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+      <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl p-6 max-w-sm border border-white/10 shadow-2xl"
+        style={{ background: 'linear-gradient(135deg, rgba(30,41,59,0.95), rgba(15,23,42,0.97))' }}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.15)' }}>
+            <AlertTriangle size={18} style={{ color: '#ef4444' }} />
+          </div>
+          <h3 className="text-base font-bold text-white">Remover Evento?</h3>
+        </div>
+        <p className="text-xs text-white/60 mb-6 leading-relaxed">
+          Você está prestes a remover o evento <strong style={{ color: 'rgba(255,255,255,0.9)' }}>"{deleteName}"</strong>. Esta ação não pode ser desfeita.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setDeleteId(null); setDeleteName(''); }}
+            className="flex-1 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold hover:bg-white/10 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleDelete}
+            className="flex-1 px-4 py-2.5 rounded-lg text-white text-xs font-bold transition-all"
+            style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)', boxShadow: '0 0 16px rgba(239,68,68,0.3)' }}
+          >
+            Remover
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="w-full h-full">
       <PageCarousel3D slides={slides3D} />
+      {deleteModal}
     </div>
   );
 };
