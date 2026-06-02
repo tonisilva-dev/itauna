@@ -1,15 +1,156 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  TreePine, ChevronRight, Bell, Shield, Calendar, Tag,
-  MapPin, Mail, Phone, DollarSign, Image, FileText,
-  Home, Users, AlertCircle, Search, Building2, Fingerprint,
-  Star, CheckCircle2, ArrowRight, Sun, Droplets, Leaf,
+  TreePine, Info, X, ChevronRight, ArrowRight,
+  Bell, Shield, Calendar, Tag, MapPin, Mail, Phone,
+  DollarSign, Image, FileText, Home, Users, AlertCircle,
+  Search, Building2, Fingerprint, Star, CheckCircle2,
+  Sun, Droplets, Leaf,
 } from 'lucide-react';
-import { PageCarousel3D, type SlideItem } from '../components/ui/PageCarousel3D';
+import { fetchGaleriaFotos } from '../lib/supabase-queries';
 
-const BG_IMAGES = ['/bg-area-livre-1.webp', '/bg-area-livre-2.webp'];
-const BG_INTERVAL_MS = 300_000;
+/* ── Fallback quando galeria vazia ── */
+const FALLBACK = ['/bg-area-livre-1.webp', '/bg-area-livre-2.webp'];
+
+const SLIDE_MS = 10_000;
+const FADE_MS  = 1_100;
+
+/* ── Estilos visuais que alternam a cada ciclo ── */
+type BgStyle = {
+  overlay: string;
+  imgFilter: string;
+  layout: 'full' | 'split' | 'triptych';
+  rays: boolean;
+};
+
+const BG_STYLES: BgStyle[] = [
+  {
+    layout: 'split',
+    overlay: 'linear-gradient(105deg,rgba(4,4,6,.55) 0%,rgba(6,6,8,.38) 100%)',
+    imgFilter: 'brightness(0.80) saturate(0.95)',
+    rays: true,
+  },
+  {
+    layout: 'full',
+    overlay: 'linear-gradient(180deg,rgba(4,4,6,.48) 0%,rgba(4,4,6,.74) 60%,rgba(4,4,6,.92) 100%)',
+    imgFilter: 'brightness(0.75) saturate(0.80)',
+    rays: false,
+  },
+  {
+    layout: 'triptych',
+    overlay: 'linear-gradient(135deg,rgba(5,5,7,.58) 0%,rgba(4,4,6,.42) 100%)',
+    imgFilter: 'brightness(0.78) saturate(1.05)',
+    rays: true,
+  },
+  {
+    layout: 'split',
+    overlay: 'linear-gradient(90deg,rgba(4,4,6,.62) 0%,rgba(6,6,8,.34) 100%)',
+    imgFilter: 'brightness(0.72) saturate(0.25) contrast(1.08)',
+    rays: false,
+  },
+];
+
+/* ── Overlay de raios de luz diagonais (SVG) ── */
+const LightRays = () => (
+  <svg
+    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3 }}
+    viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <defs>
+      <linearGradient id="ray1" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="white" stopOpacity="0"/>
+        <stop offset="50%" stopColor="white" stopOpacity="0.045"/>
+        <stop offset="100%" stopColor="white" stopOpacity="0"/>
+      </linearGradient>
+      <linearGradient id="ray2" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="white" stopOpacity="0"/>
+        <stop offset="50%" stopColor="white" stopOpacity="0.03"/>
+        <stop offset="100%" stopColor="white" stopOpacity="0"/>
+      </linearGradient>
+    </defs>
+    {/* Raios diagonais suaves */}
+    <polygon points="680,0 780,0 520,700 420,700" fill="url(#ray1)" />
+    <polygon points="820,0 870,0 610,700 560,700" fill="url(#ray2)" />
+    <polygon points="950,0 990,0 730,700 690,700" fill="url(#ray1)" />
+    <polygon points="1060,0 1090,0 830,700 800,700" fill="url(#ray2)" />
+    <polygon points="1130,0 1155,0 895,700 870,700" fill="url(#ray1)" />
+    <polygon points="580,0 630,0 370,700 320,700" fill="url(#ray2)" />
+  </svg>
+);
+
+/* ── Componente de background multi-layout ── */
+const BgScene = ({
+  photos, startIdx, style, visible,
+}: {
+  photos: string[];
+  startIdx: number;
+  style: BgStyle;
+  visible: boolean;
+}) => {
+  const n = photos.length;
+  const get = (offset: number) => photos[(startIdx + offset) % n];
+
+  const wrapStyle: React.CSSProperties = {
+    position: 'absolute', inset: 0,
+    opacity: visible ? 1 : 0,
+    transition: `opacity ${FADE_MS}ms cubic-bezier(.4,0,.2,1)`,
+  };
+
+  const imgStyle: React.CSSProperties = {
+    width: '100%', height: '100%',
+    objectFit: 'cover', objectPosition: 'center',
+    filter: style.imgFilter,
+    display: 'block',
+  };
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+      {style.layout === 'full' && (
+        <div style={wrapStyle}>
+          <img src={get(0)} alt="" style={imgStyle} fetchPriority="high" decoding="sync" />
+        </div>
+      )}
+
+      {style.layout === 'split' && (
+        <div style={{ ...wrapStyle, display: 'flex' }}>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <img src={get(0)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <img src={get(1)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
+          </div>
+        </div>
+      )}
+
+      {style.layout === 'triptych' && (
+        <div style={{ ...wrapStyle, display: 'flex' }}>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <img src={get(0)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <img src={get(1)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <img src={get(2)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
+          </div>
+        </div>
+      )}
+
+      {/* Overlay colorido */}
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 2,
+        background: style.overlay,
+        opacity: visible ? 1 : 0,
+        transition: `opacity ${FADE_MS}ms cubic-bezier(.4,0,.2,1)`,
+      }} />
+
+      {style.rays && <LightRays />}
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════ */
 
 const CYAN   = '#57d8ff';
 const GREEN  = '#10b981';
@@ -29,867 +170,447 @@ const card: React.CSSProperties = {
   borderRadius: '14px',
 };
 
-/* ── Navbar fixa ── */
-const Navbar = () => (
-  <nav style={{
-    position: 'fixed', top: 0, left: 0, right: 0, zIndex: 30,
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: 'clamp(12px,3vw,18px) clamp(16px,4vw,28px)',
-    pointerEvents: 'none',
-  }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'auto' }}>
-      <div style={{
-        width: 'clamp(32px,7vw,40px)', height: 'clamp(32px,7vw,40px)',
-        borderRadius: '11px', background: 'linear-gradient(135deg,#72e3ff,#669dff)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        boxShadow: '0 0 20px rgba(87,216,255,0.40)',
-      }}>
-        <TreePine size={18} color="#07101c" />
-      </div>
-      <div>
-        <p style={{ fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', color: '#fff', lineHeight: 1 }}>Itaúna</p>
-        <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>Chácaras · Ibiporã–PR</p>
-      </div>
-    </div>
-
-    <Link to="/login" style={{
-      display: 'flex', alignItems: 'center', gap: 6,
-      padding: 'clamp(8px,2vw,11px) clamp(14px,3.5vw,22px)',
-      borderRadius: '11px',
-      background: 'rgba(10,18,36,0.65)', border: '1px solid rgba(87,216,255,0.28)',
-      color: CYAN, fontWeight: 700, fontSize: 'clamp(12px,2.5vw,14px)',
-      textDecoration: 'none', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.35)', whiteSpace: 'nowrap', pointerEvents: 'auto',
-    }}>
-      Área Restrita <ChevronRight size={14} strokeWidth={2.5} />
-    </Link>
-  </nav>
-);
-
-/* ── Shell dos slides ── */
-const Shell = ({ children, badges }: { children: React.ReactNode; badges?: { icon: string; label: string }[] }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-    <div style={{
-      flex: 1, overflowY: 'auto', minHeight: 0,
-      padding: 'clamp(16px,4vw,28px) clamp(16px,4vw,28px) clamp(12px,3vw,20px)',
-      display: 'flex', flexDirection: 'column', gap: 'clamp(10px,2.5vw,16px)',
-      scrollbarWidth: 'none',
-    }}>
-      {children}
-    </div>
-    {badges && (
-      <div style={{
-        display: 'grid', gridTemplateColumns: `repeat(${badges.length},minmax(0,1fr))`,
-        gap: '1px', background: 'rgba(255,255,255,0.04)',
-        borderTop: '1px solid rgba(255,255,255,0.05)', flexShrink: 0,
-      }}>
-        {badges.map((b, i) => (
-          <div key={i} style={{
-            background: 'rgba(255,255,255,0.018)', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', gap: '6px', padding: 'clamp(8px,2vw,12px) 4px',
-            fontSize: 'clamp(10px,2.2vw,12px)', fontWeight: 500, color: '#e7f0fe',
-            textAlign: 'center', minHeight: '44px',
-          }}>
-            <span>{b.icon}</span><span>{b.label}</span>
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-);
-
-/* ═══════════════════════════════════════════════════════ */
-export const LandingPage = () => {
-  const [bgIdx, setBgIdx] = useState(0);
-  const [fadeIn, setFadeIn] = useState(true);
-  const cycleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fadeRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+/* ── Modal de Informações ── */
+const InfoModal = ({ onClose }: { onClose: () => void }) => {
   useEffect(() => {
-    const schedule = () => {
-      cycleRef.current = setTimeout(() => {
-        setFadeIn(false);
-        fadeRef.current = setTimeout(() => {
-          setBgIdx(i => (i + 1) % BG_IMAGES.length);
-          setFadeIn(true);
-          schedule();
-        }, 900);
-      }, BG_INTERVAL_MS);
-    };
-    schedule();
-    return () => {
-      if (cycleRef.current) clearTimeout(cycleRef.current);
-      if (fadeRef.current)  clearTimeout(fadeRef.current);
-    };
-  }, []);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
-  // Ordem semântica:
-  // [O Lugar] Hero · O Lugar · O Lago
-  // [Identidade] Quem Somos · Breve Histórico · Nossa Identidade · Valores
-  // [Iniciativas] Resp. Social · Plataforma · Telefones
-  // [CTA] Saiba Mais
-  const slides: SlideItem[] = [
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      background: 'rgba(4,8,18,0.88)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      overflowY: 'auto', padding: 'clamp(16px,4vw,40px)',
+    }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{
+        width: '100%', maxWidth: 720,
+        background: 'rgba(10,18,34,0.95)', border: '1px solid rgba(87,216,255,0.15)',
+        borderRadius: 20, overflow: 'hidden',
+        boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: 'clamp(18px,4vw,28px) clamp(20px,5vw,32px)',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          background: 'linear-gradient(135deg,rgba(87,216,255,0.06),rgba(13,20,35,0.95))',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 11,
+              background: 'linear-gradient(135deg,#72e3ff,#669dff)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 20px rgba(87,216,255,0.35)',
+            }}>
+              <TreePine size={20} color="#07101c" />
+            </div>
+            <div>
+              <p style={{ fontWeight: 800, fontSize: 17, color: '#fff', lineHeight: 1 }}>Itaúna</p>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>Chácaras · Ibiporã–PR</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)',
+            color: 'rgba(255,255,255,0.6)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <X size={16} />
+          </button>
+        </div>
 
-    /* ══ GRUPO 1: O LUGAR ══════════════════════════════════════════ */
+        {/* Content */}
+        <div style={{ padding: 'clamp(20px,5vw,32px)', display: 'flex', flexDirection: 'column', gap: 32 }}>
 
-    /* ── SLIDE 1: Hero ── */
-    {
-      key: 'slide-hero',
-      label: 'Início',
-      content: (
-        <Shell badges={[
-          { icon: '🌿', label: 'Natureza Preservada' },
-          { icon: '🔒', label: 'Segurança 24h' },
-          { icon: '📱', label: '100% Digital' },
-        ]}>
-          <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN }}>
-            Condomínio Chácaras Itaúna · Ibiporã – PR
-          </p>
-
-          <div>
-            <h1 style={{ fontSize: 'clamp(22px,5.5vw,38px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.06, color: '#fff', marginBottom: 10 }}>
+          {/* Hero */}
+          <section>
+            <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 10 }}>
+              Condomínio Chácaras Itaúna · Ibiporã – PR
+            </p>
+            <h2 style={{ fontSize: 'clamp(22px,5vw,34px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 12 }}>
               Encanto para quem visita,<br />
               <span style={gradStyle}>pertencimento para quem vive.</span>
-            </h1>
-            <p style={{ fontSize: 'clamp(11px,2.5vw,13px)', color: 'rgba(255,255,255,0.58)', lineHeight: 1.65 }}>
-              360 chácaras em 3,8 km² de natureza preservada, a 10 minutos de Londrina e a distância de tudo o que importa. Aqui, o campo não é um compromisso — é um privilégio.
+            </h2>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7 }}>
+              360 chácaras em 3,8 km² de natureza preservada, a 10 minutos de Londrina. Aqui, o campo não é um compromisso — é um privilégio.
             </p>
-          </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginTop: 16 }}>
+              {[
+                { v: '3,8', l: 'km² de área', color: GREEN },
+                { v: '20+', l: 'anos de história', color: CYAN },
+                { v: '24h', l: 'portaria ativa', color: BLUE },
+              ].map(s => (
+                <div key={s.l} style={{ ...card, padding: '14px 10px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 26, fontWeight: 900, color: s.color, letterSpacing: '-0.03em', lineHeight: 1 }}>{s.v}</p>
+                  <p style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 5 }}>{s.l}</p>
+                </div>
+              ))}
+            </div>
+          </section>
 
-          {/* Stats com dados reais do estudo */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 'clamp(6px,1.5vw,10px)' }}>
-            {[
-              { v: '3,8',  l: 'km² de área',  color: GREEN  },
-              { v: '20+',  l: 'anos de história', color: CYAN  },
-              { v: '24h',  l: 'portaria ativa',   color: BLUE   },
-            ].map(s => (
-              <div key={s.l} style={{ ...card, padding: 'clamp(10px,2.5vw,16px) clamp(6px,1.5vw,10px)', textAlign: 'center' }}>
-                <p style={{ fontSize: 'clamp(18px,4.5vw,28px)', fontWeight: 900, color: s.color, letterSpacing: '-0.03em', lineHeight: 1 }}>{s.v}</p>
-                <p style={{ fontSize: 'clamp(8px,1.8vw,10px)', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 5 }}>{s.l}</p>
+          {/* O Lugar */}
+          <section>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: CYAN, marginBottom: 14 }}>O Lugar</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { emoji: '🗺️', title: 'Entre Londrina e a eternidade', desc: 'A 10 minutos da UTFPR e do Parque Tauá via Estrada do Limoeiro.' },
+                { emoji: '📜', title: 'Sua chácara, definitivamente sua', desc: 'Documentação 100% regularizada desde 2005. Escritura pública autônoma, matrícula individualizada.' },
+                { emoji: '🪨', title: 'A pedra que preserva o lago', desc: 'Vias em paralelepípedo absorvem água de chuva no solo, protegendo o lago central.' },
+                { emoji: '☀️', title: 'A luz que vem do sol', desc: 'Iluminação das ruas por energia fotovoltaica autônoma.' },
+              ].map(d => (
+                <div key={d.title} style={{ ...card, padding: '12px 14px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{d.emoji}</span>
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{d.title}</p>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.48)', lineHeight: 1.5 }}>{d.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* O Lago */}
+          <section>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: CYAN, marginBottom: 14 }}>O Lago</h3>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.58)', lineHeight: 1.7, marginBottom: 12 }}>
+              No coração de Itaúna, o lago central reflete o céu. Garças de madrugada, ninhos de pássaros ao amanhecer — toda a vida selvagem concentra-se em torno deste espelho d'água.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
+              {[
+                { emoji: '🏖️', title: 'Beach tennis', desc: 'Arena de areia natural com o lago ao fundo.' },
+                { emoji: '⚽', title: 'Futebol society', desc: 'Partidas ao entardecer com vista para a água.' },
+                { emoji: '🍽️', title: 'Salão de festas', desc: 'Eventos com vista privilegiada para o lago.' },
+                { emoji: '👶', title: 'Playground', desc: 'Crianças sob árvores, adultos na pista de caminhada.' },
+              ].map(d => (
+                <div key={d.title} style={{ ...card, padding: '12px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>{d.emoji}</span>
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#fff', marginBottom: 2 }}>{d.title}</p>
+                    <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', lineHeight: 1.4 }}>{d.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Quem Somos */}
+          <section>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: CYAN, marginBottom: 14 }}>Quem Somos</h3>
+            <div style={{ ...card, padding: '16px', lineHeight: 1.7, marginBottom: 12 }}>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', marginBottom: 10 }}>
+                Em 2005, os fundadores do Itaúna enxergaram um <strong style={{ color: '#fff' }}>ecossistema de vida</strong>. Foram criadas 360 chácaras em 3,8 km² de território, cada uma com espaço para uma história própria.
+              </p>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.52)' }}>
+                Hoje, duas décadas depois, o Itaúna é o maior condomínio periurbano de alto padrão do norte do Paraná — com <strong style={{ color: 'rgba(255,255,255,0.8)' }}>documentação 100% regularizada</strong>, iluminação solar e plataforma digital integrada.
+              </p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
+              {[
+                { icon: Leaf,     color: GREEN,  title: 'Natureza viva',     desc: 'Lagos, mata nativa, fauna local.' },
+                { icon: Shield,   color: BLUE,   title: 'Segurança real',    desc: 'Portaria 24h e acesso controlado.' },
+                { icon: Sun,      color: YELLOW, title: 'Energia limpa',     desc: 'Vias iluminadas por solar.' },
+                { icon: Droplets, color: CYAN,   title: 'Água de qualidade', desc: 'Poços artesianos do SAMAE.' },
+              ].map(p => (
+                <div key={p.title} style={{ ...card, padding: '12px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <div style={{ width: 26, height: 26, borderRadius: 7, flexShrink: 0, background: `${p.color}15`, border: `1px solid ${p.color}28`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <p.icon size={12} style={{ color: p.color }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#fff', marginBottom: 2 }}>{p.title}</p>
+                    <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.42)', lineHeight: 1.4 }}>{p.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Linha do Tempo */}
+          <section>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: CYAN, marginBottom: 14 }}>Nossa Trajetória</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { year: '2005', title: 'Oficialização', desc: 'Decreto nº 320/2005 e Associação fundada em outubro.' },
+                { year: '2019', title: 'Sustentabilidade', desc: 'Nomeação das vias com espécies arbóreas locais.' },
+                { year: '2024', title: 'Inovação Digital', desc: 'Plataforma integrada com 20+ módulos para condôminos.' },
+              ].map(item => (
+                <div key={item.year} style={{ display: 'grid', gridTemplateColumns: '52px 1fr', gap: 12, alignItems: 'center' }}>
+                  <p style={{ fontSize: 12, fontWeight: 800, color: CYAN, letterSpacing: '0.06em', textAlign: 'center' }}>{item.year}</p>
+                  <div style={{ ...card, padding: '10px 14px' }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 2 }}>{item.title}</p>
+                    <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)' }}>{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Responsabilidade Social */}
+          <section>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: GREEN, marginBottom: 14 }}>Responsabilidade Social &amp; Ambiental</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ ...card, padding: '14px', borderLeft: `3px solid ${GREEN}`, display: 'flex', gap: 12 }}>
+                <span style={{ fontSize: '1.1rem' }}>♻️</span>
+                <div>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 4 }}>Gestão de Resíduos</p>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>Guia de separação de orgânicos, recicláveis e rejeitos com ponto de coleta na portaria.</p>
+                </div>
               </div>
-            ))}
-          </div>
+              <div style={{ ...card, padding: '14px', borderLeft: `3px solid ${YELLOW}`, display: 'flex', gap: 12 }}>
+                <span style={{ fontSize: '1.1rem' }}>🤝</span>
+                <div>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 4 }}>Campanhas Solidárias</p>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>Ações sazonais: Agasalho, Páscoa, Natal — conectando moradores e comunidade.</p>
+                </div>
+              </div>
+            </div>
+          </section>
 
-          {/* CTAs */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Link to="/login" style={{
+          {/* Telefones Úteis */}
+          <section>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: RED, marginBottom: 14 }}>Telefones Úteis</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8, marginBottom: 10 }}>
+              {[
+                { emoji: '🚑', num: '192', label: 'SAMU / SIATE', color: RED },
+                { emoji: '🔥', num: '193', label: 'Bombeiros', color: YELLOW },
+                { emoji: '🚔', num: '190', label: 'Polícia Mil.', color: BLUE },
+                { emoji: '⛑️', num: '199', label: 'Defesa Civil', color: GREEN },
+              ].map(e => (
+                <a key={e.label} href={`tel:${e.num}`} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', background: `${e.color}10`, border: `1px solid ${e.color}28`, borderRadius: 12, padding: '10px 12px' }}>
+                  <span style={{ fontSize: '1.2rem' }}>{e.emoji}</span>
+                  <div>
+                    <p style={{ fontSize: 18, fontWeight: 900, color: e.color, lineHeight: 1 }}>{e.num}</p>
+                    <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>{e.label}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {[
+                { emoji: '💧', label: 'SAMAE Ibiporã',     num: '(43) 3252-1655', color: CYAN  },
+                { emoji: '⚡', label: 'COPEL',             num: '0800 723 2302',  color: YELLOW },
+                { emoji: '🏛️', label: 'Prefeitura Ibiporã', num: '(43) 3252-1500', color: BLUE  },
+                { emoji: '🏡', label: 'Portaria Itaúna',   num: '(43) 99999-0001', color: CYAN },
+              ].map(c => (
+                <a key={c.label} href={`tel:${c.num.replace(/\D/g,'')}`} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderLeft: `3px solid ${c.color}`, borderRadius: '0 10px 10px 0', padding: '8px 14px' }}>
+                  <span style={{ fontSize: '1rem' }}>{c.emoji}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: '#fff', marginBottom: 1 }}>{c.label}</p>
+                    <p style={{ fontSize: 11, color: c.color, fontWeight: 600 }}>{c.num}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </section>
+
+          {/* Plataforma Digital */}
+          <section>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: CYAN, marginBottom: 14 }}>Plataforma Digital</h3>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, marginBottom: 14 }}>
+              Uma plataforma com 20+ módulos funcionais — financeiro, portaria, comunicados, agendamentos e muito mais, todos integrados.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7 }}>
+              {[
+                { Icon: DollarSign,  title: 'Financeiro',    color: GREEN  },
+                { Icon: Shield,      title: 'Portaria',      color: CYAN   },
+                { Icon: Bell,        title: 'Comunicados',   color: YELLOW },
+                { Icon: Calendar,    title: 'Agendamentos',  color: BLUE   },
+                { Icon: AlertCircle, title: 'Ocorrências',   color: RED    },
+                { Icon: Image,       title: 'Galeria',       color: PURPLE },
+                { Icon: FileText,    title: 'Documentos',    color: CYAN   },
+                { Icon: Tag,         title: 'Classificados', color: YELLOW },
+                { Icon: Search,      title: 'Achados',       color: GREEN  },
+              ].map(f => (
+                <div key={f.title} style={{ ...card, padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 7, alignItems: 'center' }}>
+                  <div style={{ width: 26, height: 26, borderRadius: 7, background: `${f.color}18`, border: `1px solid ${f.color}28`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <f.Icon size={12} style={{ color: f.color }} />
+                  </div>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: '#fff', textAlign: 'center' }}>{f.title}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* CTAs finais */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <Link to="/login" onClick={onClose} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              padding: 'clamp(12px,3vw,15px)', borderRadius: '13px',
+              padding: '14px', borderRadius: '13px',
               background: 'linear-gradient(135deg,#72e3ff,#669dff)', color: '#07101c',
-              fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', textDecoration: 'none',
+              fontWeight: 800, fontSize: 15, textDecoration: 'none',
               boxShadow: '0 8px 28px rgba(76,164,255,0.3)',
             }}>
               Acessar o Portal do Condômino <ChevronRight size={15} />
             </Link>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
-              {[
-                { to: '/galeria',       label: '📸 Ver Galeria'    },
-                { to: '/classificados', label: '🏡 Classificados'  },
-              ].map(b => (
-                <Link key={b.to} to={b.to} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: 'clamp(9px,2.5vw,12px)', borderRadius: '11px',
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
-                  color: 'rgba(255,255,255,0.75)', fontWeight: 600,
-                  fontSize: 'clamp(11px,2.5vw,13px)', textDecoration: 'none',
-                }}>{b.label}</Link>
-              ))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <Link to="/galeria" onClick={onClose} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px', borderRadius: '11px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.75)', fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>
+                📸 Ver Galeria
+              </Link>
+              <Link to="/quem-somos" onClick={onClose} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px', borderRadius: '11px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.75)', fontWeight: 600, fontSize: 13, textDecoration: 'none' }}>
+                🌿 Quem Somos
+              </Link>
+            </div>
+            <div style={{ textAlign: 'center', paddingTop: 6 }}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>© {new Date().getFullYear()} Condomínio de Chácaras Itaúna · </span>
+              <Link to="/privacidade" onClick={onClose} style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', textDecoration: 'none' }}>Privacidade</Link>
             </div>
           </div>
-        </Shell>
-      ),
-    },
+        </div>
+      </div>
+    </div>
+  );
+};
 
-    /* ── SLIDE 2: O Lugar ── */
-    {
-      key: 'slide-lugar',
-      label: 'O Lugar',
-      content: (
-        <Shell badges={[
-          { icon: '🌳', label: 'Decreto nº 320/2005' },
-          { icon: '📜', label: 'Escrituras regularizadas' },
-          { icon: '☀️', label: 'Energia fotovoltaica' },
-        ]}>
-          <div>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 8 }}>
-              O que faz Itaúna ser Itaúna
-            </p>
-            <h2 style={{ fontSize: 'clamp(19px,4.8vw,32px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 6 }}>
-              Mais que um endereço.<br /><span style={gradStyle}>Um mundo à parte.</span>
-            </h2>
-            <p style={{ fontSize: 'clamp(10px,2.2vw,12px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, marginBottom: 2 }}>
-              Imagine acordar sem pressa, percorrer ruas de pedra entre espécies arbóreas centenárias e chegar em Londrina em dez minutos quando quiser. Isso não é um sonho — é o cotidiano de quem escolheu Itaúna.
-            </p>
-          </div>
+/* ═══════════════════════════════════════════════════════ */
+export const LandingPage = () => {
+  const [photos, setPhotos] = useState<string[]>(FALLBACK);
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const [styleIdx, setStyleIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(6px,1.5vw,8px)' }}>
-            {[
-              {
-                emoji: '🗺️', color: CYAN,
-                title: 'Entre Londrina e a eternidade',
-                desc: 'A 10 minutos da UTFPR e do Parque Tauá via Estrada do Limoeiro. Você tem acesso à cidade quando precisa — e silêncio quando merece.',
-              },
-              {
-                emoji: '📜', color: GREEN,
-                title: 'Sua chácara, definitivamente sua',
-                desc: 'Documentação 100% regularizada desde 2005. Escritura pública autônoma, matrícula individualizada, apta a financiamento bancário. Zero pendências. Zero riscos.',
-              },
-              {
-                emoji: '🪨', color: YELLOW,
-                title: 'A pedra que preserva o lago',
-                desc: 'Nossas vias em paralelepípedo não são limitação — são escolha técnica. Água de chuva absorvida pelo solo, lago central protegido, microclima fresco preservado.',
-              },
-              {
-                emoji: '☀️', color: PURPLE,
-                title: 'A luz que vem do sol',
-                desc: 'Iluminação das ruas por energia fotovoltaica autônoma. Sustentabilidade real, não retórica — e uma taxa condominial menor para quem mora aqui.',
-              },
-            ].map(d => (
-              <div key={d.title} style={{
-                ...card, padding: 'clamp(9px,2.2vw,13px)', display: 'flex', gap: 11, alignItems: 'flex-start',
-              }}>
-                <span style={{ fontSize: 'clamp(15px,3.2vw,19px)', flexShrink: 0, marginTop: 1 }}>{d.emoji}</span>
-                <div>
-                  <p style={{ fontSize: 'clamp(10px,2.3vw,12px)', fontWeight: 700, color: '#fff', marginBottom: 3 }}>{d.title}</p>
-                  <p style={{ fontSize: 'clamp(9px,1.9vw,10.5px)', color: 'rgba(255,255,255,0.48)', lineHeight: 1.5 }}>{d.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+  /* Carregar fotos da galeria */
+  useEffect(() => {
+    fetchGaleriaFotos()
+      .then(fotos => {
+        if (fotos.length > 0) {
+          /* Embaralhar para variedade */
+          const shuffled = [...fotos].sort(() => Math.random() - 0.5);
+          setPhotos(shuffled.map(f => f.src));
+        }
+      })
+      .catch(() => {}); // usa FALLBACK
+  }, []);
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 'auto' }}>
-            <span style={{ fontSize: 'clamp(9px,2vw,10px)', color: 'rgba(255,255,255,0.28)' }}>© {new Date().getFullYear()} Chácaras Itaúna</span>
-            <Link to="/privacidade" style={{ fontSize: 'clamp(9px,2vw,10px)', color: 'rgba(255,255,255,0.38)', textDecoration: 'none' }}>Privacidade</Link>
-          </div>
-        </Shell>
-      ),
-    },
+  /* Ciclo de 27 s */
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setPhotoIdx(i => (i + 1) % photos.length);
+        setStyleIdx(i => (i + 1) % BG_STYLES.length);
+        setVisible(true);
+      }, FADE_MS);
+    }, SLIDE_MS);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [photos.length]);
 
-    /* ── SLIDE 3: O Lago ── */
-    {
-      key: 'slide-lago',
-      label: 'O Lago',
-      content: (
-        <Shell badges={[
-          { icon: '💧', label: 'Espelho central' },
-          { icon: '🦆', label: 'Vida selvagem' },
-          { icon: '🌅', label: 'Pôr do sol diário' },
-        ]}>
-          <div>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 8 }}>
-              O Coração do Lugar
-            </p>
-            <h2 style={{ fontSize: 'clamp(19px,4.8vw,32px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 10 }}>
-              O grande espelho<br/><span style={gradStyle}>d'água que respira.</span>
-            </h2>
-          </div>
-          <div style={{ ...card, padding: 'clamp(11px,2.8vw,15px)' }}>
-            <p style={{ fontSize: 'clamp(10px,2.1vw,11.5px)', color: 'rgba(255,255,255,0.68)', lineHeight: 1.8 }}>
-              No coração de Itaúna, o lago central reflete o céu. Garças de madrugada, ninhos de pássaros ao amanhecer, rãs ao anoitecer — toda a vida selvagem concentra-se em torno deste espelho d'água. Nossas ruas em paralelepípedos não são coincidência: cada gota de chuva é absorvida pelo solo, alimentando o lago em vez de assoreá-lo. Sustentabilidade em ação.
-            </p>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(6px,1.5vw,8px)' }}>
-            {[
-              { emoji: '🏖️', color: CYAN,   title: 'Quadra de beach tennis',      desc: 'Arena de areia natural para jogos ao entardecer, com o lago ao fundo.' },
-              { emoji: '⚽', color: GREEN,  title: 'Campo de futebol society',    desc: 'Partidas que terminam quando o sol toca a água.' },
-              { emoji: '🍽️', color: YELLOW, title: 'Salão de festas',             desc: 'Eventos com vista privilegiada — casamentos, aniversários, celebrações com o lago como cenário.' },
-              { emoji: '👶', color: PURPLE, title: 'Playground e pista de caminhada', desc: 'Crianças brincam sob as árvores enquanto adultos caminham ao redor da água.' },
-            ].map(d => (
-              <div key={d.title} style={{ ...card, padding: 'clamp(9px,2.2vw,13px)', display: 'flex', gap: 11, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: '1.3rem', flexShrink: 0, marginTop: 1 }}>{d.emoji}</span>
-                <div>
-                  <p style={{ fontSize: 'clamp(10px,2.2vw,11.5px)', fontWeight: 700, color: '#fff', marginBottom: 2 }}>{d.title}</p>
-                  <p style={{ fontSize: 'clamp(8.5px,1.8vw,10px)', color: 'rgba(255,255,255,0.48)', lineHeight: 1.5 }}>{d.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ ...card, padding: 'clamp(10px,2.5vw,14px)', background: 'linear-gradient(135deg, rgba(87,216,255,0.05), rgba(13,20,35,0.95))', borderLeft: `3px solid ${CYAN}` }}>
-            <p style={{ fontSize: 'clamp(10px,2.2vw,12px)', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', lineHeight: 1.7 }}>
-              "No Itaúna, o lago não é apenas água. É o pulso do lugar — conecta você à natureza, aos seus vizinhos, e a cada pôr do sol que não é como os outros."
-            </p>
-          </div>
-        </Shell>
-      ),
-    },
-
-    /* ══ GRUPO 2: IDENTIDADE ════════════════════════════════════════ */
-
-    /* ── SLIDE 4: Quem Somos (encantamento Disney) ── */
-    {
-      key: 'slide-quem-somos',
-      label: 'Quem Somos',
-      content: (
-        <Shell badges={[
-          { icon: '📍', label: 'Ibiporã – PR' },
-          { icon: '✉️', label: 'contato@itauna.org' },
-          { icon: '📞', label: 'Portaria 24h' },
-        ]}>
-          <div>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 8 }}>
-              Nossa História
-            </p>
-            <h2 style={{ fontSize: 'clamp(19px,4.8vw,32px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 10 }}>
-              Um refúgio que nasceu<br /><span style={gradStyle}>com propósito.</span>
-            </h2>
-          </div>
-
-          {/* Narrativa Disney */}
-          <div style={{ ...card, padding: 'clamp(12px,3vw,18px)', lineHeight: 1.7 }}>
-            <p style={{ fontSize: 'clamp(10px,2.2vw,12px)', color: 'rgba(255,255,255,0.65)', marginBottom: 10 }}>
-              Em 2005, quando a maioria das famílias buscava apenas um lote fora da cidade, os fundadores do Itaúna enxergaram algo diferente: um <strong style={{ color: '#fff' }}>ecossistema de vida</strong>. Foram criadas 360 chácaras em 3,8 km² de território, cada uma com espaço para uma história própria.
-            </p>
-            <p style={{ fontSize: 'clamp(10px,2.2vw,12px)', color: 'rgba(255,255,255,0.55)' }}>
-              Hoje, duas décadas depois, o Itaúna é o maior condomínio periurbano de alto padrão do norte do Paraná — e o único da região com <strong style={{ color: 'rgba(255,255,255,0.8)' }}>documentação 100% regularizada</strong>, iluminação solar e plataforma digital integrada para todos os moradores.
-            </p>
-          </div>
-
-          {/* Pilares em grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 'clamp(6px,1.5vw,9px)' }}>
-            {[
-              { icon: Leaf,     color: GREEN,  title: 'Natureza viva',     desc: 'Lagos, mata nativa, garças e fauna local em cada amanhecer.' },
-              { icon: Shield,   color: BLUE,   title: 'Segurança real',    desc: 'Portaria 24h, portão eletrônico e acesso controlado.' },
-              { icon: Sun,      color: YELLOW, title: 'Energia limpa',     desc: 'Vias iluminadas por painéis fotovoltaicos próprios.' },
-              { icon: Droplets, color: CYAN,   title: 'Água de qualidade', desc: 'Poços artesianos profundos geridos pelo SAMAE de Ibiporã.' },
-            ].map(p => (
-              <div key={p.title} style={{ ...card, padding: 'clamp(9px,2.2vw,13px)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: 8, flexShrink: 0, marginTop: 1,
-                  background: `${p.color}15`, border: `1px solid ${p.color}28`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <p.icon size={13} style={{ color: p.color }} />
-                </div>
-                <div>
-                  <p style={{ fontSize: 'clamp(10px,2.2vw,11.5px)', fontWeight: 700, color: '#fff', marginBottom: 2 }}>{p.title}</p>
-                  <p style={{ fontSize: 'clamp(8.5px,1.8vw,10px)', color: 'rgba(255,255,255,0.42)', lineHeight: 1.45 }}>{p.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* CTA final */}
-          <Link to="/login" style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            padding: 'clamp(11px,2.8vw,14px)', borderRadius: '12px',
-            background: 'rgba(87,216,255,0.08)', border: '1px solid rgba(87,216,255,0.22)',
-            color: CYAN, fontWeight: 700, fontSize: 'clamp(12px,2.5vw,13px)', textDecoration: 'none',
-          }}>
-            Sou condômino — entrar no portal <ArrowRight size={14} />
-          </Link>
-        </Shell>
-      ),
-    },
-
-    /* ── SLIDE 5: Breve Histórico (origem do nome + geologia) ── */
-    {
-      key: 'slide-historia',
-      label: 'Breve Histórico',
-      content: (
-        <Shell badges={[
-          { icon: '🪨', label: 'Decreto 320/2005' },
-          { icon: '🌋', label: 'Basalto vulcânico' },
-          { icon: '📜', label: '20 anos de história' },
-        ]}>
-          <div>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 8 }}>
-              A Origem do Nome
-            </p>
-            <h2 style={{ fontSize: 'clamp(19px,4.8vw,32px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 8 }}>
-              Itaúna:<br/><span style={gradStyle}>Pedra negra, raízes profundas.</span>
-            </h2>
-          </div>
-
-          {/* Narrativa da origem */}
-          <div style={{ ...card, padding: 'clamp(11px,2.8vw,15px)' }}>
-            <p style={{ fontSize: 'clamp(10px,2.1vw,11.5px)', color: 'rgba(255,255,255,0.65)', lineHeight: 1.7, marginBottom: 8 }}>
-              O nome <strong style={{ color: '#fff' }}>Itaúna</strong> vem do <strong style={{ color: CYAN }}>tupi-guarani</strong>: <em>itá</em> (pedra) + <em>úna</em> (negra). Assim, literalmente, <strong>pedra negra</strong>.
-            </p>
-            <p style={{ fontSize: 'clamp(10px,2.1vw,11.5px)', color: 'rgba(255,255,255,0.55)', lineHeight: 1.7 }}>
-              Mas este não é um nome escolhido ao acaso. É a herança da <strong style={{ color: 'rgba(255,255,255,0.8)' }}>Fazenda Itaúna</strong> original, cujas terras geraram o loteamento. E reflete fielmente a geologia do solo: o vulcanismo da Bacia do Paraná, que originou o basalto escuro — uma verdadeira pedra negra — cuja decomposição criou a <strong style={{ color: 'rgba(255,255,255,0.8)' }}>terra roxa</strong> que você pisa aqui.
-            </p>
-          </div>
-
-          {/* Dois elementos side-by-side */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 'clamp(6px,1.5vw,8px)' }}>
-            <div style={{ ...card, padding: 'clamp(9px,2.2vw,13px)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '1.4rem', flexShrink: 0, marginTop: 2 }}>📜</span>
-              <div>
-                <p style={{ fontSize: 'clamp(10px,2.2vw,11.5px)', fontWeight: 700, color: '#fff', marginBottom: 3 }}>Nascimento oficial</p>
-                <p style={{ fontSize: 'clamp(8.5px,1.8vw,10px)', color: 'rgba(255,255,255,0.42)', lineHeight: 1.45 }}>
-                  Decreto nº 320/2005 aprovado em 27 de outubro. Associação Itaúna fundada em 3 de outubro do mesmo ano.
-                </p>
-              </div>
-            </div>
-            <div style={{ ...card, padding: 'clamp(9px,2.2vw,13px)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '1.4rem', flexShrink: 0, marginTop: 2 }}>🌋</span>
-              <div>
-                <p style={{ fontSize: 'clamp(10px,2.2vw,11.5px)', fontWeight: 700, color: '#fff', marginBottom: 3 }}>Rocha que forma o solo</p>
-                <p style={{ fontSize: 'clamp(8.5px,1.8vw,10px)', color: 'rgba(255,255,255,0.42)', lineHeight: 1.45 }}>
-                  Basalto vulcânico escuro sob seus pés. Milhões de anos de geologia brasileira em cada passo.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* A grandeza em números */}
-          <div style={{
-            ...card, padding: 'clamp(10px,2.5vw,14px)',
-            background: 'linear-gradient(135deg, rgba(87,216,255,0.06), rgba(13,20,35,0.95))',
-            border: '1px solid rgba(87,216,255,0.15)',
-          }}>
-            <p style={{ fontSize: 'clamp(9px,2.1vw,11px)', fontWeight: 700, color: CYAN, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              A Grandeza em Números
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px' }}>
-              {[
-                { num: '3,8 km²', label: 'de território' },
-                { num: '360', label: 'chácaras' },
-                { num: '20+', label: 'anos consolidados' },
-              ].map(stat => (
-                <div key={stat.label} style={{ textAlign: 'center' }}>
-                  <p style={{ fontSize: 'clamp(16px,3.5vw,22px)', fontWeight: 900, color: CYAN, lineHeight: 1 }}>{stat.num}</p>
-                  <p style={{ fontSize: 'clamp(8px,1.8vw,9.5px)', color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{stat.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Closing note */}
-          <div style={{ paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <p style={{ fontSize: 'clamp(9px,2vw,10.5px)', color: 'rgba(255,255,255,0.35)', lineHeight: 1.6, textAlign: 'center' }}>
-              Itaúna não é apenas um nome. É uma promessa de raízes, segurança jurídica de 20 anos e um compromisso com a sustentabilidade que começou antes de ser moda.
-            </p>
-          </div>
-        </Shell>
-      ),
-    },
-
-    /* ── SLIDE 6: Nossa Identidade ── */
-    {
-      key: 'slide-identidade',
-      label: 'Nossa Identidade',
-      content: (
-        <Shell badges={[
-          { icon: '🌍', label: 'Comunidade' },
-          { icon: '📖', label: 'Histórico' },
-          { icon: '🎯', label: 'Identidade' },
-        ]}>
-          <div>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 8 }}>
-              Nossa Identidade
-            </p>
-            <h2 style={{ fontSize: 'clamp(20px,5vw,34px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 12 }}>
-              <span style={gradStyle}>Comunidade de escolha</span> deliberada
-            </h2>
-            <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', color: 'rgba(255,255,255,0.58)', lineHeight: 1.65 }}>
-              Itaúna não é apenas um condomínio. É um lugar onde 360 famílias decidiram que o campo não é um compromisso — é um privilégio.
-            </p>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(10px,2vw,14px)' }}>
-            {[
-              { year: '2005', title: 'Oficialização',    desc: 'Decreto nº 320/2005 e Associação fundada' },
-              { year: '2019', title: 'Sustentabilidade', desc: 'Nomeação das vias com espécies locais' },
-              { year: '2024', title: 'Inovação Digital', desc: 'Plataforma integrada com 20+ módulos' },
-            ].map((item, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '50px 1fr', gap: 12 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <p style={{ fontSize: '0.75rem', fontWeight: 800, color: CYAN, letterSpacing: '0.06em' }}>{item.year}</p>
-                </div>
-                <div style={{ ...card, padding: 'clamp(9px,2.2vw,12px)' }}>
-                  <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', fontWeight: 700, color: '#fff', marginBottom: 2 }}>{item.title}</p>
-                  <p style={{ fontSize: 'clamp(9px,2vw,10px)', color: 'rgba(255,255,255,0.45)' }}>{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <Link to="/quem-somos" style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            padding: 'clamp(11px,2.5vw,13px)', borderRadius: '11px',
-            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
-            color: CYAN, fontWeight: 700, fontSize: 'clamp(12px,2.5vw,13px)', textDecoration: 'none',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(87,216,255,0.12)'; e.currentTarget.style.borderColor = 'rgba(87,216,255,0.3)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
-          >
-            Ver Página Completa <ArrowRight size={14} />
-          </Link>
-        </Shell>
-      ),
-    },
-
-    /* ── SLIDE 7: Nossos Valores ── */
-    {
-      key: 'slide-valores',
-      label: 'Valores',
-      content: (
-        <Shell badges={[
-          { icon: '🌿', label: 'Natureza' },
-          { icon: '⚖️', label: 'Legalidade' },
-          { icon: '💡', label: 'Inovação' },
-        ]}>
-          <div>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 8 }}>
-              Nossos Pilares
-            </p>
-            <h2 style={{ fontSize: 'clamp(20px,5vw,34px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 16 }}>
-              Sete <span style={gradStyle}>Valores</span> que Guiam Tudo
-            </h2>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 'clamp(8px,2vw,12px)' }}>
-            {[
-              { icon: '🌿', title: 'Natureza',       desc: 'Lagos e mata nativa viva' },
-              { icon: '☀️', title: 'Sustentabilidade', desc: 'Paralelepípedos + Painéis solares' },
-              { icon: '🔒', title: 'Segurança',      desc: 'Portaria 24h integrada' },
-              { icon: '👥', title: 'Comunidade',     desc: 'Vizinhos conectados' },
-            ].map((p, i) => (
-              <div key={i} style={{ ...card, padding: 'clamp(12px,2.5vw,14px)', display: 'flex', gap: 10, flexDirection: 'column' }}>
-                <p style={{ fontSize: '1.8rem' }}>{p.icon}</p>
-                <div>
-                  <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', fontWeight: 700, color: '#fff', marginBottom: 2 }}>{p.title}</p>
-                  <p style={{ fontSize: 'clamp(9px,2vw,10px)', color: 'rgba(255,255,255,0.45)' }}>{p.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <Link to="/quem-somos" style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            padding: 'clamp(11px,2.5vw,13px)', borderRadius: '11px',
-            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
-            color: CYAN, fontWeight: 700, fontSize: 'clamp(12px,2.5vw,13px)', textDecoration: 'none',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(87,216,255,0.12)'; e.currentTarget.style.borderColor = 'rgba(87,216,255,0.3)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
-          >
-            Conhecer os 7 Pilares <ArrowRight size={14} />
-          </Link>
-        </Shell>
-      ),
-    },
-
-    /* ══ GRUPO 3: INICIATIVAS & SERVIÇOS ═══════════════════════════ */
-
-    /* ── SLIDE 8: Responsabilidade Social-Ambiental ── */
-    {
-      key: 'slide-social',
-      label: 'Resp. Social',
-      content: (
-        <Shell badges={[
-          { icon: '♻️', label: 'Coleta Seletiva' },
-          { icon: '🤝', label: 'Campanhas Solidárias' },
-          { icon: '🌱', label: 'Sustentabilidade' },
-        ]}>
-          <div>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: GREEN, marginBottom: 8 }}>
-              Ativo Social · Itaúna
-            </p>
-            <h2 style={{ fontSize: 'clamp(19px,4.8vw,32px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 6 }}>
-              Responsabilidade<br />
-              <span style={{ background: 'linear-gradient(135deg,#10b981,#57d8ff)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
-                Social &amp; Ambiental
-              </span>
-            </h2>
-            <p style={{ fontSize: 'clamp(10px,2.2vw,12px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.55 }}>
-              Do cuidado com os resíduos ao gesto solidário — aqui, responsabilidade é um valor vivido em comunidade.
-            </p>
-          </div>
-
-          {/* Duas ações */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(7px,1.5vw,10px)' }}>
-            {/* Resíduos */}
-            <div style={{ ...card, padding: 'clamp(12px,2.5vw,16px)', borderLeft: `3px solid ${GREEN}`, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: `${GREEN}18`, border: `1px solid ${GREEN}28`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: '1.2rem' }}>♻️</span>
-              </div>
-              <div>
-                <p style={{ fontSize: 'clamp(11px,2.5vw,13px)', fontWeight: 700, color: '#fff', marginBottom: 4 }}>Gestão de Resíduos</p>
-                <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
-                  Guia completo de separação de orgânicos, recicláveis e rejeitos — com ponto de coleta na portaria.
-                </p>
-                <div style={{ marginTop: 8, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                  {['🟤 Orgânicos','🔵 Recicláveis','⚫ Rejeitos'].map(t => (
-                    <span key={t} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: `${GREEN}12`, color: GREEN, border: `1px solid ${GREEN}22`, fontWeight: 600 }}>{t}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Campanhas */}
-            <div style={{ ...card, padding: 'clamp(12px,2.5vw,16px)', borderLeft: `3px solid ${YELLOW}`, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: `${YELLOW}18`, border: `1px solid ${YELLOW}28`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: '1.2rem' }}>🤝</span>
-              </div>
-              <div>
-                <p style={{ fontSize: 'clamp(11px,2.5vw,13px)', fontWeight: 700, color: '#fff', marginBottom: 4 }}>Campanhas Solidárias</p>
-                <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
-                  Ações sazonais que conectam moradores e comunidade — Agasalho, Páscoa, Natal e muito mais.
-                </p>
-                <div style={{ marginTop: 8, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                  {['🐣 Páscoa','🧥 Agasalho','🎁 Crianças','🎄 Natal'].map(t => (
-                    <span key={t} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: `${YELLOW}10`, color: YELLOW, border: `1px solid ${YELLOW}22`, fontWeight: 600 }}>{t}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Link to="/responsabilidade-social" style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            padding: 'clamp(10px,2.5vw,13px)', borderRadius: '11px',
-            background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.22)',
-            color: GREEN, fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', textDecoration: 'none',
-          }}>
-            Conhecer as iniciativas <ArrowRight size={14} />
-          </Link>
-        </Shell>
-      ),
-    },
-
-    /* ── SLIDE 8: Telefones Úteis ── */
-    {
-      key: 'slide-telefones',
-      label: 'Telefones',
-      content: (
-        <Shell badges={[
-          { icon: '🚨', label: 'Emergências' },
-          { icon: '💧', label: 'Utilidades' },
-          { icon: '🏛️', label: 'Poder Público' },
-        ]}>
-          <div>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ef4444', marginBottom: 8 }}>
-              Contatos Essenciais
-            </p>
-            <h2 style={{ fontSize: 'clamp(19px,4.8vw,32px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 6 }}>
-              Telefones <span style={{ background: 'linear-gradient(135deg,#72e3ff,#669dff)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>úteis</span>
-            </h2>
-            <p style={{ fontSize: 'clamp(10px,2.2vw,12px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.55, marginBottom: 2 }}>
-              Emergências, serviços e órgãos públicos para moradores e visitantes.
-            </p>
-          </div>
-
-          {/* Emergências em destaque */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 'clamp(5px,1.2vw,8px)' }}>
-            {[
-              { emoji: '🚑', num: '192',  label: 'SAMU / SIATE', color: '#ef4444' },
-              { emoji: '🔥', num: '193',  label: 'Bombeiros',    color: '#f59e0b' },
-              { emoji: '🚔', num: '190',  label: 'Polícia Mil.', color: '#5a84ff' },
-              { emoji: '⛑️', num: '199',  label: 'Defesa Civil', color: '#10b981' },
-            ].map(e => (
-              <a key={e.label} href={`tel:${e.num}`} style={{
-                display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none',
-                background: `${e.color}10`, border: `1px solid ${e.color}28`,
-                borderRadius: 12, padding: 'clamp(9px,2.2vw,13px)',
-              }}>
-                <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{e.emoji}</span>
-                <div>
-                  <p style={{ fontSize: 'clamp(15px,3.5vw,20px)', fontWeight: 900, color: e.color, lineHeight: 1 }}>{e.num}</p>
-                  <p style={{ fontSize: 'clamp(8px,1.8vw,10px)', color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>{e.label}</p>
-                </div>
-              </a>
-            ))}
-          </div>
-
-          {/* Utilidades e poder público */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(5px,1.2vw,7px)' }}>
-            {[
-              { emoji: '💧', label: 'SAMAE Ibiporã',    num: '(43) 3252-1655', color: '#57d8ff' },
-              { emoji: '⚡', label: 'COPEL',             num: '0800 723 2302',  color: '#f59e0b' },
-              { emoji: '🏛️', label: 'Prefeitura Ibiporã', num: '(43) 3252-1500', color: '#5a84ff' },
-              { emoji: '🏡', label: 'Portaria Itaúna',  num: '(43) 99999-0001', color: '#57d8ff' },
-            ].map(c => (
-              <a key={c.label} href={`tel:${c.num.replace(/\D/g,'')}`} style={{
-                display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none',
-                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
-                borderLeft: `3px solid ${c.color}`, borderRadius: '0 10px 10px 0',
-                padding: 'clamp(8px,2vw,11px) clamp(10px,2.5vw,14px)',
-              }}>
-                <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{c.emoji}</span>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, color: '#fff', marginBottom: 1 }}>{c.label}</p>
-                  <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: c.color, fontWeight: 600 }}>{c.num}</p>
-                </div>
-              </a>
-            ))}
-          </div>
-
-          <Link to="/telefones-uteis" style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            padding: 'clamp(10px,2.5vw,13px)', borderRadius: '11px',
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)',
-            color: '#57d8ff', fontWeight: 700, fontSize: 'clamp(11px,2.5vw,13px)', textDecoration: 'none',
-          }}>
-            Ver lista completa <ArrowRight size={14} />
-          </Link>
-        </Shell>
-      ),
-    },
-
-    /* ── SLIDE 9: Plataforma Digital ── */
-    {
-      key: 'slide-plataforma',
-      label: 'Plataforma',
-      content: (
-        <Shell badges={[
-          { icon: '⚡', label: 'Praticidade' },
-          { icon: '🔐', label: 'LGPD Nativa' },
-          { icon: '📊', label: 'Transparência Total' },
-        ]}>
-          <div>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 8 }}>
-              Tecnologia &amp; Serviços Integrados
-            </p>
-            <h2 style={{ fontSize: 'clamp(20px,5vw,34px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.1, color: '#fff', marginBottom: 8 }}>
-              Tudo na <span style={gradStyle}>palma da mão</span>
-            </h2>
-            <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', color: 'rgba(255,255,255,0.5)', lineHeight: 1.55 }}>
-              Uma plataforma com 20+ módulos funcionais — financeiro, portaria, comunicados, agendamentos e muito mais, todos integrados.
-            </p>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 'clamp(5px,1.2vw,8px)' }}>
-            {[
-              { Icon: DollarSign,  title: 'Financeiro',    desc: 'Rateios e prestação de contas',  color: GREEN  },
-              { Icon: Shield,      title: 'Portaria',      desc: 'Registro digital de acessos',    color: CYAN   },
-              { Icon: Bell,        title: 'Comunicados',   desc: 'Avisos com prioridade visual',   color: YELLOW },
-              { Icon: Calendar,    title: 'Agendamentos',  desc: 'Reserva de áreas comuns',        color: BLUE   },
-              { Icon: AlertCircle, title: 'Ocorrências',   desc: 'Chamados com workflow completo', color: RED    },
-              { Icon: Image,       title: 'Galeria',       desc: 'Fotos do condomínio',            color: PURPLE },
-              { Icon: FileText,    title: 'Documentos',    desc: 'Atas, rateios e regulamento',    color: CYAN   },
-              { Icon: Tag,         title: 'Classificados', desc: 'Mural entre moradores',          color: YELLOW },
-              { Icon: Search,      title: 'Achados',       desc: 'Perdidos e encontrados',         color: GREEN  },
-            ].map(f => (
-              <div key={f.title} style={{ ...card, padding: 'clamp(8px,2vw,12px) clamp(6px,1.5vw,10px)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 8, background: `${f.color}18`, border: `1px solid ${f.color}28`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <f.Icon size={13} style={{ color: f.color }} />
-                </div>
-                <div>
-                  <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 700, color: '#fff', marginBottom: 2, lineHeight: 1.2 }}>{f.title}</p>
-                  <p style={{ fontSize: 'clamp(8px,1.8vw,9.5px)', color: 'rgba(255,255,255,0.38)', lineHeight: 1.35 }}>{f.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 'clamp(10px,2.5vw,14px) clamp(12px,3vw,16px)', borderRadius: 13, background: `${CYAN}08`, border: `1px solid ${CYAN}22` }}>
-            <Fingerprint size={20} style={{ color: CYAN, flexShrink: 0 }} />
-            <div>
-              <p style={{ fontSize: 'clamp(11px,2.5vw,12px)', fontWeight: 700, color: '#fff', marginBottom: 2 }}>Login por Digital / Face ID</p>
-              <p style={{ fontSize: 'clamp(9px,2vw,10px)', color: 'rgba(255,255,255,0.45)', lineHeight: 1.4 }}>
-                Biometria WebAuthn/FIDO2 — a biometria fica no dispositivo, nunca em servidor.
-              </p>
-            </div>
-          </div>
-        </Shell>
-      ),
-    },
-
-    /* ══ GRUPO 4: CTA FINAL ═════════════════════════════════════════ */
-
-    /* ── SLIDE 11: Saiba Mais (Editorial Premium) ── */
-    {
-      key: 'slide-saiba-mais',
-      label: 'Saiba Mais',
-      content: (
-        <Shell badges={[
-          { icon: '📚', label: 'Editorial' },
-          { icon: '🎯', label: 'Identidade' },
-          { icon: '🌟', label: 'Propósito' },
-        ]}>
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: 'clamp(9px,2vw,11px)', fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: CYAN, marginBottom: 12 }}>
-              Mergulhe Fundo
-            </p>
-            <h2 style={{ fontSize: 'clamp(22px,5.5vw,36px)', fontWeight: 900, lineHeight: 1.1, color: '#fff', marginBottom: 16 }}>
-              Conjunto Editorial<br /><span style={gradStyle}>Premium</span>
-            </h2>
-          </div>
-
-          <div style={{
-            ...card,
-            padding: 'clamp(14px,3vw,20px)',
-            background: 'linear-gradient(135deg, rgba(87,216,255,0.08), rgba(139,92,246,0.04))',
-            borderLeft: `3px solid ${CYAN}`,
-            textAlign: 'center',
-          }}>
-            <p style={{ fontSize: 'clamp(13px,2.5vw,14px)', fontWeight: 700, color: '#fff', marginBottom: 10 }}>
-              A quinze minutos do centro de Londrina
-            </p>
-            <p style={{ fontSize: 'clamp(11px,2.2vw,13px)', color: 'rgba(255,255,255,0.65)', lineHeight: 1.65 }}>
-              Um refúgio ecológico para chamar de seu. Documentação completa, comunidade viva, natureza preservada.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Link to="/quem-somos" style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              padding: 'clamp(12px,3vw,15px)', borderRadius: '13px',
-              background: 'linear-gradient(135deg,#72e3ff,#669dff)', color: '#07101c',
-              fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', textDecoration: 'none',
-              boxShadow: '0 8px 28px rgba(76,164,255,0.3)',
-            }}>
-              Ver Página Completa <ChevronRight size={15} />
-            </Link>
-            <Link to="/login" style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              padding: 'clamp(9px,2.5vw,12px)', borderRadius: '11px',
-              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
-              color: 'rgba(255,255,255,0.75)', fontWeight: 600,
-              fontSize: 'clamp(11px,2.5vw,13px)', textDecoration: 'none',
-            }}>
-              Acessar Portal do Condômino
-            </Link>
-          </div>
-        </Shell>
-      ),
-    },
-  ];
+  const currentStyle = BG_STYLES[styleIdx];
 
   return (
     <>
-      {/* Background */}
-      <div className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000"
-        style={{ backgroundImage: `url(${BG_IMAGES[bgIdx]})`, opacity: fadeIn ? 1 : 0, filter: 'brightness(0.38) saturate(0.8)' }} />
-      <div className="fixed inset-0 z-[1] pointer-events-none"
-        style={{ background: 'linear-gradient(180deg,rgba(8,13,24,.55) 0%,rgba(8,13,24,.78) 55%,rgba(8,13,24,.96) 100%)' }} />
+      {/* ── Background cena ── */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 0, overflow: 'hidden', background: '#050506' }}>
+        <BgScene photos={photos} startIdx={photoIdx} style={currentStyle} visible={visible} />
+      </div>
 
-      <Navbar />
+      {/* ── UI sobre o fundo ── */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 10, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', pointerEvents: 'none' }}>
 
-      <div className="relative z-10 w-full flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
+        {/* Top bar */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: 'clamp(18px,4vw,28px) clamp(20px,5vw,36px)',
+          pointerEvents: 'auto',
+        }}>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 'clamp(34px,7vw,42px)', height: 'clamp(34px,7vw,42px)',
+              borderRadius: 12, background: 'linear-gradient(135deg,#72e3ff,#669dff)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 24px rgba(87,216,255,0.45)',
+            }}>
+              <TreePine size={18} color="#07101c" />
+            </div>
+            <div>
+              <p style={{ fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', color: '#fff', lineHeight: 1, textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>Itaúna</p>
+              <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: 'rgba(255,255,255,0.50)', marginTop: 3 }}>Chácaras · Ibiporã–PR</p>
+            </div>
+          </div>
 
-        {/* Área do carousel */}
-        <div
-          className="flex-1 min-h-0 overflow-hidden"
-          style={{ paddingTop: 'calc(clamp(58px,11vw,78px) + 27px)', boxSizing: 'border-box' }}
-        >
-          <PageCarousel3D slides={slides} />
+          {/* Login */}
+          <Link to="/login" style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: 'clamp(9px,2vw,12px) clamp(16px,3.5vw,24px)',
+            borderRadius: 12,
+            background: 'rgba(6,10,20,0.60)', border: '1px solid rgba(87,216,255,0.30)',
+            color: CYAN, fontWeight: 700, fontSize: 'clamp(12px,2.5vw,14px)',
+            textDecoration: 'none', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.40)',
+            whiteSpace: 'nowrap',
+          }}>
+            Entrar <ChevronRight size={14} strokeWidth={2.5} />
+          </Link>
         </div>
 
-        {/* Rodapé — somente desktop (≥ 1024 px) */}
-        <footer
-          className="hidden lg:flex items-center justify-center flex-shrink-0"
-          style={{
-            gap: 14, padding: '7px 24px',
-            fontSize: 11, letterSpacing: '0.025em',
-            color: 'rgba(255,255,255,0.30)',
-            borderTop: '1px solid rgba(255,255,255,0.06)',
-            background: 'rgba(6,10,20,0.50)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-          }}
-        >
-          <span>© 2025 Condomínio de Chácaras Itaúna — Ibiporã – PR</span>
-          <span style={{ color: 'rgba(255,255,255,0.14)' }}>•</span>
-          <span>Todos os direitos reservados</span>
-          <span style={{ color: 'rgba(255,255,255,0.14)' }}>•</span>
-          <Link
-            to="/login"
-            style={{ color: 'rgba(255,255,255,0.50)', textDecoration: 'none', fontWeight: 600, transition: 'color 0.2s' }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#57d8ff')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.50)')}
-          >
-            Área do condômino
-          </Link>
-        </footer>
+        {/* Centro — tagline elegante */}
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 16, padding: '0 clamp(20px,6vw,60px)', textAlign: 'center',
+          opacity: visible ? 1 : 0,
+          transition: `opacity ${FADE_MS}ms cubic-bezier(.4,0,.2,1)`,
+        }}>
+          <p style={{
+            fontSize: 'clamp(26px,5.5vw,58px)', fontWeight: 300, letterSpacing: '0.02em',
+            color: '#fff', lineHeight: 1.15,
+            textShadow: '0 4px 32px rgba(0,0,0,0.70)',
+            fontFamily: 'Georgia, "Times New Roman", serif',
+          }}>
+            Encanto para quem visita,<br />pertencimento para quem vive.
+          </p>
+          <p style={{
+            fontSize: 'clamp(12px,2vw,16px)', fontWeight: 400, letterSpacing: '0.18em',
+            textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)',
+            textShadow: '0 2px 16px rgba(0,0,0,0.60)',
+          }}>
+            Condomínio de Chácaras Itaúna &nbsp;·&nbsp; Ibiporã – PR
+          </p>
+        </div>
 
+        {/* Bottom bar */}
+        <div style={{
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+          padding: 'clamp(18px,4vw,28px) clamp(20px,5vw,36px)',
+          pointerEvents: 'auto',
+        }}>
+          {/* Indicadores de slide */}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {Array.from({ length: Math.min(photos.length, 8) }).map((_, i) => (
+              <div key={i} style={{
+                width: i === photoIdx % Math.min(photos.length, 8) ? 20 : 6,
+                height: 4, borderRadius: 2,
+                background: i === photoIdx % Math.min(photos.length, 8) ? CYAN : 'rgba(255,255,255,0.25)',
+                transition: 'all 0.4s ease',
+              }} />
+            ))}
+          </div>
+
+          {/* Botão Informações */}
+          <button
+            onClick={() => setInfoOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: 'clamp(10px,2vw,13px) clamp(16px,3.5vw,22px)',
+              borderRadius: 12,
+              background: 'rgba(6,10,20,0.60)', border: '1px solid rgba(255,255,255,0.18)',
+              color: '#fff', fontWeight: 600, fontSize: 'clamp(12px,2.5vw,14px)',
+              cursor: 'pointer', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.40)',
+              letterSpacing: '0.02em',
+            }}
+          >
+            <Info size={16} />
+            Informações
+          </button>
+        </div>
       </div>
+
+      {/* Modal */}
+      {infoOpen && <InfoModal onClose={() => setInfoOpen(false)} />}
     </>
   );
 };

@@ -78,7 +78,6 @@ export const Galeria = () => {
 
   const handleFile = (file: File | null) => {
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { toast.error('Imagem muito grande. Máximo 10 MB.'); return; }
     setSelectedFile(file);
   };
 
@@ -91,7 +90,10 @@ export const Galeria = () => {
     try {
       const path = `${Date.now()}_${selectedFile.name.replace(/\s+/g, '_')}`;
       const { error: upErr } = await supabase.storage
-        .from('galeria').upload(path, selectedFile, { upsert: false });
+        .from('galeria').upload(path, selectedFile, {
+          upsert: false,
+          cacheControl: '31536000', // 1 ano — CDN cache máximo
+        });
       if (upErr) throw upErr;
       setUploadProgress(70);
       const { data: urlData } = supabase.storage.from('galeria').getPublicUrl(path);
@@ -222,6 +224,7 @@ export const Galeria = () => {
                       <img src={photo.src} alt={photo.caption}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         loading="lazy"
+                        decoding="async"
                       />
                       {/* Overlay — visível no hover (desktop) ou sempre no mobile via group-hover */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent flex flex-col justify-end p-1.5 text-[8.5px] text-white opacity-0 group-hover:opacity-100 sm:opacity-0 transition-opacity duration-200"
@@ -278,7 +281,7 @@ export const Galeria = () => {
         badges={[
           { icon: editingId ? '✏️' : '✦', label: editingId ? 'Modo Edição' : 'Upload Imediato' },
           { icon: '🔒', label: 'Bucket Público' },
-          { icon: '⌘', label: 'Máx. 10 MB' },
+          { icon: '⌘', label: 'Ultra HD · 8K' },
         ]}
       >
         <form onSubmit={editingId ? handleSaveEdit : handleUpload} className="flex flex-col gap-3.5 py-1 text-xs">
@@ -323,12 +326,13 @@ export const Galeria = () => {
                   <>
                     <Upload size={20} style={{ color: 'rgba(255,255,255,0.3)' }} />
                     <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>Arraste ou clique para selecionar</p>
-                    <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.25)' }}>JPG, PNG, WebP · Máx. 10 MB</p>
+                    <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.25)' }}>JPG · PNG · WebP · HEIC · TIFF · AVIF · RAW</p>
+                    <p style={{ fontSize: '0.60rem', color: 'rgba(87,216,255,0.5)', fontWeight: 700, letterSpacing: '0.08em' }}>ULTRA HD · 8K · SEM LIMITE DE TAMANHO</p>
                   </>
                 )}
               </label>
               <input ref={fileInputRef} id="galeria-file" type="file" className="hidden"
-                accept=".jpg,.jpeg,.png,.webp"
+                accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.tiff,.tif,.avif,.bmp,.cr2,.cr3,.nef,.arw,.dng,.raw"
                 onChange={e => handleFile(e.target.files?.[0] ?? null)} />
             </div>
           )}

@@ -6,7 +6,7 @@ export const AppLayout = () => (
     {/* Ambient background */}
     <div
       className="fixed inset-0 z-0 bg-cover bg-center pointer-events-none"
-      style={{ backgroundImage: "url('/landing-bg-1.webp')", opacity: 0.07, filter: 'brightness(0.45) saturate(0.6)' }}
+      style={{ backgroundImage: "url('/landing-bg-1.webp')", opacity: 0.22, filter: 'brightness(0.40) saturate(0.7)' }}
       aria-hidden="true"
     />
     <div className="bg-orbs" aria-hidden="true">
