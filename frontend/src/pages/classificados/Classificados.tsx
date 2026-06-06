@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Tag, Plus, Search, ChevronRight, Lock, MessageSquare, Loader2, Trash2, Package } from 'lucide-react';
+import { Tag, Plus, Search, ChevronRight, Lock, MessageSquare, Loader2, Trash2, Package, X, Phone, Mail, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
@@ -35,6 +35,14 @@ export const Classificados = () => {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
 
+  // Modal de contato
+  const [contactAd, setContactAd] = useState<DbClassificado | null>(null);
+  const [contactNome, setContactNome] = useState('');
+  const [contactTel, setContactTel] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactMsg, setContactMsg] = useState('');
+  const [contactSending, setContactSending] = useState(false);
+
   useEffect(() => {
     fetchClassificados()
       .then(data => { setAds(data); if (data.length) setSelectedAd(data[0]); })
@@ -69,6 +77,42 @@ export const Classificados = () => {
     (categoryFilter === 'Todos' || a.category === categoryFilter) &&
     (search === '' || a.title.toLowerCase().includes(search.toLowerCase()))
   ), [ads, categoryFilter, search]);
+
+  const abrirContato = (ad: DbClassificado) => {
+    setContactAd(ad);
+    setContactNome(user?.full_name ?? '');
+    setContactTel('');
+    setContactEmail('');
+    setContactMsg(`Olá! Tenho interesse no anúncio "${ad.title}". Poderia me passar mais informações?`);
+  };
+
+  const enviarContato = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contactAd) return;
+    if (!contactNome.trim() || !contactTel.trim()) {
+      toast.error('Preencha nome e telefone.');
+      return;
+    }
+    setContactSending(true);
+    const texto = [
+      `*Interesse em anúncio — Chácaras Itaúna*`,
+      ``,
+      `*Anúncio:* ${contactAd.title} (${contactAd.price})`,
+      ``,
+      `*Nome:* ${contactNome.trim()}`,
+      `*Telefone:* ${contactTel.trim()}`,
+      contactEmail.trim() ? `*E-mail:* ${contactEmail.trim()}` : '',
+      ``,
+      `*Mensagem:*`,
+      contactMsg.trim(),
+    ].filter(l => l !== undefined).join('\n');
+
+    const numero = contactAd.phone.replace(/\D/g, '');
+    window.open(`https://wa.me/55${numero}?text=${encodeURIComponent(texto)}`, '_blank');
+    toast.success('WhatsApp aberto com sua mensagem!');
+    setContactSending(false);
+    setContactAd(null);
+  };
 
   const handleCreateAd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,14 +241,12 @@ export const Classificados = () => {
                 </div>
               </div>
 
-              <a
-                href={`https://wa.me/55${selectedAd.phone.replace(/\D/g, '')}`}
+              <button
+                onClick={() => abrirContato(selectedAd)}
                 className="btn-primary w-full justify-center py-2 text-[10px] font-bold mt-2 gap-1.5"
-                target="_blank"
-                rel="noopener noreferrer"
               >
-                <MessageSquare size={12} /> Contato via WhatsApp
-              </a>
+                <MessageSquare size={12} /> Entrar em contato
+              </button>
             </div>
           )}
         </div>
@@ -398,6 +440,80 @@ export const Classificados = () => {
   return (
     <div className="w-full h-full">
       <PageCarousel3D slides={slides3D} />
+
+      {/* Modal de contato */}
+      {contactAd && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setContactAd(null); }}>
+          <div className="rounded-2xl w-full max-w-sm overflow-hidden"
+            style={{ background: 'linear-gradient(135deg,rgba(13,20,35,.99),rgba(7,16,28,.99))', border: '1px solid rgba(87,216,255,0.2)', boxShadow: '0 32px 80px rgba(0,0,0,0.65)' }}>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <div>
+                <p style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>Entrar em contato</p>
+                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginTop: 2 }} className="truncate max-w-[220px]">{contactAd.title}</p>
+              </div>
+              <button onClick={() => setContactAd(null)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center cursor-pointer"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <X size={14} style={{ color: 'rgba(255,255,255,0.6)' }} />
+              </button>
+            </div>
+
+            <form onSubmit={enviarContato} className="flex flex-col gap-3 p-5">
+              {/* Nome */}
+              <div className="relative">
+                <User size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none' }} />
+                <input
+                  type="text" className="input pl-9 text-xs" placeholder="Nome *"
+                  value={contactNome} onChange={e => setContactNome(e.target.value)} required
+                />
+              </div>
+
+              {/* Telefone */}
+              <div className="relative">
+                <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.95rem', lineHeight: 1 }}>🇧🇷</span>
+                <input
+                  type="tel" className="input pl-9 text-xs" placeholder="Telefone / WhatsApp *"
+                  value={contactTel} onChange={e => setContactTel(maskPhone(e.target.value))} required
+                />
+              </div>
+
+              {/* E-mail */}
+              <div className="relative">
+                <Mail size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none' }} />
+                <input
+                  type="email" className="input pl-9 text-xs" placeholder="E-mail (opcional)"
+                  value={contactEmail} onChange={e => setContactEmail(e.target.value)}
+                />
+              </div>
+
+              {/* Mensagem */}
+              <textarea
+                className="input text-xs resize-none"
+                rows={3}
+                placeholder="Sua mensagem..."
+                value={contactMsg}
+                onChange={e => setContactMsg(e.target.value)}
+              />
+
+              {/* Aviso */}
+              <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.5 }}>
+                Ao enviar, você será redirecionado ao WhatsApp com sua mensagem formatada para o anunciante.
+              </p>
+
+              <button type="submit" disabled={contactSending}
+                className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5">
+                {contactSending
+                  ? <><Loader2 size={13} className="animate-spin" /> Enviando...</>
+                  : <><MessageSquare size={13} /> Enviar mensagem</>}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal de confirmação de remoção */}
       {confirmRemoveId && (
