@@ -34,13 +34,13 @@ interface AppIcon {
 
 const APPS: AppIcon[] = [
   /* ── MEU DIA A DIA — o essencial, ordenado por dor do usuário ── */
+  { path: '/financeiro',         label: 'Transparência',    Icon: Eye,          gradient: 'linear-gradient(145deg,#065f46,#10b981)', grupo: 'essenciais', featured: true },
+  { path: '/benfeitorias',       label: 'Benfeitorias',     Icon: HardHat,      gradient: 'linear-gradient(145deg,#9a3412,#f97316)', grupo: 'essenciais', featured: true },
   { path: '/comunicados',        label: 'Comunicados',      Icon: Bell,         gradient: 'linear-gradient(145deg,#92400e,#f59e0b)', grupo: 'essenciais', featured: true },
-  { path: '/ocorrencias',        label: 'Ocorrências',      Icon: AlertCircle,  gradient: 'linear-gradient(145deg,#991b1b,#ef4444)', grupo: 'essenciais', featured: true },
-  { path: '/acesso-visitas',     label: 'Acesso & Visitas', Icon: Shield,       gradient: 'linear-gradient(145deg,#164e63,#06b6d4)', grupo: 'essenciais', featured: true },
-  { path: '/acesso-visitas?enc=1', label: 'Encomendas',     Icon: Package,      gradient: 'linear-gradient(145deg,#78350f,#f59e0b)', grupo: 'essenciais', featured: true },
   { path: '/agendamentos',       label: 'Reservas',         Icon: Calendar,     gradient: 'linear-gradient(145deg,#1e3a8a,#3b82f6)', grupo: 'essenciais' },
-  { path: '/financeiro',         label: 'Transparência',    Icon: Eye,          gradient: 'linear-gradient(145deg,#065f46,#10b981)', grupo: 'essenciais' },
-  { path: '/benfeitorias',       label: 'Benfeitorias',     Icon: HardHat,      gradient: 'linear-gradient(145deg,#9a3412,#f97316)', grupo: 'essenciais' },
+  { path: '/ocorrencias',        label: 'Ocorrências',      Icon: AlertCircle,  gradient: 'linear-gradient(145deg,#991b1b,#ef4444)', grupo: 'essenciais' },
+  { path: '/acesso-visitas',     label: 'Acesso & Visitas', Icon: Shield,       gradient: 'linear-gradient(145deg,#164e63,#06b6d4)', grupo: 'essenciais' },
+  { path: '/acesso-visitas?enc=1', label: 'Encomendas',     Icon: Package,      gradient: 'linear-gradient(145deg,#78350f,#f59e0b)', grupo: 'essenciais' },
 
   /* ── COMUNIDADE & SERVIÇOS — convívio, informação e apoio ── */
   { path: '/documentos',         label: 'Documentos',       Icon: FileText,     gradient: 'linear-gradient(145deg,#312e81,#6366f1)', grupo: 'comunidade' },

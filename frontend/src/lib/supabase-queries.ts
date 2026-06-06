@@ -1710,17 +1710,25 @@ export async function fetchAnalyticsSummary(dataInicio: string, dataFim: string)
     .is('saida_at', null)
     .gte('entrada_at', `${hoje}T00:00:00`);
 
-  const tempoRes = await db.rpc('calc_tempo_medio_permanencia', {
-    data_inicio: `${dataInicio}T00:00:00`,
-    data_fim: `${dataFim}T23:59:59`
-  }) as any;
+  // Tempo médio de permanência (calculado no cliente — sem dependência de RPC)
+  const tempoRes = await db.from('portaria_registros')
+    .select('entrada_at, saida_at')
+    .gte('entrada_at', `${dataInicio}T00:00:00`)
+    .lt('entrada_at', `${dataFim}T23:59:59`)
+    .not('saida_at', 'is', null)
+    .limit(10000);
+
+  const tempos = ((tempoRes.data ?? []) as Array<{ entrada_at: string; saida_at: string }>)
+    .map(r => (new Date(r.saida_at).getTime() - new Date(r.entrada_at).getTime()) / 60000)
+    .filter(m => m >= 0);
+  const tempoMedio = tempos.length > 0 ? Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length) : 0;
 
   return {
     total_acessos_hoje: hojeRes.count ?? 0,
     acessos_ontem: ontemRes.count ?? 0,
     dentro_agora: dentroRes.count ?? 0,
     sem_saida: semSaidaRes.count ?? 0,
-    tempo_medio_minutos: tempoRes.data?.[0]?.media ?? 0,
+    tempo_medio_minutos: tempoMedio,
   };
 }
 
