@@ -1,5 +1,10 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import {
+  fetchAnalyticsSummary, fetchAccessByType, fetchAccessByHour, fetchDailyFlowSeries,
+  fetchFinanceSummary, fetchFinanceTrend,
+} from './supabase-queries';
+import { formatCurrency } from '../utils/format';
 
 /* ════════════════════════════════════════════════════════════════
    Gerador de relatórios PDF — Condomínio Chácaras Itaúna
@@ -34,6 +39,26 @@ export interface ReportMeta {
   subtitle?: string;
   period: string;
   generatedBy?: string;
+  logo?: string;       // data URL do logo (cabeçalho + marca d'água)
+}
+
+/* ── Carregamento cacheado do logo do condomínio ── */
+let _logoCache: string | null = null;
+export async function loadCondoLogo(): Promise<string | undefined> {
+  if (_logoCache) return _logoCache;
+  try {
+    const res = await fetch('/logo-itauna.png');
+    const blob = await res.blob();
+    _logoCache = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    return _logoCache;
+  } catch {
+    return undefined;
+  }
 }
 
 export interface KpiCard {
@@ -57,10 +82,16 @@ export class ReportBuilder {
   private doc: jsPDF;
   private y: number;
   private meta: ReportMeta;
+  private logo?: string;
+  private stamp: string;
+  private generatedBy: string;
 
   constructor(meta: ReportMeta) {
     this.doc = new jsPDF({ unit: 'mm', format: 'a4' });
     this.meta = meta;
+    this.logo = meta.logo;
+    this.stamp = nowStamp();
+    this.generatedBy = meta.generatedBy?.trim() || 'Sistema';
     this.y = 0;
     this.drawHeader();
   }
@@ -75,24 +106,30 @@ export class ReportBuilder {
     d.setFillColor(...C.cyan);
     d.rect(0, 30, PAGE_W, 1.2, 'F');
 
+    // Logo (se disponível) à esquerda; texto deslocado
+    let textX = MARGIN;
+    if (this.logo) {
+      try { d.addImage(this.logo, 'PNG', MARGIN, 5.5, 19, 19); textX = MARGIN + 23; } catch { /* segue sem logo */ }
+    }
+
     // Nome do condomínio (eyebrow)
     d.setTextColor(...C.cyan);
     d.setFont('helvetica', 'bold');
     d.setFontSize(8);
-    d.text(CONDO.toUpperCase(), MARGIN, 11);
+    d.text(CONDO.toUpperCase(), textX, 11);
 
     // Título do relatório
     d.setTextColor(...C.white);
     d.setFont('helvetica', 'bold');
     d.setFontSize(16);
-    d.text(this.meta.title, MARGIN, 20);
+    d.text(this.meta.title, textX, 20);
 
     // Subtítulo
     if (this.meta.subtitle) {
       d.setTextColor(200, 210, 225);
       d.setFont('helvetica', 'normal');
       d.setFontSize(9);
-      d.text(this.meta.subtitle, MARGIN, 26);
+      d.text(this.meta.subtitle, textX, 26);
     }
 
     // Bloco direito: período + emissão
@@ -100,12 +137,16 @@ export class ReportBuilder {
     d.setTextColor(180, 195, 215);
     d.setFont('helvetica', 'normal');
     d.text(`Período: ${this.meta.period}`, PAGE_W - MARGIN, 13, { align: 'right' });
-    d.text(`Emitido em: ${nowStamp()}`, PAGE_W - MARGIN, 18, { align: 'right' });
-    if (this.meta.generatedBy) {
-      d.text(`Por: ${this.meta.generatedBy}`, PAGE_W - MARGIN, 23, { align: 'right' });
-    }
+    d.text(`Emitido em: ${this.stamp}`, PAGE_W - MARGIN, 18, { align: 'right' });
+    d.text(`Por: ${this.generatedBy}`, PAGE_W - MARGIN, 23, { align: 'right' });
 
     this.y = 42;
+  }
+
+  /* ── Nova página de seção com cabeçalho compacto ── */
+  pageBreak() {
+    this.doc.addPage();
+    this.y = MARGIN + 4;
   }
 
   /* ── Garante espaço; quebra página se necessário ── */
@@ -238,23 +279,133 @@ export class ReportBuilder {
     this.y += lines.length * 4.5 + 4;
   }
 
-  /* ── Rodapé em todas as páginas + salvar ── */
-  save(filename: string) {
+  /* ── Marca d'água + rodapé em todas as páginas + salvar ── */
+  private finalize() {
     const d = this.doc;
     const pages = d.getNumberOfPages();
     for (let p = 1; p <= pages; p++) {
       d.setPage(p);
+
+      // Marca d'água central sutil
+      if (this.logo) {
+        try {
+          const GState = (d as any).GState;
+          d.setGState(new GState({ opacity: 0.04 }));
+          const size = 120;
+          d.addImage(this.logo, 'PNG', (PAGE_W - size) / 2, (PAGE_H - size) / 2, size, size);
+          d.setGState(new GState({ opacity: 1 }));
+        } catch { /* ambiente sem GState: ignora marca d'água */ }
+      }
+
+      // Rodapé
       d.setDrawColor(...C.line);
       d.setLineWidth(0.2);
-      d.line(MARGIN, PAGE_H - 12, PAGE_W - MARGIN, PAGE_H - 12);
-      d.setFontSize(7);
-      d.setTextColor(...C.muted);
+      d.line(MARGIN, PAGE_H - 13, PAGE_W - MARGIN, PAGE_H - 13);
       d.setFont('helvetica', 'normal');
-      d.text(`${CONDO} · Documento confidencial`, MARGIN, PAGE_H - 8);
-      d.text(`Página ${p} de ${pages}`, PAGE_W - MARGIN, PAGE_H - 8, { align: 'right' });
+      // Linha 1: geração (usuário + data) à esquerda · página à direita
+      d.setFontSize(7.5);
+      d.setTextColor(...C.text);
+      d.text(`Gerado por ${this.generatedBy} em ${this.stamp}`, MARGIN, PAGE_H - 8.5);
+      d.text(`Página ${p} de ${pages}`, PAGE_W - MARGIN, PAGE_H - 8.5, { align: 'right' });
+      // Linha 2: confidencialidade (centralizada, discreta)
+      d.setFontSize(6.5);
+      d.setTextColor(...C.muted);
+      d.text(`${CONDO} · Documento confidencial`, PAGE_W / 2, PAGE_H - 4.5, { align: 'center' });
     }
-    d.save(filename);
+  }
+
+  save(filename: string) {
+    this.finalize();
+    this.doc.save(filename);
+  }
+
+  /** Retorna o PDF como Blob (para anexar em email, upload, etc.) */
+  blob(): Blob {
+    this.finalize();
+    return this.doc.output('blob');
   }
 }
 
 export const REPORT_COLORS = C;
+
+/* ════════════════════════════════════════════════════════════════
+   Relatório Executivo Consolidado — Acesso + Finanças num só PDF
+   Busca os próprios dados; retorna o builder (caller faz .save/.blob).
+   ════════════════════════════════════════════════════════════════ */
+
+const TIPO_LABEL: Record<string, string> = {
+  visitante: 'Visitante', entrega: 'Entrega', servico: 'Prestador',
+};
+
+export async function generateExecutiveReport(opts?: { periodoDias?: number; generatedBy?: string }): Promise<ReportBuilder> {
+  const dias = opts?.periodoDias ?? 30;
+  const fim = new Date();
+  const inicio = new Date(fim.getTime() - dias * 86400000);
+  const di = inicio.toISOString().slice(0, 10);
+  const df = fim.toISOString().slice(0, 10);
+  const mesAtual = fim.toISOString().slice(0, 7);
+
+  const [accSummary, accType, accHour, accDaily, finSummary, finTrend] = await Promise.all([
+    fetchAnalyticsSummary(di, df),
+    fetchAccessByType(di, df),
+    fetchAccessByHour(di, df),
+    fetchDailyFlowSeries(di, df),
+    fetchFinanceSummary(mesAtual),
+    fetchFinanceTrend(),
+  ]);
+
+  const logo = await loadCondoLogo();
+  const rb = new ReportBuilder({
+    title: 'Relatório Executivo',
+    subtitle: 'Visão consolidada — Acesso & Finanças',
+    period: `Últimos ${dias} dias`,
+    generatedBy: opts?.generatedBy,
+    logo,
+  });
+
+  /* ── Síntese Financeira ── */
+  rb.sectionTitle('Síntese Financeira (mês atual)');
+  rb.kpiRow([
+    { label: 'Total Geral', value: formatCurrency(finSummary.totalGeral), accent: C.cyan },
+    { label: 'Despesas Pagas', value: formatCurrency(finSummary.totalDespesas), accent: C.red },
+    { label: 'Pendente', value: formatCurrency(finSummary.totalPendentes), accent: C.amber },
+  ]);
+  if (finTrend.length > 0) {
+    rb.table(
+      ['Período', 'Receitas', 'Despesas', 'Saldo'],
+      finTrend.map(c => [
+        c.mes, formatCurrency(c.receitas), formatCurrency(c.despesas),
+        formatCurrency(c.receitas - c.despesas),
+      ]),
+    );
+  }
+
+  /* ── Dinâmica de Acesso ── */
+  rb.sectionTitle('Dinâmica de Acesso');
+  rb.kpiRow([
+    { label: 'Total de acessos', value: String(accSummary.total_acessos_hoje), accent: C.cyan },
+    { label: 'Dentro agora', value: String(accSummary.dentro_agora), accent: C.green },
+    { label: 'Tempo médio', value: `${accSummary.tempo_medio_minutos}m`, accent: C.blue },
+    { label: 'Sem saída', value: String(accSummary.sem_saida), accent: C.amber },
+  ]);
+  rb.table(
+    ['Tipo', 'Acessos', 'Participação'],
+    accType.map(t => [TIPO_LABEL[t.tipo] ?? t.tipo, t.total, `${t.porcentagem}%`]),
+  );
+
+  rb.sectionTitle('Fluxo por Hora do Dia');
+  rb.barChart(accHour.map(h => ({ label: `${h.hora}h`, value: h.acessos })), { color: C.cyan, labelEvery: 2 });
+
+  if (accDaily.length > 0) {
+    rb.sectionTitle('Evolução Diária de Acessos');
+    rb.barChart(
+      accDaily.map(d => ({
+        label: new Date(d.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        value: d.acessos,
+      })),
+      { color: C.teal, labelEvery: accDaily.length > 14 ? 3 : 1 },
+    );
+  }
+
+  return rb;
+}

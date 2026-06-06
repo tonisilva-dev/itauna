@@ -5,6 +5,7 @@ import {
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
 import { StatCard } from '../../components/ui/StatCard';
+import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import {
   fetchAnalyticsSummary, fetchAccessByType, fetchAccessByHour,
@@ -29,6 +30,7 @@ const getPeriod = (dias: number): [string, string] => {
 };
 
 export const AnaliseAcesso = () => {
+  const { user } = useAuth();
   const [periodo, setPeriodo] = useState(7);
   const [loading, setLoading] = useState(true);
 
@@ -65,12 +67,15 @@ export const AnaliseAcesso = () => {
     if (loading || !summary) { toast.error('Aguarde o carregamento dos dados.'); return; }
     try {
       toast.loading('Gerando PDF...', { id: 'pdf-acesso' });
-      const { ReportBuilder, REPORT_COLORS } = await import('@/lib/pdf-report');
+      const { ReportBuilder, REPORT_COLORS, loadCondoLogo } = await import('@/lib/pdf-report');
+      const logo = await loadCondoLogo();
       const periodoLabel = periodo === 1 ? 'Hoje' : `Últimos ${periodo} dias`;
       const rb = new ReportBuilder({
         title: 'Relatório de Análise de Acesso',
         subtitle: 'Raio-X da dinâmica de acesso ao condomínio',
         period: `${periodoLabel} (${dataInicio} a ${dataFim})`,
+        generatedBy: user?.full_name,
+        logo,
       });
 
       // KPIs
@@ -131,6 +136,18 @@ export const AnaliseAcesso = () => {
     }
   };
 
+  const exportarExecutivo = async () => {
+    try {
+      toast.loading('Gerando relatório executivo...', { id: 'pdf-exec' });
+      const { generateExecutiveReport } = await import('@/lib/pdf-report');
+      const rb = await generateExecutiveReport({ periodoDias: periodo === 1 ? 7 : periodo, generatedBy: user?.full_name });
+      rb.save(`relatorio-executivo-${dataFim}.pdf`);
+      toast.success('Relatório executivo gerado!', { id: 'pdf-exec' });
+    } catch {
+      toast.error('Erro ao gerar o relatório executivo.', { id: 'pdf-exec' });
+    }
+  };
+
   const slides: SlideItem[] = [
     {
       key: 'analise-overview',
@@ -145,9 +162,14 @@ export const AnaliseAcesso = () => {
             { icon: '🔍', label: 'Raio-X do condomínio' },
           ]}
           actions={
-            <button onClick={exportarPDF} className="btn-primary py-1.5 px-3 text-xs gap-1 flex items-center">
-              <FileDown size={13} /> Exportar PDF
-            </button>
+            <div className="flex gap-1.5">
+              <button onClick={exportarPDF} className="btn-primary py-1.5 px-3 text-xs gap-1 flex items-center">
+                <FileDown size={13} /> PDF
+              </button>
+              <button onClick={exportarExecutivo} title="Relatório consolidado: Acesso + Finanças" className="py-1.5 px-3 text-xs gap-1 flex items-center rounded-xl font-bold cursor-pointer" style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}>
+                <FileDown size={13} /> Executivo
+              </button>
+            </div>
           }
         >
           <div className="flex flex-col h-full gap-3">

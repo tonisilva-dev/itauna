@@ -322,7 +322,8 @@ const FinanceiroGestor = () => {
   const exportarPDF = async () => {
     try {
       toast.loading('Gerando PDF...', { id: 'pdf-fin' });
-      const { ReportBuilder, REPORT_COLORS } = await import('../../lib/pdf-report');
+      const { ReportBuilder, REPORT_COLORS, loadCondoLogo } = await import('../../lib/pdf-report');
+      const logo = await loadCondoLogo();
       const monthLabel = selectedMonth
         ? format(new Date(selectedMonth + '-02T12:00:00'), 'MMMM yyyy', { locale: ptBR })
         : 'Todos os meses';
@@ -333,6 +334,8 @@ const FinanceiroGestor = () => {
         title: 'Relatório Financeiro',
         subtitle: 'Prestação de contas aos condôminos',
         period: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
+        generatedBy: user?.full_name,
+        logo,
       });
 
       rb.kpiRow([
