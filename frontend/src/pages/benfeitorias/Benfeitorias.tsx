@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   HardHat, Loader2, Plus, X, Trash2, CheckCircle2,
   CalendarDays, Wallet, Hammer, ListChecks, CircleDashed, PlayCircle,
-  FileDown, TrendingUp, PieChart,
+  FileDown, TrendingUp, PieChart, Clock, AlertTriangle,
 } from 'lucide-react';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
@@ -51,6 +51,20 @@ const fmtMoney = (v: number | null) =>
   v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtDate = (d: string | null) =>
   d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+
+/* Calcula indicadores de prazo a partir de data_inicio e data_prevista */
+const calcTempo = (inicio: string | null, prevista: string | null) => {
+  if (!inicio || !prevista) return null;
+  const ini = new Date(inicio + 'T12:00:00').getTime();
+  const prev = new Date(prevista + 'T12:00:00').getTime();
+  const hoje = new Date().setHours(12, 0, 0, 0);
+  const totalDias = Math.max(1, Math.round((prev - ini) / 86400000));
+  const diasDecorridos = Math.max(0, Math.round((hoje - ini) / 86400000));
+  const diasRestantes = Math.round((prev - hoje) / 86400000);
+  const pctTempo = Math.min(100, Math.round((diasDecorridos / totalDias) * 100));
+  const atrasado = diasRestantes < 0;
+  return { totalDias, diasDecorridos, diasRestantes, pctTempo, atrasado };
+};
 
 export const Benfeitorias = () => {
   const { isGestor } = useAuth();
@@ -348,6 +362,27 @@ export const Benfeitorias = () => {
                           </div>
                           <span style={{ fontSize: '0.66rem', fontWeight: 700, color: st.color, minWidth: 32, textAlign: 'right' }}>{o.progresso}%</span>
                         </div>
+                        {/* Datas + indicador de prazo */}
+                        {(() => {
+                          const t = calcTempo(o.data_inicio, o.data_prevista);
+                          return (
+                            <div className="mt-1.5 flex items-center justify-between">
+                              <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)' }}>
+                                {o.data_inicio ? fmtDate(o.data_inicio) : '—'} → {o.data_prevista ? fmtDate(o.data_prevista) : '—'}
+                              </span>
+                              {t && o.status !== 'concluida' && (
+                                <span style={{ fontSize: '0.6rem', fontWeight: 700, color: t.atrasado ? RED : t.diasRestantes <= 7 ? YELLOW : 'rgba(255,255,255,0.35)' }}>
+                                  {t.atrasado
+                                    ? `⚠ ${Math.abs(t.diasRestantes)}d atraso`
+                                    : `${t.diasRestantes}d restantes`}
+                                </span>
+                              )}
+                              {o.status === 'concluida' && o.data_conclusao && (
+                                <span style={{ fontSize: '0.6rem', fontWeight: 700, color: GREEN }}>✓ {fmtDate(o.data_conclusao)}</span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </button>
@@ -560,17 +595,99 @@ export const Benfeitorias = () => {
                 <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>{selected.descricao}</p>
               )}
 
-              {/* Meta */}
+              {/* Meta — 4 células */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl p-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                   <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}><Wallet size={10} style={{ display: 'inline', marginRight: 3 }} />Orçamento</p>
-                  <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff' }}>{fmtMoney(selected.orcamento)}</p>
+                  <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff', textAlign: 'right' }}>{fmtMoney(selected.orcamento)}</p>
+                </div>
+                <div className="rounded-xl p-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}><CalendarDays size={10} style={{ display: 'inline', marginRight: 3 }} />Início</p>
+                  <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff', textAlign: 'right' }}>{fmtDate(selected.data_inicio)}</p>
                 </div>
                 <div className="rounded-xl p-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                   <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}><CalendarDays size={10} style={{ display: 'inline', marginRight: 3 }} />Previsão</p>
-                  <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff' }}>{fmtDate(selected.data_prevista)}</p>
+                  <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff', textAlign: 'right' }}>{fmtDate(selected.data_prevista)}</p>
                 </div>
+                {(() => {
+                  const t = calcTempo(selected.data_inicio, selected.data_prevista);
+                  if (!t) return (
+                    <div className="rounded-xl p-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}><Clock size={10} style={{ display: 'inline', marginRight: 3 }} />Prazo</p>
+                      <p style={{ fontSize: '0.8rem', fontWeight: 700, color: 'rgba(255,255,255,0.3)', textAlign: 'right' }}>—</p>
+                    </div>
+                  );
+                  const prazoColor = t.atrasado ? RED : t.diasRestantes <= 7 ? YELLOW : GREEN;
+                  return (
+                    <div className="rounded-xl p-2.5" style={{ background: `${prazoColor}10`, border: `1px solid ${prazoColor}28` }}>
+                      <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}>
+                        {t.atrasado ? <AlertTriangle size={10} style={{ display: 'inline', marginRight: 3, color: RED }} /> : <Clock size={10} style={{ display: 'inline', marginRight: 3 }} />}
+                        {t.atrasado ? 'Atraso' : 'Restam'}
+                      </p>
+                      <p style={{ fontSize: '0.8rem', fontWeight: 700, color: prazoColor, textAlign: 'right' }}>
+                        {t.atrasado ? `${Math.abs(t.diasRestantes)}d` : `${t.diasRestantes}d`}
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
+
+              {/* Visualização temporal: progresso físico vs tempo decorrido */}
+              {(() => {
+                const t = calcTempo(selected.data_inicio, selected.data_prevista);
+                if (!t || selected.status === 'concluida') return null;
+                const prazoColor = t.atrasado ? RED : t.pctTempo > selected.progresso + 10 ? YELLOW : GREEN;
+                const ritmo = t.pctTempo > selected.progresso + 10
+                  ? 'Ritmo abaixo do esperado'
+                  : t.pctTempo <= selected.progresso
+                  ? 'Obra adiantada — ótimo ritmo!'
+                  : 'Obra no prazo';
+                const ritmoColor = t.pctTempo > selected.progresso + 10 ? (t.atrasado ? RED : YELLOW) : GREEN;
+                return (
+                  <div className="rounded-xl p-3 space-y-2.5" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <div className="flex items-center justify-between">
+                      <p style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>
+                        <Clock size={11} style={{ display: 'inline', marginRight: 4 }} />Progresso vs Prazo
+                      </p>
+                      <span style={{ fontSize: '0.6rem', fontWeight: 700, color: ritmoColor }}>{ritmo}</span>
+                    </div>
+
+                    {/* Barra de progresso físico */}
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.45)' }}>Progresso físico</span>
+                        <span style={{ fontSize: '0.6rem', fontWeight: 700, color: STATUS[selected.status].color, textAlign: 'right' }}>{selected.progresso}%</span>
+                      </div>
+                      <div style={{ height: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 4, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${selected.progresso}%`, background: `linear-gradient(90deg, ${STATUS[selected.status].color}, ${CYAN})`, borderRadius: 4, transition: 'width 0.4s' }} />
+                      </div>
+                    </div>
+
+                    {/* Barra de tempo decorrido */}
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.45)' }}>Tempo decorrido ({t.diasDecorridos}/{t.totalDias} dias)</span>
+                        <span style={{ fontSize: '0.6rem', fontWeight: 700, color: prazoColor, textAlign: 'right' }}>{t.pctTempo}%</span>
+                      </div>
+                      <div style={{ height: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+                        <div style={{ height: '100%', width: `${t.pctTempo}%`, background: prazoColor, borderRadius: 4, opacity: 0.8, transition: 'width 0.4s' }} />
+                        {/* Marcador na posição do progresso físico */}
+                        <div style={{
+                          position: 'absolute', top: -2, bottom: -2,
+                          left: `${selected.progresso}%`,
+                          width: 2, background: STATUS[selected.status].color,
+                          borderRadius: 1, transform: 'translateX(-1px)',
+                        }} title={`Progresso: ${selected.progresso}%`} />
+                      </div>
+                      <p style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>
+                        {t.atrasado
+                          ? `Prazo vencido há ${Math.abs(t.diasRestantes)} dias`
+                          : `${t.diasRestantes} dias até ${fmtDate(selected.data_prevista)}`}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Controles do gestor */}
               {isGestor && (
