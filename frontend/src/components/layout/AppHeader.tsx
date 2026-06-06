@@ -3,6 +3,7 @@ import { useNavigate, useLocation, NavLink } from 'react-router-dom';
 import { ArrowLeft, LogOut, TreePine } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar } from '../ui/Avatar';
+import { PushButton } from '../PushButton';
 
 const ROUTE_LABELS: Record<string, string> = {
   '/financeiro':       'Financeiro',
@@ -73,8 +74,9 @@ export const AppHeader = () => {
           </button>
         )}
 
-        {/* Right: avatar + logout */}
+        {/* Right: push + avatar + logout */}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <PushButton compact />
           <NavLink
             to="/perfil"
             style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', padding: '4px 6px', borderRadius: 10 }}

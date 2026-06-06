@@ -26,6 +26,7 @@ import {
   type DbConvite, type DbEncomenda,
 } from '@/lib/supabase-queries';
 import { gotoSlide, formatUnidade } from '../../utils/format';
+import { sendPushNotification } from '@/lib/push';
 
 /* ── Apito (Web Audio API) ── */
 function tocarApito() {
@@ -376,6 +377,12 @@ export const Portaria = () => {
       setEncomendas(prev => [nova, ...prev]);
       setEncChacara(''); setEncDesc(''); setEncRemetente(''); setEncTipo('outro');
       toast.success(`Encomenda registrada para Chácara ${chNum}. Morador notificado!`);
+      // Push para todos (o morador da chácara verá se estiver inscrito)
+      sendPushNotification({
+        title: '📦 Encomenda na portaria',
+        body: `Chácara ${chNum}: ${encDesc.trim()}${encRemetente.trim() ? ` · ${encRemetente.trim()}` : ''}`,
+        url: '/dashboard',
+      });
     } catch { toast.error('Erro ao registrar encomenda.'); }
     finally { setEncSaving(false); }
   };

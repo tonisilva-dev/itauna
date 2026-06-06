@@ -5,6 +5,7 @@ import {
   BookOpen, Car, Waves, Trash2, Volume2, TreePine, Edit2, Save, X,
 } from 'lucide-react';
 import { formatDate, gotoSlide } from '../../utils/format';
+import { sendPushNotification } from '@/lib/push';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
@@ -166,6 +167,12 @@ export const Comunicados = () => {
       clearForm();
       toast.success('Comunicado publicado com sucesso!');
       gotoSlide(0);
+      // Push para todos os moradores inscritos
+      sendPushNotification({
+        title: `📢 ${novo.title}`,
+        body: novo.content.slice(0, 120),
+        url: '/comunicados',
+      });
     } catch { toast.error('Erro ao publicar comunicado.'); }
     finally { setSubmitting(false); }
   };

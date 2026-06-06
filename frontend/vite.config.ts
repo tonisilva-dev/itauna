@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ command }) => ({
   define: {
@@ -10,7 +11,42 @@ export default defineConfig(({ command }) => ({
         : 'dev'
     ),
   },
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      registerType: 'autoUpdate',
+      injectManifest: {
+        swDest: 'dist/sw.js',
+        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}', 'logo-itauna.png'],
+        globIgnores: ['**/login-bg*.png', '**/bg-area-livre*.webp', '**/landing-bg*.webp', '**/galeria/**'],
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+      },
+      devOptions: {
+        enabled: false,
+      },
+      manifest: {
+        name: 'Chácaras Itaúna',
+        short_name: 'Itaúna',
+        description: 'Portal do condômino — Condomínio Chácaras Itaúna · Ibiporã–PR',
+        theme_color: '#07101c',
+        background_color: '#07101c',
+        display: 'standalone',
+        orientation: 'portrait',
+        start_url: '/',
+        scope: '/',
+        lang: 'pt-BR',
+        icons: [
+          { src: '/logo-itauna.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/logo-itauna.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+        ],
+        categories: ['utilities', 'lifestyle'],
+        screenshots: [],
+      },
+    }),
+  ],
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
