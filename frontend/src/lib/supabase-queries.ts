@@ -1657,6 +1657,228 @@ export async function marcarEncomendaRetirada(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/* ─── Analytics: Portaria Acesso ──────────────────────────── */
+
+export interface AnalyticsSummary {
+  total_acessos_hoje: number;
+  acessos_ontem: number;
+  dentro_agora: number;
+  sem_saida: number;
+  tempo_medio_minutos: number;
+}
+
+export interface AccessByType {
+  tipo: 'visitante' | 'entrega' | 'servico';
+  total: number;
+  porcentagem: number;
+}
+
+export interface AccessByHour {
+  hora: number;
+  acessos: number;
+}
+
+export interface AccessByDayOfWeek {
+  dia: number;
+  nome: string;
+  acessos: number;
+}
+
+export interface TopDestino {
+  destino: string;
+  acessos: number;
+  tempo_medio_minutos: number;
+}
+
+export interface TopVisitante {
+  nome: string;
+  tipo: 'visitante' | 'entrega' | 'servico';
+  acessos: number;
+  ultima_visita: string;
+}
+
+export interface DailyFlowPoint {
+  data: string;
+  acessos: number;
+  media_permanencia: number;
+}
+
+export async function fetchAnalyticsSummary(dataInicio: string, dataFim: string): Promise<AnalyticsSummary> {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const ontem = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+  const [hojeRes, ontemRes, dentroRes] = await Promise.all([
+    db.from('portaria_registros').select('id', { count: 'exact' })
+      .gte('entrada_at', `${dataInicio}T00:00:00`)
+      .lt('entrada_at', `${dataFim}T23:59:59`),
+    db.from('portaria_registros').select('id', { count: 'exact' })
+      .gte('entrada_at', `${ontem}T00:00:00`)
+      .lt('entrada_at', `${ontem}T23:59:59`),
+    db.from('portaria_registros').select('id', { count: 'exact' })
+      .eq('status', 'dentro')
+  ]);
+
+  const semSaidaRes = await db.from('portaria_registros').select('id', { count: 'exact' })
+    .is('saida_at', null)
+    .gte('entrada_at', `${hoje}T00:00:00`);
+
+  const tempoRes = await db.rpc('calc_tempo_medio_permanencia', {
+    data_inicio: `${dataInicio}T00:00:00`,
+    data_fim: `${dataFim}T23:59:59`
+  }) as any;
+
+  return {
+    total_acessos_hoje: hojeRes.count ?? 0,
+    acessos_ontem: ontemRes.count ?? 0,
+    dentro_agora: dentroRes.count ?? 0,
+    sem_saida: semSaidaRes.count ?? 0,
+    tempo_medio_minutos: tempoRes.data?.[0]?.media ?? 0,
+  };
+}
+
+export async function fetchAccessByType(dataInicio: string, dataFim: string): Promise<AccessByType[]> {
+  const { data, error } = await db
+    .from('portaria_registros')
+    .select('tipo')
+    .gte('entrada_at', `${dataInicio}T00:00:00`)
+    .lt('entrada_at', `${dataFim}T23:59:59`);
+
+  if (error) throw error;
+
+  const records = (data ?? []) as Array<{ tipo: string }>;
+  const byType = records.reduce((acc, r) => {
+    acc[r.tipo] = (acc[r.tipo] ?? 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const total: number = Object.values(byType).reduce((a, b) => a + (b as number), 0);
+  const tipos: ('visitante' | 'entrega' | 'servico')[] = ['visitante', 'entrega', 'servico'];
+
+  return tipos.map(tipo => ({
+    tipo,
+    total: byType[tipo] ?? 0,
+    porcentagem: total > 0 ? Math.round(((byType[tipo] ?? 0) / total) * 100) : 0,
+  }));
+}
+
+export async function fetchAccessByHour(dataInicio: string, dataFim: string): Promise<AccessByHour[]> {
+  const { data, error } = await db
+    .from('portaria_registros')
+    .select('entrada_at')
+    .gte('entrada_at', `${dataInicio}T00:00:00`)
+    .lt('entrada_at', `${dataFim}T23:59:59`);
+
+  if (error) throw error;
+
+  const records = (data ?? []) as Array<{ entrada_at: string }>;
+  const byHour = Array(24).fill(0);
+  records.forEach(r => {
+    const hora = new Date(r.entrada_at).getHours();
+    byHour[hora]++;
+  });
+
+  return byHour.map((count, hora) => ({ hora, acessos: count as number }));
+}
+
+export async function fetchTopDestinos(dataInicio: string, dataFim: string, limite: number = 10): Promise<TopDestino[]> {
+  const { data, error } = await db
+    .from('portaria_registros')
+    .select('destino, entrada_at, saida_at')
+    .gte('entrada_at', `${dataInicio}T00:00:00`)
+    .lt('entrada_at', `${dataFim}T23:59:59`)
+    .limit(10000);
+
+  if (error) throw error;
+
+  const records = (data ?? []) as Array<{ destino: string; entrada_at: string; saida_at: string | null }>;
+  const byDestino: Record<string, { count: number; tempos: number[] }> = {};
+
+  records.forEach(r => {
+    if (!byDestino[r.destino]) byDestino[r.destino] = { count: 0, tempos: [] };
+    byDestino[r.destino].count++;
+
+    if (r.saida_at) {
+      const minutos = (new Date(r.saida_at).getTime() - new Date(r.entrada_at).getTime()) / 60000;
+      byDestino[r.destino].tempos.push(minutos);
+    }
+  });
+
+  return Object.entries(byDestino)
+    .map(([destino, { count, tempos }]) => ({
+      destino,
+      acessos: count,
+      tempo_medio_minutos: tempos.length > 0 ? Math.round(tempos.reduce((a, b) => a + b) / tempos.length) : 0,
+    }))
+    .sort((a, b) => b.acessos - a.acessos)
+    .slice(0, limite);
+}
+
+export async function fetchTopVisitantes(dataInicio: string, dataFim: string, limite: number = 10): Promise<TopVisitante[]> {
+  const { data, error } = await db
+    .from('portaria_registros')
+    .select('nome, tipo, entrada_at')
+    .gte('entrada_at', `${dataInicio}T00:00:00`)
+    .lt('entrada_at', `${dataFim}T23:59:59`)
+    .limit(10000);
+
+  if (error) throw error;
+
+  const records = (data ?? []) as Array<{ nome: string; tipo: string; entrada_at: string }>;
+  const byVisitante: Record<string, { tipo: string; acessos: number; ultima: string }> = {};
+
+  records.forEach(r => {
+    const key = `${r.nome}|${r.tipo}`;
+    if (!byVisitante[key]) byVisitante[key] = { tipo: r.tipo, acessos: 0, ultima: r.entrada_at };
+    byVisitante[key].acessos++;
+    byVisitante[key].ultima = new Date(r.entrada_at) > new Date(byVisitante[key].ultima) ? r.entrada_at : byVisitante[key].ultima;
+  });
+
+  return Object.entries(byVisitante)
+    .map(([key, v]) => {
+      const [nome] = key.split('|');
+      return {
+        nome,
+        tipo: v.tipo as any,
+        acessos: v.acessos,
+        ultima_visita: v.ultima,
+      };
+    })
+    .sort((a, b) => b.acessos - a.acessos)
+    .slice(0, limite);
+}
+
+export async function fetchDailyFlowSeries(dataInicio: string, dataFim: string): Promise<DailyFlowPoint[]> {
+  const { data, error } = await db
+    .from('portaria_registros')
+    .select('entrada_at, saida_at')
+    .gte('entrada_at', `${dataInicio}T00:00:00`)
+    .lte('entrada_at', `${dataFim}T23:59:59`);
+
+  if (error) throw error;
+
+  const records = (data ?? []) as Array<{ entrada_at: string; saida_at: string | null }>;
+  const byDay: Record<string, { acessos: number; tempos: number[] }> = {};
+
+  records.forEach(r => {
+    const dia = r.entrada_at.slice(0, 10);
+    if (!byDay[dia]) byDay[dia] = { acessos: 0, tempos: [] };
+    byDay[dia].acessos++;
+
+    if (r.saida_at) {
+      const minutos = (new Date(r.saida_at).getTime() - new Date(r.entrada_at).getTime()) / 60000;
+      byDay[dia].tempos.push(minutos);
+    }
+  });
+
+  return Object.entries(byDay)
+    .map(([data, { acessos, tempos }]) => ({
+      data,
+      acessos,
+      media_permanencia: tempos.length > 0 ? Math.round(tempos.reduce((a, b) => a + b) / tempos.length) : 0,
+    }))
+    .sort((a, b) => a.data.localeCompare(b.data));
+}
+
 /* ─── Dashboard ────────────────────────────────────────────────── */
 
 export async function fetchDashboardSummary() {

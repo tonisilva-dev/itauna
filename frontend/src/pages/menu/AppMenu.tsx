@@ -4,7 +4,7 @@ import {
   DollarSign, Shield, Bell, Calendar, AlertCircle, Image,
   FileText, Tag, Search, Building2, TreePine, Home, Users,
   ShieldCheck, Lock, Phone, Leaf, TrendingUp, ClipboardList,
-  Eye, User, Package,
+  Eye, User, Package, Activity,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -46,7 +46,8 @@ const APPS: AppIcon[] = [
   { path: '/acessos',            label: 'Acessos',   Icon: Lock,          gradient: 'linear-gradient(145deg,#1e40af,#60a5fa)', nivel: 'gestor' },
   { path: '/analise-cenarios',   label: 'Cenários',  Icon: TrendingUp,    gradient: 'linear-gradient(145deg,#064e3b,#34d399)', nivel: 'gestor' },
   { path: '/checklist-servicos', label: 'Checklist', Icon: ClipboardList, gradient: 'linear-gradient(145deg,#78350f,#fcd34d)', nivel: 'gestor' },
-  { path: '/gestao-financeira',  label: 'Financeiro',Icon: DollarSign,    gradient: 'linear-gradient(145deg,#7f1d1d,#f87171)', nivel: 'gestor' },
+  { path: '/gestao-financeira',  label: 'Financeiro',      Icon: DollarSign,  gradient: 'linear-gradient(145deg,#7f1d1d,#f87171)', nivel: 'gestor' },
+  { path: '/analise-acesso',     label: 'Análise Acesso',  Icon: Activity,    gradient: 'linear-gradient(145deg,#0f766e,#14b8a6)', nivel: 'gestor' },
 ];
 
 const SECTION_META: Record<Nivel, { label: string; color: string; desc: string }> = {
