@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { DollarSign, Plus, TrendingDown, Wallet, Search, RefreshCw, TrendingUp, CheckCircle2, Loader2, Calendar, Home, AlertTriangle, Eye, LockKeyhole, FileDown } from 'lucide-react';
-import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatCard } from '../../components/ui/StatCard';
 import { formatCurrency, formatDate } from '../../utils/format';
@@ -9,6 +9,7 @@ import { gotoSlide } from '../../utils/format';
 import { format, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { fetchFinances, fetchFinanceSummary, fetchFinanceTrend, insertFinance, updateFinanceStatus, fetchUnitByNumber, type DbFinance, type DbUnit } from '../../lib/supabase-queries';
+import { useMemo } from 'react';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
 import toast from 'react-hot-toast';
@@ -51,115 +52,319 @@ const nextDueDate = () => {
   return d.toLocaleDateString('pt-BR');
 };
 
+const DONUT_COLORS = [GREEN, RED, YELLOW, BLUE, CYAN, '#a855f7', '#f97316', '#06b6d4'];
+
 const FinanceiroMorador = () => {
   const { user } = useAuth();
-  const [unit, setUnit] = useState<DbUnit | null>(null);
+  const [unit, setUnit]       = useState<DbUnit | null>(null);
   const [rateios, setRateios] = useState<DbFinance[]>([]);
+  const [chartData, setChartData] = useState<{ mes: string; receitas: number; despesas: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const promises: [Promise<DbUnit | null>, Promise<DbFinance[]>] = [
+    Promise.all([
       user?.unit_number ? fetchUnitByNumber(user.unit_number) : Promise.resolve(null),
-      fetchFinances({ limit: 48 }),
-    ];
-    Promise.all(promises).then(([u, fins]) => {
+      fetchFinances({ limit: 200 }),
+      fetchFinanceTrend(),
+    ]).then(([u, fins, trend]) => {
       setUnit(u);
       setRateios(fins);
+      setChartData(trend);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [user]);
+
+  const totalReceitas = useMemo(() => rateios.filter(f => f.type === 'receita').reduce((s, f) => s + Number(f.amount), 0), [rateios]);
+  const totalDespesas = useMemo(() => rateios.filter(f => f.type === 'despesa').reduce((s, f) => s + Number(f.amount), 0), [rateios]);
+  const saldo         = totalReceitas - totalDespesas;
+
+  const byStatus = useMemo(() => ({
+    pago:     { count: rateios.filter(f => f.status === 'pago').length,     value: rateios.filter(f => f.status === 'pago').reduce((s, f) => s + Number(f.amount), 0) },
+    pendente: { count: rateios.filter(f => f.status === 'pendente').length, value: rateios.filter(f => f.status === 'pendente').reduce((s, f) => s + Number(f.amount), 0) },
+    vencido:  { count: rateios.filter(f => f.status === 'vencido').length,  value: rateios.filter(f => f.status === 'vencido').reduce((s, f) => s + Number(f.amount), 0) },
+  }), [rateios]);
+
+  const byCategory = useMemo(() => {
+    const map: Record<string, number> = {};
+    rateios.filter(f => f.type === 'despesa').forEach(f => {
+      map[f.category] = (map[f.category] ?? 0) + Number(f.amount);
+    });
+    return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+  }, [rateios]);
+
+  const donutData = [
+    { name: 'Receitas', value: totalReceitas },
+    { name: 'Despesas', value: totalDespesas },
+  ];
 
   const statusColor = unit?.status === 'regular' ? GREEN : unit?.status === 'inadimplente' ? RED : YELLOW;
   const statusLabel = unit?.status === 'regular' ? 'Em dia' : unit?.status === 'inadimplente' ? 'Inadimplente' : 'Suspenso';
 
-  const slideSituacao: SlideItem = {
-    key: 'morador-situacao',
-    label: 'Minha Situação',
+  const slideDashboard: SlideItem = {
+    key: 'morador-dashboard',
+    label: 'Dashboard',
     content: (
       <SlidePanel
-        eyebrow="Portal Financeiro"
-        title={<>Minha <span className="grad-text">Situação Financeira</span></>}
+        eyebrow="Transparência Financeira"
+        title={<>Receitas <span className="grad-text">&amp; Despesas</span></>}
+        badges={[
+          { icon: '📊', label: 'Dados do condomínio' },
+          { icon: '🔓', label: 'Transparência total' },
+        ]}
+      >
+        {loading ? (
+          <div className="flex items-center justify-center h-full gap-2 text-white/40 text-xs">
+            <Loader2 size={16} className="animate-spin" /> Carregando...
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 h-full">
+            {/* KPIs */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl p-2.5 flex flex-col gap-1" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Receitas</span>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: GREEN }}>{formatCurrency(totalReceitas)}</span>
+              </div>
+              <div className="rounded-xl p-2.5 flex flex-col gap-1" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Despesas</span>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: RED }}>{formatCurrency(totalDespesas)}</span>
+              </div>
+              <div className="rounded-xl p-2.5 flex flex-col gap-1" style={{ background: saldo >= 0 ? 'rgba(87,216,255,0.08)' : 'rgba(245,158,11,0.08)', border: `1px solid ${saldo >= 0 ? 'rgba(87,216,255,0.2)' : 'rgba(245,158,11,0.2)'}` }}>
+                <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Saldo</span>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: saldo >= 0 ? CYAN : YELLOW }}>{formatCurrency(Math.abs(saldo))}</span>
+              </div>
+            </div>
+
+            {/* Donut + Status */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Donut */}
+              <div className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <p style={{ fontSize: '0.6rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>DISTRIBUIÇÃO</p>
+                <div style={{ height: 100 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={donutData} cx="50%" cy="50%" innerRadius={28} outerRadius={44} paddingAngle={3} dataKey="value" strokeWidth={0}>
+                        <Cell fill={GREEN} fillOpacity={0.85} />
+                        <Cell fill={RED} fillOpacity={0.85} />
+                      </Pie>
+                      <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ background: '#0d1423', border: '1px solid rgba(87,216,255,0.2)', borderRadius: 10, fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex justify-center gap-3 mt-1">
+                  {donutData.map((d, i) => (
+                    <div key={d.name} className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ background: i === 0 ? GREEN : RED }} />
+                      <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.4)' }}>{d.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status breakdown */}
+              <div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <p style={{ fontSize: '0.6rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', marginBottom: 2 }}>STATUS</p>
+                {([
+                  { key: 'pago', label: 'Pagos', color: GREEN },
+                  { key: 'pendente', label: 'Pendentes', color: YELLOW },
+                  { key: 'vencido', label: 'Vencidos', color: RED },
+                ] as const).map(({ key, label, color }) => {
+                  const { count, value } = byStatus[key];
+                  const pct = totalReceitas + totalDespesas > 0 ? (value / (totalReceitas + totalDespesas)) * 100 : 0;
+                  return (
+                    <div key={key}>
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)' }}>{label} ({count})</span>
+                        <span style={{ fontSize: '0.6rem', fontWeight: 700, color }}>{formatCurrency(value)}</span>
+                      </div>
+                      <div className="w-full rounded-full h-1" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                        <div className="h-1 rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, background: color, opacity: 0.8 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Trend chart */}
+            <div className="rounded-2xl p-3 flex-1 flex flex-col" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', minHeight: 100 }}>
+              <p style={{ fontSize: '0.6rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>EVOLUÇÃO MENSAL</p>
+              <div className="flex-1 min-h-[80px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 2, right: 2, bottom: 0, left: -22 }}>
+                    <defs>
+                      <linearGradient id="gRec" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={GREEN} stopOpacity={0.25} />
+                        <stop offset="95%" stopColor={GREEN} stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gDesp" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={RED} stopOpacity={0.2} />
+                        <stop offset="95%" stopColor={RED} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="rgba(255,255,255,0.03)" strokeDasharray="3 3" />
+                    <XAxis dataKey="mes" tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 8 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 7 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area type="monotone" dataKey="receitas" stroke={GREEN} strokeWidth={1.5} fill="url(#gRec)" name="Receitas" />
+                    <Area type="monotone" dataKey="despesas" stroke={RED} strokeWidth={1.5} fill="url(#gDesp)" name="Despesas" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )}
+      </SlidePanel>
+    ),
+  };
+
+  const slideCategorias: SlideItem = {
+    key: 'morador-categorias',
+    label: 'Por Categoria',
+    content: (
+      <SlidePanel
+        eyebrow="Análise de Gastos"
+        title={<>Despesas <span className="grad-text">por Categoria</span></>}
+        badges={[{ icon: '📊', label: 'Top categorias' }]}
+      >
+        {loading ? (
+          <div className="flex items-center justify-center h-full gap-2 text-white/40 text-xs">
+            <Loader2 size={16} className="animate-spin" />
+          </div>
+        ) : byCategory.length === 0 ? (
+          <p className="text-center text-white/30 text-xs py-8">Nenhuma despesa registrada.</p>
+        ) : (
+          <div className="flex flex-col gap-3 h-full">
+            {/* Donut por categoria */}
+            <div className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ height: 130 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={byCategory} cx="50%" cy="50%" innerRadius={32} outerRadius={54} paddingAngle={2} dataKey="value" nameKey="name" strokeWidth={0}>
+                      {byCategory.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} fillOpacity={0.85} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ background: '#0d1423', border: '1px solid rgba(87,216,255,0.2)', borderRadius: 10, fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Barras horizontais */}
+            <div className="flex flex-col gap-1.5 overflow-y-auto flex-1">
+              {byCategory.map((cat, i) => {
+                const pct = totalDespesas > 0 ? (cat.value / totalDespesas) * 100 : 0;
+                return (
+                  <div key={cat.name} className="rounded-xl px-3 py-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span style={{ fontSize: '0.65rem', color: '#fff', fontWeight: 600 }} className="truncate mr-2">{cat.name}</span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}>{pct.toFixed(1)}%</span>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 800, color: DONUT_COLORS[i % DONUT_COLORS.length] }}>{formatCurrency(cat.value)}</span>
+                      </div>
+                    </div>
+                    <div className="w-full rounded-full h-1.5" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                      <div className="h-1.5 rounded-full" style={{ width: `${Math.min(pct, 100)}%`, background: DONUT_COLORS[i % DONUT_COLORS.length], opacity: 0.8 }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </SlidePanel>
+    ),
+  };
+
+  const slideSituacao: SlideItem = {
+    key: 'morador-situacao',
+    label: 'Minha Chácara',
+    content: (
+      <SlidePanel
+        eyebrow="Portal do Condômino"
+        title={<>Minha <span className="grad-text">Situação</span></>}
         badges={[
           { icon: '🏡', label: `Chácara ${user?.unit_number ?? '—'}` },
           { icon: '📅', label: 'Vencimento dia 10' },
           { icon: '🔒', label: 'Dados protegidos' },
         ]}
       >
-        <div className="flex flex-col h-full gap-4">
-          {loading ? (
-            <div className="flex items-center justify-center flex-1 gap-2 text-white/40 text-xs">
-              <Loader2 size={16} className="animate-spin" /> Carregando...
+        {loading ? (
+          <div className="flex items-center justify-center flex-1 gap-2 text-white/40 text-xs">
+            <Loader2 size={16} className="animate-spin" /> Carregando...
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {/* Status visual */}
+            <div className="rounded-2xl p-4 flex items-center gap-4" style={{ background: `${statusColor}10`, border: `1px solid ${statusColor}30` }}>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${statusColor}18` }}>
+                {unit?.status === 'regular' ? <CheckCircle2 size={22} style={{ color: statusColor }} /> : <AlertTriangle size={22} style={{ color: statusColor }} />}
+              </div>
+              <div>
+                <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>STATUS DA CHÁCARA {user?.unit_number}</p>
+                <p style={{ fontSize: '1.2rem', fontWeight: 900, color: statusColor }}>{statusLabel}</p>
+              </div>
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-2.5">
-                <StatCard label="Status" value={loading ? '...' : statusLabel} icon={unit?.status === 'regular' ? CheckCircle2 : AlertTriangle} iconColor={statusColor} iconBg={`${statusColor}18`} />
-                <StatCard label="Próx. Vencimento" value={nextDueDate()} icon={Calendar} iconColor={BLUE} iconBg="rgba(90,132,255,0.08)" />
-                <StatCard label="Taxa Mensal" value={formatCurrency(unit?.monthly_fee ?? 0)} icon={DollarSign} iconColor={CYAN} iconBg="rgba(87,216,255,0.08)" />
-                <StatCard label="Saldo" value={formatCurrency(Math.abs(unit?.balance ?? 0))} icon={(unit?.balance ?? 0) >= 0 ? Wallet : TrendingDown} iconColor={(unit?.balance ?? 0) >= 0 ? GREEN : RED} iconBg={`${(unit?.balance ?? 0) >= 0 ? GREEN : RED}18`} />
-              </div>
 
-              <div className="card p-4 space-y-2 flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <Home className="w-4 h-4" style={{ color: CYAN }} />
-                  <h4 style={{ fontWeight: 700, color: '#fff', fontSize: '0.875rem' }}>Detalhes da Chácara</h4>
+            <div className="grid grid-cols-2 gap-2.5">
+              <StatCard label="Taxa Mensal" value={formatCurrency(unit?.monthly_fee ?? 0)} icon={DollarSign} iconColor={CYAN} iconBg="rgba(87,216,255,0.08)" />
+              <StatCard label="Próx. Vencimento" value={nextDueDate()} icon={Calendar} iconColor={BLUE} iconBg="rgba(90,132,255,0.08)" />
+              <StatCard label="Saldo" value={formatCurrency(Math.abs(unit?.balance ?? 0))} icon={(unit?.balance ?? 0) >= 0 ? Wallet : TrendingDown} iconColor={(unit?.balance ?? 0) >= 0 ? GREEN : RED} iconBg={`${(unit?.balance ?? 0) >= 0 ? GREEN : RED}18`} />
+              <StatCard label="Área" value={unit?.area_m2 ? `${unit.area_m2.toLocaleString('pt-BR')} m²` : '—'} icon={Home} iconColor={BLUE} iconBg="rgba(90,132,255,0.08)" />
+            </div>
+
+            <div className="rounded-2xl p-3.5 space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              {[
+                { label: 'Proprietário', value: unit?.owner_name ?? '—' },
+                { label: 'Situação', value: statusLabel },
+              ].map(row => (
+                <div key={row.label} className="flex justify-between items-center py-1.5 border-b border-white/4">
+                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' }}>{row.label}</span>
+                  <span style={{ fontWeight: 600, color: '#fff', fontSize: '0.75rem' }}>{row.value}</span>
                 </div>
-                <div className="space-y-2 text-xs">
-                  {[
-                    { label: 'Número', value: unit?.unit_number ? `Chácara ${unit.unit_number}` : '—' },
-                    { label: 'Proprietário', value: unit?.owner_name ?? '—' },
-                    { label: 'Área', value: unit?.area_m2 ? `${unit.area_m2.toLocaleString('pt-BR')} m²` : '—' },
-                    { label: 'Situação', value: statusLabel },
-                  ].map(row => (
-                    <div key={row.label} className="flex justify-between items-center py-1.5 border-b border-white/4">
-                      <span style={{ color: 'rgba(255,255,255,0.4)' }}>{row.label}</span>
-                      <span style={{ fontWeight: 600, color: '#fff' }}>{row.value}</span>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-[10px] text-white/25 pt-1">Para pagamento via Pix ou boleto, acesse a seção Chácaras.</p>
-              </div>
-            </>
-          )}
-        </div>
+              ))}
+              <p className="text-[10px] text-white/25 pt-1">Para pagamento via Pix ou boleto, acesse a seção Chácaras.</p>
+            </div>
+          </div>
+        )}
       </SlidePanel>
     ),
   };
 
   const slideRateios: SlideItem = {
     key: 'morador-rateios',
-    label: 'Meus Rateios',
+    label: 'Histórico',
     content: (
       <SlidePanel
-        eyebrow="Histórico de Rateios"
-        title={<>Rateios <span className="grad-text">Aprovados</span></>}
+        eyebrow="Histórico de Lançamentos"
+        title={<>Lançamentos <span className="grad-text">do Condomínio</span></>}
         badges={[
-          { icon: '📋', label: 'Histórico pessoal' },
-          { icon: '◈', label: 'Últimas cobranças' },
+          { icon: '📋', label: 'Transparência' },
+          { icon: '◈', label: 'Últimos 200' },
         ]}
       >
         <div className="space-y-1.5 overflow-y-auto max-h-[340px] pr-1">
           {loading ? (
-            <p className="text-center text-white/30 text-xs py-8">Carregando rateios...</p>
+            <p className="text-center text-white/30 text-xs py-8">Carregando...</p>
           ) : rateios.length === 0 ? (
-            <p className="text-center text-white/30 text-xs py-8">Nenhum rateio lançado ainda.</p>
+            <p className="text-center text-white/30 text-xs py-8">Nenhum lançamento ainda.</p>
           ) : rateios.map(f => {
-            const statusColor = f.status === 'pago' ? GREEN : f.status === 'vencido' ? RED : YELLOW;
-            const statusLabel = f.status === 'pago' ? 'Pago' : f.status === 'vencido' ? 'Vencido' : 'Pendente';
+            const sc = f.status === 'pago' ? GREEN : f.status === 'vencido' ? RED : YELLOW;
+            const sl = f.status === 'pago' ? 'Pago' : f.status === 'vencido' ? 'Vencido' : 'Pendente';
             return (
               <div key={f.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/3 border border-white/5 text-[11px]">
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'rgba(87,216,255,0.08)' }}>
-                  <DollarSign size={13} style={{ color: CYAN }} />
+                  style={{ background: f.type === 'receita' ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)' }}>
+                  {f.type === 'receita' ? <TrendingUp size={13} style={{ color: GREEN }} /> : <TrendingDown size={13} style={{ color: RED }} />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-white leading-none mb-1 truncate">{f.description}</p>
                   <div className="flex items-center gap-1.5 text-[9.5px] text-white/40">
+                    <span>{f.category}</span>
+                    <span>•</span>
                     <span>{formatDate(f.due_date)}</span>
-                    <span className="font-bold" style={{ color: statusColor }}>• {statusLabel}</span>
+                    <span className="font-bold" style={{ color: sc }}>• {sl}</span>
                   </div>
                 </div>
-                <span className="font-extrabold flex-shrink-0" style={{ color: CYAN }}>
-                  {formatCurrency(f.amount)}
+                <span className="font-extrabold flex-shrink-0" style={{ color: f.type === 'receita' ? GREEN : RED }}>
+                  {f.type === 'receita' ? '+' : '-'}{formatCurrency(f.amount)}
                 </span>
               </div>
             );
@@ -171,7 +376,7 @@ const FinanceiroMorador = () => {
 
   return (
     <div className="w-full h-full">
-      <PageCarousel3D slides={[slideSituacao, slideRateios]} />
+      <PageCarousel3D slides={[slideDashboard, slideCategorias, slideSituacao, slideRateios]} />
     </div>
   );
 };
@@ -259,6 +464,17 @@ const FinanceiroGestor = () => {
   // Filtragem já é server-side — "filtered" é apenas o estado atual
   const filtered = lancamentos;
 
+  const totalReceitasGestor = useMemo(() => lancamentos.filter(f => f.type === 'receita').reduce((s, f) => s + Number(f.amount), 0), [lancamentos]);
+  const totalDespesasGestor = useMemo(() => lancamentos.filter(f => f.type === 'despesa').reduce((s, f) => s + Number(f.amount), 0), [lancamentos]);
+
+  const byCategoryGestor = useMemo(() => {
+    const map: Record<string, number> = {};
+    lancamentos.filter(f => f.type === 'despesa').forEach(f => {
+      map[f.category] = (map[f.category] ?? 0) + Number(f.amount);
+    });
+    return Object.entries(map).map(([name, value]) => ({ name: name.length > 18 ? name.slice(0, 18) + '…' : name, value })).sort((a, b) => b.value - a.value).slice(0, 7);
+  }, [lancamentos]);
+
   const handleCreateFinance = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formDesc.trim() || !formAmount.trim()) {
@@ -289,7 +505,7 @@ const FinanceiroGestor = () => {
       // Recarrega dados do mês atual para refletir o novo lançamento
       await loadLancamentos();
 
-      gotoSlide(1); // vai para Lançamentos
+      gotoSlide(2); // vai para Lançamentos
     } catch (err: any) {
       toast.error(err?.message ?? 'Erro ao registrar lançamento.');
     } finally {
@@ -457,6 +673,78 @@ const FinanceiroGestor = () => {
           </div>
         </div>
       </div>
+    </SlidePanel>
+  );
+
+  const slideAnalise = (
+    <SlidePanel
+      eyebrow="Análise Financeira"
+      title={<>Despesas <span className="grad-text">por Categoria</span></>}
+      badges={[
+        { icon: '📊', label: 'Breakdown' },
+        { icon: '◈', label: selectedMonth || 'Todos os meses' },
+      ]}
+    >
+      {loading ? (
+        <div className="flex items-center justify-center h-full gap-2 text-white/40 text-xs">
+          <Loader2 size={16} className="animate-spin" />
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3 h-full">
+          {/* Donut receitas vs despesas */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <p style={{ fontSize: '0.6rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>REC. vs DESP.</p>
+              <div style={{ height: 100 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={[{ name: 'Receitas', value: totalReceitasGestor }, { name: 'Despesas', value: totalDespesasGestor }]} cx="50%" cy="50%" innerRadius={28} outerRadius={44} paddingAngle={3} dataKey="value" strokeWidth={0}>
+                      <Cell fill={GREEN} fillOpacity={0.85} />
+                      <Cell fill={RED} fillOpacity={0.85} />
+                    </Pie>
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ background: '#0d1423', border: '1px solid rgba(87,216,255,0.2)', borderRadius: 10, fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="flex flex-col justify-center gap-2 p-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div>
+                <p style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>RECEITAS</p>
+                <p style={{ fontSize: '0.9rem', fontWeight: 800, color: GREEN }}>{formatCurrency(totalReceitasGestor)}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>DESPESAS</p>
+                <p style={{ fontSize: '0.9rem', fontWeight: 800, color: RED }}>{formatCurrency(totalDespesasGestor)}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>SALDO</p>
+                <p style={{ fontSize: '0.9rem', fontWeight: 800, color: totalReceitasGestor - totalDespesasGestor >= 0 ? CYAN : YELLOW }}>{formatCurrency(Math.abs(totalReceitasGestor - totalDespesasGestor))}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* BarChart horizontal por categoria */}
+          <div className="rounded-2xl p-3 flex-1 flex flex-col" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', minHeight: 120 }}>
+            <p style={{ fontSize: '0.6rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>TOP CATEGORIAS (DESPESAS)</p>
+            {byCategoryGestor.length === 0 ? (
+              <p className="text-center text-white/30 text-xs py-4">Sem despesas no período.</p>
+            ) : (
+              <div className="flex-1 min-h-[100px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={byCategoryGestor} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
+                    <XAxis type="number" hide />
+                    <YAxis type="category" dataKey="name" tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 9 }} axisLine={false} tickLine={false} width={100} />
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ background: '#0d1423', border: '1px solid rgba(87,216,255,0.2)', borderRadius: 10, fontSize: 11 }} />
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={12}>
+                      {byCategoryGestor.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} fillOpacity={0.8} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </SlidePanel>
   );
 
@@ -652,21 +940,10 @@ const FinanceiroGestor = () => {
   );
 
   const slides3D: SlideItem[] = [
-    {
-      key: 'financeiro-resumo',
-      label: 'Painel',
-      content: slideResumo
-    },
-    {
-      key: 'financeiro-movimentacoes',
-      label: 'Lançamentos',
-      content: slideMovimentacoes
-    },
-    {
-      key: 'financeiro-registrar',
-      label: 'Lançar',
-      content: slideRegistrar
-    }
+    { key: 'financeiro-resumo',        label: 'Painel',       content: slideResumo },
+    { key: 'financeiro-analise',       label: 'Análise',      content: slideAnalise },
+    { key: 'financeiro-movimentacoes', label: 'Lançamentos',  content: slideMovimentacoes },
+    { key: 'financeiro-registrar',     label: 'Lançar',       content: slideRegistrar },
   ];
 
   return (
