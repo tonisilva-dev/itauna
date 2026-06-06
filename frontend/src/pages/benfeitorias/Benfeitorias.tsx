@@ -74,6 +74,7 @@ export const Benfeitorias = () => {
   const [selected, setSelected] = useState<DbBenfeitoria | null>(null);
   const [etapas, setEtapas] = useState<DbBenfeitoriaEtapa[]>([]);
   const [etapasLoading, setEtapasLoading] = useState(false);
+  const [filtroStatus, setFiltroStatus] = useState<DbBenfeitoria['status'] | 'todos'>('todos');
   const chRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Form nova obra (gestor)
@@ -140,6 +141,8 @@ export const Benfeitorias = () => {
   const porCategoria = (Object.keys(CATEGORIA) as (keyof typeof CATEGORIA)[])
     .map(k => ({ k, label: CATEGORIA[k].label, emoji: CATEGORIA[k].emoji, total: obras.filter(o => o.categoria === k).length }))
     .filter(c => c.total > 0);
+
+  const obrasFiltradas = filtroStatus === 'todos' ? obras : obras.filter(o => o.status === filtroStatus);
 
   const somaFases = fases.reduce((s, f) => s + (parseInt(f.percentual) || 0), 0);
 
@@ -324,21 +327,36 @@ export const Benfeitorias = () => {
           }
         >
           <div className="flex flex-col h-full gap-3">
-            <div className="grid grid-cols-3 gap-2">
-              <StatCard label="Em andamento" value={String(emAndamento)} icon={Hammer} iconColor={CYAN} iconBg="rgba(87,216,255,0.08)" />
-              <StatCard label="Concluídas" value={String(concluidas)} icon={CheckCircle2} iconColor={GREEN} iconBg="rgba(16,185,129,0.08)" />
-              <StatCard label="Planejadas" value={String(planejadas)} icon={CalendarDays} iconColor={BLUE} iconBg="rgba(90,132,255,0.08)" />
+            {/* Filtro por status */}
+            <div className="flex gap-1 p-0.5 rounded-xl overflow-x-auto" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
+              {([
+                { v: 'todos',       l: 'Todos',        c: 'rgba(255,255,255,0.6)' },
+                { v: 'em_andamento', l: 'Em andamento', c: CYAN },
+                { v: 'planejada',   l: 'Planejadas',   c: BLUE },
+                { v: 'pausada',     l: 'Pausadas',     c: YELLOW },
+                { v: 'concluida',   l: 'Concluídas',   c: GREEN },
+              ] as { v: typeof filtroStatus; l: string; c: string }[]).map(f => (
+                <button key={f.v} onClick={() => setFiltroStatus(f.v)}
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap cursor-pointer transition-all flex-1"
+                  style={{
+                    background: filtroStatus === f.v ? `${f.c}18` : 'transparent',
+                    color: filtroStatus === f.v ? f.c : 'rgba(255,255,255,0.35)',
+                    border: filtroStatus === f.v ? `1px solid ${f.c}35` : '1px solid transparent',
+                  }}>
+                  {f.l}
+                </button>
+              ))}
             </div>
 
             <div className="space-y-2 overflow-y-auto flex-1 pr-0.5">
               {loading ? (
                 <div className="flex items-center justify-center gap-2 py-8 text-white/30 text-xs"><Loader2 size={14} className="animate-spin" /> Carregando...</div>
-              ) : obras.length === 0 ? (
+              ) : obrasFiltradas.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-2">
                   <HardHat size={28} style={{ color: 'rgba(87,216,255,0.4)' }} />
-                  <p className="text-white/30 text-xs">Nenhuma benfeitoria cadastrada.</p>
+                  <p className="text-white/30 text-xs">{filtroStatus === 'todos' ? 'Nenhuma benfeitoria cadastrada.' : `Nenhuma obra com status "${STATUS[filtroStatus as keyof typeof STATUS]?.label}".`}</p>
                 </div>
-              ) : obras.map(o => {
+              ) : obrasFiltradas.map(o => {
                 const cat = CATEGORIA[o.categoria];
                 const st = STATUS[o.status];
                 return (
