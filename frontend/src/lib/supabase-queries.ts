@@ -56,6 +56,7 @@ export interface DbFinance {
 export interface DbUnit {
   id: string; unit_number: number; owner_name: string | null;
   owner_id: string | null;
+  block: string | null;        // Quadra / Bloco / Torre (ex: "B")
   monthly_fee: number; balance: number;
   status: 'regular' | 'inadimplente' | 'suspenso';
   area_m2: number | null; notes: string | null;
@@ -502,7 +503,7 @@ export async function fetchFinanceBarData(): Promise<{ mes: string; total: numbe
 
 /* ─── Unidades ─────────────────────────────────────────────────── */
 
-const UNIT_SELECT = 'id,unit_number,owner_name,owner_id,monthly_fee,balance,status,area_m2,notes';
+const UNIT_SELECT = 'id,unit_number,owner_name,owner_id,block,monthly_fee,balance,status,area_m2,notes';
 
 export async function fetchUnits(): Promise<DbUnit[]> {
   const { data, error } = await db
@@ -524,7 +525,7 @@ export async function fetchUnitByNumber(unitNumber: number): Promise<DbUnit | nu
 }
 
 export async function insertUnit(
-  payload: { unit_number: number; owner_name: string; monthly_fee: number; area_m2: number; status: DbUnit['status'] }
+  payload: { unit_number: number; owner_name: string; block?: string | null; monthly_fee: number; area_m2: number; status: DbUnit['status'] }
 ): Promise<DbUnit> {
   const { data, error } = await db
     .from('units')
@@ -549,7 +550,7 @@ export async function linkUnitOwner(
 
 export async function updateUnit(
   unitId: string,
-  payload: Partial<{ status: DbUnit['status']; monthly_fee: number; notes: string }>
+  payload: Partial<{ status: DbUnit['status']; monthly_fee: number; notes: string; block: string | null }>
 ): Promise<void> {
   const { error } = await db
     .from('units')

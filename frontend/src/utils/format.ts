@@ -75,6 +75,16 @@ export const currentMonth = (): string => format(new Date(), 'yyyy-MM');
 
 export const unitLabel = (num: number): string => `Chácara ${String(num).padStart(3, '0')}`;
 
+/**
+ * Identificador compacto da unidade.
+ * Com quadra/bloco: "B04" (bloco + lote 2 dígitos). Sem: "042" (3 dígitos).
+ */
+export const formatUnidade = (block: string | null | undefined, num: number | null | undefined): string => {
+  if (num == null) return '—';
+  const b = block?.trim();
+  return b ? `${b.toUpperCase()}${String(num).padStart(2, '0')}` : String(num).padStart(3, '0');
+};
+
 export const initials = (name: string): string =>
   name.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase();
 export const gotoSlide = (index: number) => window.dispatchEvent(new CustomEvent('carousel-goto', { detail: index }));

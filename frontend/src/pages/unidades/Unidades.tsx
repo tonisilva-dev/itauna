@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Home, Search, Plus, CheckCircle2, XCircle, AlertTriangle, ChevronRight, QrCode, Loader2, Edit2, Save, X } from 'lucide-react';
 import { Avatar } from '../../components/ui/Avatar';
 import { StatCard } from '../../components/ui/StatCard';
-import { formatCurrency, unitLabel } from '../../utils/format';
+import { formatCurrency, unitLabel, formatUnidade } from '../../utils/format';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
@@ -71,6 +71,7 @@ export const Unidades = () => {
 
   const [newUnitNumber, setNewUnitNumber] = useState('');
   const [newOwner, setNewOwner] = useState('');
+  const [newBlock, setNewBlock] = useState('');
   const [newArea, setNewArea] = useState('1000');
   const [newFee, setNewFee] = useState('135');
   const [newStatus, setNewStatus] = useState<DbUnit['status']>('regular');
@@ -79,6 +80,7 @@ export const Unidades = () => {
   const [editing, setEditing] = useState(false);
   const [editStatus, setEditStatus] = useState<DbUnit['status']>('regular');
   const [editFee, setEditFee] = useState('');
+  const [editBlock, setEditBlock] = useState('');
   const [editOwnerId, setEditOwnerId] = useState('');
   const [editOwnerName, setEditOwnerName] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
@@ -109,13 +111,14 @@ export const Unidades = () => {
       const created = await insertUnit({
         unit_number: num,
         owner_name:  newOwner,
+        block:       newBlock.trim().toUpperCase() || null,
         monthly_fee: Number(newFee),
         area_m2:     Number(newArea),
         status:      newStatus,
       });
       setUnits(prev => [...prev, created].sort((a, b) => a.unit_number - b.unit_number));
       toast.success(`Chácara ${unitLabel(num)} cadastrada com sucesso!`);
-      setNewUnitNumber(''); setNewOwner(''); setNewArea('1000');
+      setNewUnitNumber(''); setNewOwner(''); setNewBlock(''); setNewArea('1000');
       setNewFee('135'); setNewStatus('regular');
     } catch {
       toast.error('Erro ao cadastrar chácara. Tente novamente.');
@@ -128,6 +131,7 @@ export const Unidades = () => {
     setEditing(true);
     setEditStatus(unit.status);
     setEditFee(String(unit.monthly_fee));
+    setEditBlock(unit.block ?? '');
     setEditOwnerId(unit.owner_id ?? '');
     setEditOwnerName(unit.owner_name ?? '');
     setOwnerSearch('');
@@ -137,10 +141,11 @@ export const Unidades = () => {
     if (!selected) return;
     setSavingEdit(true);
     try {
-      // Atualiza status e taxa
+      // Atualiza status, taxa e quadra/bloco
       await updateUnit(selected.id, {
         status:      editStatus,
         monthly_fee: Number(editFee) || selected.monthly_fee,
+        block:       editBlock.trim().toUpperCase() || null,
       });
       // Vincula proprietário se mudou
       const ownerChanged = editOwnerId !== (selected.owner_id ?? '') ||
@@ -160,12 +165,13 @@ export const Unidades = () => {
         }
       }
       // Atualiza estado local
+      const blockVal = editBlock.trim().toUpperCase() || null;
       setUnits(prev => prev.map(u => u.id === selected.id
-        ? { ...u, status: editStatus, monthly_fee: Number(editFee) || u.monthly_fee,
+        ? { ...u, status: editStatus, monthly_fee: Number(editFee) || u.monthly_fee, block: blockVal,
             owner_id: editOwnerId || null, owner_name: editOwnerName || null }
         : u
       ));
-      setSelected(s => s ? { ...s, status: editStatus, monthly_fee: Number(editFee) || s.monthly_fee,
+      setSelected(s => s ? { ...s, status: editStatus, monthly_fee: Number(editFee) || s.monthly_fee, block: blockVal,
         owner_id: editOwnerId || null, owner_name: editOwnerName || null } : s);
       setEditing(false);
       toast.success('Chácara atualizada com sucesso!');
@@ -181,7 +187,7 @@ export const Unidades = () => {
     if (statusFilter && u.status !== statusFilter) return false;
     if (search) {
       const q = search.toLowerCase();
-      return String(u.unit_number).includes(q) || (u.owner_name?.toLowerCase().includes(q) ?? false);
+      return String(u.unit_number).includes(q) || (u.owner_name?.toLowerCase().includes(q) ?? false) || (u.block?.toLowerCase().includes(q) ?? false) || formatUnidade(u.block, u.unit_number).toLowerCase().includes(q);
     }
     return true;
   }), [units, statusFilter, search]);
@@ -311,6 +317,11 @@ export const Unidades = () => {
                                 <span style={{ fontWeight: 700, color: '#fff', fontSize: '0.813rem' }}>
                                   {unitLabel(unit.unit_number)}
                                 </span>
+                                {unit.block && (
+                                  <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#00c8c8', background: 'rgba(0,200,200,0.1)', border: '1px solid rgba(0,200,200,0.25)', padding: '0.1rem 0.35rem', borderRadius: 5 }}>
+                                    {formatUnidade(unit.block, unit.unit_number)}
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="px-4 py-2.5">
@@ -438,6 +449,13 @@ export const Unidades = () => {
                         onChange={e => setEditFee(e.target.value)} />
                     </div>
 
+                    <div>
+                      <label className="input-label text-[11px]">Quadra / Bloco / Torre</label>
+                      <input type="text" maxLength={4} className="input w-full text-xs uppercase" placeholder="Ex: B"
+                        value={editBlock} onChange={e => setEditBlock(e.target.value.toUpperCase())} />
+                      <p className="text-[10px] text-white/30 mt-1">Identificação final: <strong style={{ color: '#00c8c8' }}>{formatUnidade(editBlock, selected.unit_number)}</strong></p>
+                    </div>
+
                     <div className="flex gap-2 pt-2">
                       <button onClick={handleSaveEdit} disabled={savingEdit}
                         className="btn-primary flex-1 justify-center text-xs py-2 gap-1">
@@ -463,6 +481,7 @@ export const Unidades = () => {
                       </div>
                       <div className="space-y-2.5">
                         {[
+                          { label: 'Identificação', value: formatUnidade(selected.block, selected.unit_number), highlight: true, color: '#00c8c8' },
                           { label: 'Área Privativa', value: selected.area_m2 ? `${selected.area_m2.toLocaleString('pt-BR')} m²` : '—' },
                           { label: 'Taxa Mensal', value: formatCurrency(selected.monthly_fee) },
                           { label: 'Saldo Atual', value: formatCurrency(Math.abs(selected.balance)), highlight: true, color: selected.balance >= 0 ? '#10b981' : '#ef4444' },
@@ -531,16 +550,29 @@ export const Unidades = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="input-label">Proprietário *</label>
-                  <input
-                    type="text"
-                    className="input w-full"
-                    placeholder="Nome completo do proprietário"
-                    value={newOwner}
-                    onChange={e => setNewOwner(e.target.value)}
-                    required
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="input-label">Proprietário *</label>
+                    <input
+                      type="text"
+                      className="input w-full"
+                      placeholder="Nome completo do proprietário"
+                      value={newOwner}
+                      onChange={e => setNewOwner(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="input-label">Quadra / Bloco / Torre</label>
+                    <input
+                      type="text"
+                      maxLength={4}
+                      className="input w-full uppercase"
+                      placeholder="Ex: B"
+                      value={newBlock}
+                      onChange={e => setNewBlock(e.target.value.toUpperCase())}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
