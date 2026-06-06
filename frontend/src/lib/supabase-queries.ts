@@ -1692,6 +1692,43 @@ export interface DailyFlowPoint {
   media_permanencia: number;
 }
 
+export interface AccessByBlock {
+  bloco: string;
+  acessos: number;
+}
+
+/**
+ * Acessos agregados por Quadra/Bloco/Torre — anônimo (não identifica unidade
+ * nem pessoa). Cruza portaria_registros (destino "Chácara NNN") com units.
+ */
+export async function fetchAccessByBlock(dataInicio: string, dataFim: string): Promise<AccessByBlock[]> {
+  const [unitsRes, regsRes] = await Promise.all([
+    db.from('units').select('unit_number, block'),
+    db.from('portaria_registros')
+      .select('destino')
+      .gte('entrada_at', `${dataInicio}T00:00:00`)
+      .lt('entrada_at', `${dataFim}T23:59:59`)
+      .limit(10000),
+  ]);
+
+  const blockByNum = new Map<number, string | null>();
+  ((unitsRes.data ?? []) as Array<{ unit_number: number; block: string | null }>)
+    .forEach(u => blockByNum.set(u.unit_number, u.block));
+
+  const counts: Record<string, number> = {};
+  ((regsRes.data ?? []) as Array<{ destino: string | null }>).forEach(r => {
+    const m = /(\d+)/.exec(r.destino ?? '');
+    if (!m) return; // ignora Portaria / áreas comuns sem número
+    const bloco = blockByNum.get(Number(m[1]));
+    const key = bloco?.trim() ? bloco.toUpperCase() : 'Sem quadra';
+    counts[key] = (counts[key] ?? 0) + 1;
+  });
+
+  return Object.entries(counts)
+    .map(([bloco, acessos]) => ({ bloco, acessos }))
+    .sort((a, b) => b.acessos - a.acessos);
+}
+
 export async function fetchAnalyticsSummary(dataInicio: string, dataFim: string): Promise<AnalyticsSummary> {
   const hoje = new Date().toISOString().slice(0, 10);
   const ontem = new Date(Date.now() - 86400000).toISOString().slice(0, 10);

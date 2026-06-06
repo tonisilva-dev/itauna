@@ -9,9 +9,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
 import {
   fetchAnalyticsSummary, fetchAccessByType, fetchAccessByHour,
-  fetchDailyFlowSeries,
+  fetchDailyFlowSeries, fetchAccessByBlock,
   type AnalyticsSummary, type AccessByType, type AccessByHour,
-  type DailyFlowPoint,
+  type DailyFlowPoint, type AccessByBlock,
 } from '@/lib/supabase-queries';
 
 const GREEN = '#10b981';
@@ -38,6 +38,7 @@ export const AnaliseAcesso = () => {
   const [byType, setByType] = useState<AccessByType[]>([]);
   const [byHour, setByHour] = useState<AccessByHour[]>([]);
   const [dailyFlow, setDailyFlow] = useState<DailyFlowPoint[]>([]);
+  const [byBlock, setByBlock] = useState<AccessByBlock[]>([]);
 
   const [dataInicio, dataFim] = getPeriod(periodo);
 
@@ -48,11 +49,13 @@ export const AnaliseAcesso = () => {
       fetchAccessByType(dataInicio, dataFim),
       fetchAccessByHour(dataInicio, dataFim),
       fetchDailyFlowSeries(dataInicio, dataFim),
-    ]).then(([s, t, h, f]) => {
+      fetchAccessByBlock(dataInicio, dataFim),
+    ]).then(([s, t, h, f, b]) => {
       setSummary(s);
       setByType(t);
       setByHour(h);
       setDailyFlow(f);
+      setByBlock(b);
     }).catch(() => toast.error('Erro ao carregar análises.'))
       .finally(() => setLoading(false));
   }, [dataInicio, dataFim]);
@@ -60,6 +63,8 @@ export const AnaliseAcesso = () => {
   const chartHeight = 200;
   const maxHour = Math.max(...byHour.map(h => h.acessos), 1);
   const maxFlow = Math.max(...dailyFlow.map(d => d.acessos), 1);
+  const maxBlock = Math.max(...byBlock.map(b => b.acessos), 1);
+  const totalBlock = byBlock.reduce((s, b) => s + b.acessos, 0);
 
   const TIPO_LABEL: Record<string, string> = { visitante: 'Visitante', entrega: 'Entrega', servico: 'Prestador' };
 
@@ -387,6 +392,55 @@ export const AnaliseAcesso = () => {
                 </div>
               </>
             )}
+          </div>
+        </SlidePanel>
+      ),
+    },
+
+    {
+      key: 'analise-blocos',
+      label: 'Por Bloco',
+      content: (
+        <SlidePanel
+          eyebrow="Quadras / Blocos / Torres"
+          title={<>Blocos Mais <span className="grad-text">Acessados</span></>}
+          badges={[
+            { icon: '🏘️', label: `${byBlock.length} blocos` },
+            { icon: '👥', label: `${totalBlock} acessos` },
+            { icon: '🔒', label: 'Dados agregados' },
+          ]}
+        >
+          <div className="flex flex-col h-full gap-2">
+            {loading ? (
+              <div className="flex items-center justify-center flex-1 text-white/30">Carregando...</div>
+            ) : byBlock.length === 0 ? (
+              <div className="flex flex-col items-center justify-center flex-1 gap-2 text-white/30 text-xs">
+                Sem dados no período.
+              </div>
+            ) : (
+              <div className="space-y-2 overflow-y-auto flex-1 pr-1">
+                {byBlock.map((b, i) => {
+                  const pct = Math.round((b.acessos / maxBlock) * 100);
+                  const share = totalBlock ? Math.round((b.acessos / totalBlock) * 100) : 0;
+                  return (
+                    <div key={i} className="rounded-xl p-2.5" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fff' }}>
+                          {b.bloco === 'Sem quadra' ? '🏠 Sem quadra' : `🏘️ Bloco ${b.bloco}`}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: CYAN, fontWeight: 600 }}>{b.acessos} <span style={{ color: 'rgba(255,255,255,0.35)' }}>({share}%)</span></span>
+                      </div>
+                      <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${PURPLE}, ${CYAN})`, transition: 'width 0.3s' }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="rounded-xl p-2.5 text-[0.62rem] text-center text-white/25">
+              Agregado por quadra/bloco — não identifica unidades nem pessoas.
+            </div>
           </div>
         </SlidePanel>
       ),
