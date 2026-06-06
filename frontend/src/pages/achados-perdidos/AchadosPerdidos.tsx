@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, CheckCircle2, AlertCircle, Loader2, MapPin, Calendar, AlertTriangle, Package } from 'lucide-react';
-import { gotoSlide } from '../../utils/format';
+import { Search, Plus, CheckCircle2, AlertCircle, Loader2, MapPin, Calendar, AlertTriangle, Package, MessageSquare, X, User, Phone } from 'lucide-react';
+import { gotoSlide, maskPhone } from '../../utils/format';
 import { PageCarousel3D } from '../../components/ui/PageCarousel3D';
 import type { SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
@@ -33,7 +33,15 @@ export const AchadosPerdidos = () => {
   const [formLocal, setFormLocal] = useState('');
   const [formDate, setFormDate]   = useState(TODAY);
   const [formDesc, setFormDesc]   = useState('');
+  const [formNome, setFormNome]   = useState('');
+  const [formTel, setFormTel]     = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Modal de contato para item do mural
+  const [contactItem, setContactItem] = useState<DbAchadoPerdido | null>(null);
+  const [contactNome, setContactNome] = useState('');
+  const [contactTel, setContactTel]   = useState('');
+  const [contactMsg, setContactMsg]   = useState('');
 
   useEffect(() => {
     fetchAchadosPerdidos()
@@ -65,14 +73,51 @@ export const AchadosPerdidos = () => {
       const novo = await insertAchadoPerdido({
         type: formType, title: formTitle.trim(), local: formLocal.trim(),
         descricao: formDesc.trim(), date: formDate, user_id: user!.id,
+        nome_contato: formNome.trim() || null,
+        telefone_contato: formTel.trim() || null,
       });
       setItems(prev => [novo, ...prev]);
       setFormTitle(''); setFormLocal(''); setFormDesc('');
+      setFormNome(''); setFormTel('');
       setFormDate(TODAY);
       toast.success('Item registrado no mural!');
       gotoSlide(0);
     } catch { toast.error('Erro ao registrar item.'); }
     finally { setSubmitting(false); }
+  };
+
+  const abrirContato = (item: DbAchadoPerdido) => {
+    setContactItem(item);
+    setContactNome(user?.full_name ?? '');
+    setContactTel('');
+    setContactMsg(
+      item.type === 'achado'
+        ? `Olá! Vi o aviso de item achado "${item.title}" no mural do Itaúna. Pode ser meu. Como posso retirá-lo?`
+        : `Olá! Vi seu aviso de item perdido "${item.title}" no mural do Itaúna. Acho que o encontrei.`
+    );
+  };
+
+  const enviarContato = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contactItem) return;
+    if (!contactNome.trim() || !contactTel.trim()) { toast.error('Preencha nome e telefone.'); return; }
+    const destino = contactItem.telefone_contato;
+    if (!destino) return;
+    const texto = [
+      `*Achados & Perdidos — Chácaras Itaúna*`,
+      ``,
+      `*Item:* ${contactItem.title} (${contactItem.type === 'perdido' ? 'Perdido' : 'Achado'})`,
+      `*Local:* ${contactItem.local}`,
+      ``,
+      `*Quem entra em contato:*`,
+      `Nome: ${contactNome.trim()}`,
+      `Telefone: ${contactTel.trim()}`,
+      ``,
+      contactMsg.trim(),
+    ].join('\n');
+    window.open(`https://wa.me/55${destino.replace(/\D/g, '')}?text=${encodeURIComponent(texto)}`, '_blank');
+    toast.success('WhatsApp aberto!');
+    setContactItem(null);
   };
 
   const handleResolve = async () => {
@@ -204,16 +249,43 @@ export const AchadosPerdidos = () => {
                       <span className="flex items-center gap-1"><MapPin size={8} /> {item.local}</span>
                       <span className="flex items-center gap-1"><Calendar size={8} /> {new Date(item.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
                     </div>
+                    {/* Informações de contato / portaria */}
+                    {!isResolved && (
+                      item.telefone_contato ? (
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <Phone size={8} style={{ color: 'rgba(255,255,255,0.35)' }} />
+                          <span style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)' }}>
+                            {item.nome_contato ? `${item.nome_contato} · ` : ''}{item.telefone_contato}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <MapPin size={8} style={{ color: CYAN, opacity: 0.6 }} />
+                          <span style={{ fontSize: '0.62rem', color: 'rgba(87,216,255,0.6)' }}>Item na portaria — ligue: (43) 99999-0001</span>
+                        </div>
+                      )
+                    )}
                   </div>
-                  {!isResolved && (
-                    <button
-                      onClick={() => setResolveId(item.id)}
-                      className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-bold cursor-pointer flex-shrink-0 self-center"
-                      style={{ background: 'rgba(16,185,129,0.1)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.22)' }}
-                    >
-                      <CheckCircle2 size={10} /> Devolvido
-                    </button>
-                  )}
+                  <div className="flex flex-col gap-1 flex-shrink-0 self-center">
+                    {!isResolved && item.telefone_contato && (
+                      <button
+                        onClick={() => abrirContato(item)}
+                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-bold cursor-pointer"
+                        style={{ background: 'rgba(87,216,255,0.08)', color: CYAN, border: '1px solid rgba(87,216,255,0.22)' }}
+                      >
+                        <MessageSquare size={10} /> Contato
+                      </button>
+                    )}
+                    {!isResolved && (
+                      <button
+                        onClick={() => setResolveId(item.id)}
+                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-bold cursor-pointer"
+                        style={{ background: 'rgba(16,185,129,0.1)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.22)' }}
+                      >
+                        <CheckCircle2 size={10} /> Devolvido
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -310,6 +382,26 @@ export const AchadosPerdidos = () => {
             </div>
           </div>
 
+          {/* Contato direto */}
+          <div className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(87,216,255,0.04)', border: '1px solid rgba(87,216,255,0.15)' }}>
+            <p style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>Contato para devolução <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.35)' }}>(opcional)</span></p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="relative">
+                <User size={11} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none' }} />
+                <input type="text" className="input pl-8 text-xs" placeholder="Seu nome"
+                  value={formNome} onChange={e => setFormNome(e.target.value)} />
+              </div>
+              <div className="relative">
+                <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem' }}>🇧🇷</span>
+                <input type="tel" className="input pl-8 text-xs" placeholder="WhatsApp"
+                  value={formTel} onChange={e => setFormTel(maskPhone(e.target.value))} />
+              </div>
+            </div>
+            <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.4 }}>
+              Se preenchido, outros moradores poderão entrar em contato diretamente via WhatsApp. Caso contrário, o item ficará registrado na portaria.
+            </p>
+          </div>
+
           <button type="submit" disabled={submitting}
             className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5">
             {submitting
@@ -325,6 +417,50 @@ export const AchadosPerdidos = () => {
   return (
     <div className="w-full h-full">
       <PageCarousel3D slides={[slideMural, slideRegistrar]} />
+
+      {/* Modal de contato */}
+      {contactItem && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setContactItem(null); }}>
+          <div className="rounded-2xl w-full max-w-sm overflow-hidden"
+            style={{ background: 'linear-gradient(135deg,rgba(13,20,35,.99),rgba(7,16,28,.99))', border: '1px solid rgba(87,216,255,0.2)', boxShadow: '0 32px 80px rgba(0,0,0,0.65)' }}>
+
+            <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <div>
+                <p style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>Entrar em contato</p>
+                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginTop: 2 }} className="truncate max-w-[220px]">{contactItem.title}</p>
+              </div>
+              <button onClick={() => setContactItem(null)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center cursor-pointer"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <X size={14} style={{ color: 'rgba(255,255,255,0.6)' }} />
+              </button>
+            </div>
+
+            <form onSubmit={enviarContato} className="flex flex-col gap-3 p-5">
+              <div className="relative">
+                <User size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none' }} />
+                <input type="text" className="input pl-9 text-xs" placeholder="Seu nome *"
+                  value={contactNome} onChange={e => setContactNome(e.target.value)} required />
+              </div>
+              <div className="relative">
+                <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.95rem' }}>🇧🇷</span>
+                <input type="tel" className="input pl-9 text-xs" placeholder="Seu telefone / WhatsApp *"
+                  value={contactTel} onChange={e => setContactTel(maskPhone(e.target.value))} required />
+              </div>
+              <textarea className="input text-xs resize-none" rows={3}
+                placeholder="Sua mensagem..." value={contactMsg} onChange={e => setContactMsg(e.target.value)} />
+              <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.5 }}>
+                Você será redirecionado ao WhatsApp do responsável pelo item com sua mensagem formatada.
+              </p>
+              <button type="submit" className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5">
+                <MessageSquare size={13} /> Enviar mensagem
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

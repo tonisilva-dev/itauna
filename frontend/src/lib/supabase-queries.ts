@@ -738,6 +738,7 @@ export interface DbAchadoPerdido {
   title: string; local: string; descricao: string;
   date: string; status: 'aberto' | 'resolvido';
   resolved_at: string | null; user_id: string | null; created_at: string;
+  nome_contato: string | null; telefone_contato: string | null;
 }
 
 export async function fetchAchadosPerdidos(): Promise<DbAchadoPerdido[]> {
@@ -752,6 +753,7 @@ export async function fetchAchadosPerdidos(): Promise<DbAchadoPerdido[]> {
 export async function insertAchadoPerdido(payload: {
   type: 'perdido' | 'achado'; title: string; local: string;
   descricao: string; date: string; user_id: string;
+  nome_contato?: string | null; telefone_contato?: string | null;
 }): Promise<DbAchadoPerdido> {
   const { data, error } = await db
     .from('achados_perdidos')
