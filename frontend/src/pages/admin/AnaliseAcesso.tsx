@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  TrendingUp, Users, Clock, AlertCircle, ArrowUp, ArrowDown,
+  TrendingUp, Users, Clock, AlertCircle, ArrowUp, ArrowDown, FileDown,
 } from 'lucide-react';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
@@ -59,6 +59,78 @@ export const AnaliseAcesso = () => {
   const maxHour = Math.max(...byHour.map(h => h.acessos), 1);
   const maxFlow = Math.max(...dailyFlow.map(d => d.acessos), 1);
 
+  const TIPO_LABEL: Record<string, string> = { visitante: 'Visitante', entrega: 'Entrega', servico: 'Prestador' };
+
+  const exportarPDF = async () => {
+    if (loading || !summary) { toast.error('Aguarde o carregamento dos dados.'); return; }
+    try {
+      toast.loading('Gerando PDF...', { id: 'pdf-acesso' });
+      const { ReportBuilder, REPORT_COLORS } = await import('@/lib/pdf-report');
+      const periodoLabel = periodo === 1 ? 'Hoje' : `Últimos ${periodo} dias`;
+      const rb = new ReportBuilder({
+        title: 'Relatório de Análise de Acesso',
+        subtitle: 'Raio-X da dinâmica de acesso ao condomínio',
+        period: `${periodoLabel} (${dataInicio} a ${dataFim})`,
+      });
+
+      // KPIs
+      rb.kpiRow([
+        { label: 'Total de acessos', value: String(summary.total_acessos_hoje), accent: REPORT_COLORS.cyan },
+        { label: 'Dentro agora', value: String(summary.dentro_agora), accent: REPORT_COLORS.green },
+        { label: 'Tempo médio', value: `${summary.tempo_medio_minutos}m`, accent: REPORT_COLORS.blue },
+        { label: 'Sem saída', value: String(summary.sem_saida), accent: REPORT_COLORS.amber },
+      ]);
+
+      // Comparativo
+      const delta = summary.total_acessos_hoje - summary.acessos_ontem;
+      rb.paragraph(
+        `Comparativo com o dia anterior: ${delta >= 0 ? '+' : ''}${delta} acessos ` +
+        `(${summary.total_acessos_hoje} no período recente vs ${summary.acessos_ontem} ontem).`
+      );
+
+      // Distribuição por tipo
+      rb.sectionTitle('Distribuição por Tipo de Acesso');
+      rb.table(
+        ['Tipo', 'Acessos', 'Participação'],
+        byType.map(t => [TIPO_LABEL[t.tipo] ?? t.tipo, t.total, `${t.porcentagem}%`]),
+      );
+
+      // Fluxo por hora
+      rb.sectionTitle('Fluxo por Hora do Dia');
+      rb.barChart(
+        byHour.map(h => ({ label: `${h.hora}h`, value: h.acessos })),
+        { color: REPORT_COLORS.cyan, labelEvery: 2 },
+      );
+      const horaPico = byHour.reduce((a, b) => b.acessos > a.acessos ? b : a, byHour[0]);
+      rb.paragraph(`Horário de maior fluxo: ${horaPico.hora}h, com ${horaPico.acessos} acessos.`);
+
+      // Evolução diária
+      if (dailyFlow.length > 0) {
+        rb.sectionTitle('Evolução Diária');
+        rb.barChart(
+          dailyFlow.map(d => ({
+            label: new Date(d.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+            value: d.acessos,
+          })),
+          { color: REPORT_COLORS.teal, labelEvery: dailyFlow.length > 14 ? 3 : 1 },
+        );
+        rb.table(
+          ['Data', 'Acessos', 'Permanência média'],
+          dailyFlow.map(d => [
+            new Date(d.data + 'T12:00:00').toLocaleDateString('pt-BR'),
+            d.acessos,
+            `${d.media_permanencia}m`,
+          ]),
+        );
+      }
+
+      rb.save(`analise-acesso-${dataInicio}_a_${dataFim}.pdf`);
+      toast.success('Relatório PDF gerado!', { id: 'pdf-acesso' });
+    } catch {
+      toast.error('Erro ao gerar o PDF.', { id: 'pdf-acesso' });
+    }
+  };
+
   const slides: SlideItem[] = [
     {
       key: 'analise-overview',
@@ -72,6 +144,11 @@ export const AnaliseAcesso = () => {
             { icon: summary && summary.total_acessos_hoje > summary.acessos_ontem ? '📈' : '📉', label: 'Comparativo' },
             { icon: '🔍', label: 'Raio-X do condomínio' },
           ]}
+          actions={
+            <button onClick={exportarPDF} className="btn-primary py-1.5 px-3 text-xs gap-1 flex items-center">
+              <FileDown size={13} /> Exportar PDF
+            </button>
+          }
         >
           <div className="flex flex-col h-full gap-3">
             {/* Período selector */}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { DollarSign, Plus, TrendingDown, Wallet, Search, RefreshCw, TrendingUp, CheckCircle2, Loader2, Calendar, Home, AlertTriangle, Eye, LockKeyhole } from 'lucide-react';
+import { DollarSign, Plus, TrendingDown, Wallet, Search, RefreshCw, TrendingUp, CheckCircle2, Loader2, Calendar, Home, AlertTriangle, Eye, LockKeyhole, FileDown } from 'lucide-react';
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatCard } from '../../components/ui/StatCard';
@@ -317,6 +317,67 @@ const FinanceiroGestor = () => {
     }),
   ];
 
+  const STATUS_LABEL: Record<string, string> = { pago: 'Pago', pendente: 'Pendente', vencido: 'Vencido' };
+
+  const exportarPDF = async () => {
+    try {
+      toast.loading('Gerando PDF...', { id: 'pdf-fin' });
+      const { ReportBuilder, REPORT_COLORS } = await import('../../lib/pdf-report');
+      const monthLabel = selectedMonth
+        ? format(new Date(selectedMonth + '-02T12:00:00'), 'MMMM yyyy', { locale: ptBR })
+        : 'Todos os meses';
+      // Busca completa do período/filtros — relatório fiel, sem paginação
+      const todos = await fetchFinances({ ...filterParams(), limit: 1000, offset: 0 });
+
+      const rb = new ReportBuilder({
+        title: 'Relatório Financeiro',
+        subtitle: 'Prestação de contas aos condôminos',
+        period: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
+      });
+
+      rb.kpiRow([
+        { label: 'Total Geral', value: formatCurrency(summary.totalGeral), accent: REPORT_COLORS.cyan },
+        { label: 'Despesas Pagas', value: formatCurrency(summary.totalDespesas), accent: REPORT_COLORS.red },
+        { label: 'Pendente', value: formatCurrency(summary.totalPendentes), accent: REPORT_COLORS.amber },
+      ]);
+
+      if (chartData.length > 0) {
+        rb.sectionTitle('Evolução: Receitas x Despesas');
+        rb.table(
+          ['Período', 'Receitas', 'Despesas', 'Saldo'],
+          chartData.map(c => [
+            c.mes,
+            formatCurrency(c.receitas),
+            formatCurrency(c.despesas),
+            formatCurrency(c.receitas - c.despesas),
+          ]),
+        );
+      }
+
+      rb.sectionTitle(`Lançamentos${selectedMonth ? '' : ' (mais recentes)'}`);
+      if (todos.length === 0) {
+        rb.paragraph('Nenhum lançamento encontrado para o período/filtros selecionados.');
+      } else {
+        rb.table(
+          ['Data', 'Descrição', 'Categoria', 'Tipo', 'Status', 'Valor'],
+          todos.map(f => [
+            formatDate(f.due_date),
+            f.description,
+            f.category,
+            f.type === 'receita' ? 'Receita' : 'Despesa',
+            STATUS_LABEL[f.status] ?? f.status,
+            formatCurrency(Number(f.amount)),
+          ]),
+        );
+      }
+
+      rb.save(`relatorio-financeiro-${selectedMonth || 'geral'}.pdf`);
+      toast.success('Relatório PDF gerado!', { id: 'pdf-fin' });
+    } catch {
+      toast.error('Erro ao gerar o PDF.', { id: 'pdf-fin' });
+    }
+  };
+
   const slideResumo = (
     <SlidePanel
       eyebrow="Painel Financeiro"
@@ -340,6 +401,9 @@ const FinanceiroGestor = () => {
           </select>
           <button onClick={loadLancamentos} className="btn btn-ghost p-1.5 rounded-xl border border-white/8 bg-white/4">
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <button onClick={exportarPDF} title="Exportar relatório em PDF" className="btn btn-ghost p-1.5 rounded-xl border border-white/8 bg-white/4 flex items-center gap-1 text-[10px] font-bold">
+            <FileDown size={14} /> PDF
           </button>
         </div>
       }
