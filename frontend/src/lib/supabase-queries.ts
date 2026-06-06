@@ -1871,6 +1871,7 @@ export interface DbBenfeitoriaEtapa {
   titulo: string;
   descricao: string | null;
   status: 'pendente' | 'em_andamento' | 'concluida';
+  percentual: number;
   ordem: number;
   concluida_at: string | null;
   created_at: string;

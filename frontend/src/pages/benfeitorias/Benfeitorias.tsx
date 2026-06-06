@@ -71,9 +71,12 @@ export const Benfeitorias = () => {
   const [fInicio, setFInicio] = useState(TODAY);
   const [fPrev, setFPrev] = useState('');
   const [saving, setSaving] = useState(false);
+  // Fases/etapas iniciais no cadastro: { titulo, percentual }
+  const [fases, setFases] = useState<{ titulo: string; percentual: string }[]>([{ titulo: '', percentual: '' }]);
 
   // Nova etapa (gestor, dentro do detalhe)
   const [novaEtapa, setNovaEtapa] = useState('');
+  const [novaEtapaPct, setNovaEtapaPct] = useState('');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -105,6 +108,10 @@ export const Benfeitorias = () => {
     finally { setEtapasLoading(false); }
   };
 
+  // Progresso = soma dos percentuais das etapas concluídas (limitado a 100)
+  const calcProgresso = (lista: DbBenfeitoriaEtapa[]) =>
+    Math.min(100, lista.filter(e => e.status === 'concluida').reduce((s, e) => s + (e.percentual ?? 0), 0));
+
   const abrirDetalhe = (o: DbBenfeitoria) => {
     setSelected(o);
     setNovaEtapa('');
@@ -119,6 +126,8 @@ export const Benfeitorias = () => {
   const porCategoria = (Object.keys(CATEGORIA) as (keyof typeof CATEGORIA)[])
     .map(k => ({ k, label: CATEGORIA[k].label, emoji: CATEGORIA[k].emoji, total: obras.filter(o => o.categoria === k).length }))
     .filter(c => c.total > 0);
+
+  const somaFases = fases.reduce((s, f) => s + (parseInt(f.percentual) || 0), 0);
 
   const { user } = useAuth() as any; // full_name para autoria do PDF
 
@@ -180,8 +189,24 @@ export const Benfeitorias = () => {
         data_conclusao: null,
         created_by: null,
       });
+      // Grava as fases/etapas informadas no cadastro (com percentual)
+      const fasesValidas = fases.filter(f => f.titulo.trim());
+      for (let i = 0; i < fasesValidas.length; i++) {
+        const f = fasesValidas[i];
+        try {
+          await insertBenfeitoriaEtapa({
+            benfeitoria_id: nova.id,
+            titulo: f.titulo.trim(),
+            descricao: null,
+            status: 'pendente',
+            percentual: Math.max(0, Math.min(100, parseInt(f.percentual) || 0)),
+            ordem: i,
+          });
+        } catch { /* segue para as demais */ }
+      }
       setObras(prev => [nova, ...prev]);
       setFTitulo(''); setFDesc(''); setFResp(''); setFOrc(''); setFPrev('');
+      setFases([{ titulo: '', percentual: '' }]);
       toast.success('Benfeitoria cadastrada!');
       gotoSlide(0);
     } catch { toast.error('Erro ao cadastrar.'); }
@@ -207,6 +232,18 @@ export const Benfeitorias = () => {
   };
 
   /* ── Gestor: etapas ── */
+  // Persiste o progresso recalculado a partir das etapas concluídas
+  const sincronizarProgresso = async (lista: DbBenfeitoriaEtapa[]) => {
+    if (!selected) return;
+    const prog = calcProgresso(lista);
+    if (prog === selected.progresso) return;
+    try {
+      await updateBenfeitoria(selected.id, { progresso: prog });
+      setObras(prev => prev.map(o => o.id === selected.id ? { ...o, progresso: prog } : o));
+      setSelected(s => s ? { ...s, progresso: prog } : s);
+    } catch { /* silencioso */ }
+  };
+
   const handleAddEtapa = async () => {
     if (!selected || !novaEtapa.trim()) return;
     try {
@@ -215,10 +252,11 @@ export const Benfeitorias = () => {
         titulo: novaEtapa.trim(),
         descricao: null,
         status: 'pendente',
+        percentual: Math.max(0, Math.min(100, parseInt(novaEtapaPct) || 0)),
         ordem: etapas.length,
       });
       setEtapas(prev => [...prev, nova]);
-      setNovaEtapa('');
+      setNovaEtapa(''); setNovaEtapaPct('');
     } catch { toast.error('Erro ao adicionar etapa.'); }
   };
 
@@ -229,14 +267,18 @@ export const Benfeitorias = () => {
         status: next,
         concluida_at: next === 'concluida' ? new Date().toISOString() : null,
       });
-      setEtapas(prev => prev.map(e => e.id === et.id ? { ...e, status: next, concluida_at: next === 'concluida' ? new Date().toISOString() : null } : e));
+      const novaLista = etapas.map(e => e.id === et.id ? { ...e, status: next as DbBenfeitoriaEtapa['status'], concluida_at: next === 'concluida' ? new Date().toISOString() : null } : e);
+      setEtapas(novaLista);
+      await sincronizarProgresso(novaLista);
     } catch { toast.error('Erro ao atualizar etapa.'); }
   };
 
   const handleDeleteEtapa = async (id: string) => {
     try {
       await deleteBenfeitoriaEtapa(id);
-      setEtapas(prev => prev.filter(e => e.id !== id));
+      const novaLista = etapas.filter(e => e.id !== id);
+      setEtapas(novaLista);
+      await sincronizarProgresso(novaLista);
     } catch { toast.error('Erro ao remover etapa.'); }
   };
 
@@ -434,6 +476,38 @@ export const Benfeitorias = () => {
                 <input type="date" className="input" value={fPrev} onChange={e => setFPrev(e.target.value)} />
               </div>
             </div>
+            {/* Fases / Etapas com percentual */}
+            <div className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(87,216,255,0.04)', border: '1px solid rgba(87,216,255,0.15)' }}>
+              <div className="flex items-center justify-between">
+                <label className="input-label text-[11px] mb-0">Fases da obra (com % de cada)</label>
+                <span style={{ fontSize: '0.62rem', fontWeight: 700, color: somaFases === 100 ? GREEN : somaFases > 100 ? RED : YELLOW }}>
+                  Soma: {somaFases}%
+                </span>
+              </div>
+              {fases.map((f, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <input type="text" className="input text-xs py-1.5 flex-1" placeholder={`Fase ${i + 1} (ex: Fundação)`}
+                    value={f.titulo} onChange={e => setFases(prev => prev.map((x, j) => j === i ? { ...x, titulo: e.target.value } : x))} />
+                  <div className="relative" style={{ width: 70 }}>
+                    <input type="tel" inputMode="numeric" className="input text-xs py-1.5 pr-5" placeholder="0"
+                      value={f.percentual} onChange={e => setFases(prev => prev.map((x, j) => j === i ? { ...x, percentual: e.target.value.replace(/\D/g, '').slice(0, 3) } : x))} />
+                    <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>%</span>
+                  </div>
+                  <button type="button" onClick={() => setFases(prev => prev.length > 1 ? prev.filter((_, j) => j !== i) : prev)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer flex-shrink-0" style={{ background: 'rgba(239,68,68,0.08)' }}>
+                    <X size={12} style={{ color: '#fca5a5' }} />
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setFases(prev => [...prev, { titulo: '', percentual: '' }])}
+                className="w-full py-1.5 rounded-lg text-[11px] font-bold cursor-pointer flex items-center justify-center gap-1" style={{ background: 'rgba(87,216,255,0.1)', color: CYAN, border: '1px dashed rgba(87,216,255,0.3)' }}>
+                <Plus size={12} /> Adicionar fase
+              </button>
+              <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.5 }}>
+                O progresso da obra avança conforme as fases são concluídas (soma dos percentuais). Ideal somar 100%.
+              </p>
+            </div>
+
             <button type="submit" disabled={saving} className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5 mt-1">
               {saving ? <><Loader2 size={13} className="animate-spin" /> Salvando...</> : <><Plus size={13} /> Cadastrar Benfeitoria</>}
             </button>
@@ -547,7 +621,10 @@ export const Benfeitorias = () => {
                           {/* Conteúdo */}
                           <div className="flex-1 min-w-0 pb-3">
                             <div className="flex items-center justify-between gap-2">
-                              <p style={{ fontSize: '0.76rem', fontWeight: 600, color: et.status === 'concluida' ? 'rgba(255,255,255,0.55)' : '#fff', textDecoration: et.status === 'concluida' ? 'line-through' : 'none' }}>{et.titulo}</p>
+                              <p style={{ fontSize: '0.76rem', fontWeight: 600, color: et.status === 'concluida' ? 'rgba(255,255,255,0.55)' : '#fff', textDecoration: et.status === 'concluida' ? 'line-through' : 'none' }}>
+                                {et.titulo}
+                                {et.percentual > 0 && <span style={{ marginLeft: 6, fontSize: '0.6rem', fontWeight: 800, color: CYAN, background: 'rgba(87,216,255,0.1)', padding: '1px 5px', borderRadius: 5 }}>{et.percentual}%</span>}
+                              </p>
                               {isGestor && (
                                 <button onClick={() => handleDeleteEtapa(et.id)} className="flex-shrink-0 w-6 h-6 rounded-lg flex items-center justify-center cursor-pointer" style={{ background: 'rgba(239,68,68,0.08)' }}>
                                   <Trash2 size={10} style={{ color: '#fca5a5' }} />
@@ -570,6 +647,11 @@ export const Benfeitorias = () => {
                     <input type="text" className="input text-xs py-1.5 flex-1" placeholder="Nova etapa..." value={novaEtapa}
                       onChange={e => setNovaEtapa(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddEtapa(); } }} />
+                    <div className="relative" style={{ width: 64 }}>
+                      <input type="tel" inputMode="numeric" className="input text-xs py-1.5 pr-5" placeholder="0" value={novaEtapaPct}
+                        onChange={e => setNovaEtapaPct(e.target.value.replace(/\D/g, '').slice(0, 3))} />
+                      <span style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)' }}>%</span>
+                    </div>
                     <button onClick={handleAddEtapa} className="px-3 rounded-xl flex items-center cursor-pointer" style={{ background: 'rgba(87,216,255,0.12)', border: '1px solid rgba(87,216,255,0.25)' }}>
                       <Plus size={14} style={{ color: CYAN }} />
                     </button>
