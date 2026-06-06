@@ -112,6 +112,8 @@ export const Moradores = () => {
     if (!form.email.trim() || !form.email.includes('@'))
                                         errs.email     = 'E-mail inválido';
     if (form.password.length < 8)       errs.password  = 'Mínimo 8 caracteres';
+    if (form.role !== 'admin' && !form.unit_number)
+                                        errs.unit_number = 'Chácara obrigatória para condôminos e síndicos';
     setFieldErr(errs);
     return Object.keys(errs).length === 0;
   };
@@ -514,9 +516,11 @@ export const Moradores = () => {
                           value={form.phone ?? ''} onChange={e => field('phone', maskPhone(e.target.value))} />
                       </div>
                       <div>
-                        <label className="input-label">Nº da Chácara</label>
+                        <label className="input-label">Nº da Chácara {form.role !== 'admin' ? '*' : ''}</label>
                         <input className="input w-full" type="number" min={1} max={360} placeholder="Ex: 42"
-                          value={form.unit_number ?? ''} onChange={e => field('unit_number', e.target.value ? Number(e.target.value) : null)} />
+                          value={form.unit_number ?? ''} onChange={e => field('unit_number', e.target.value ? Number(e.target.value) : null)}
+                          style={fieldErr.unit_number ? { borderColor: '#ef4444' } : {}} />
+                        {fieldErr.unit_number && <p style={{ fontSize: '0.68rem', color: '#ef4444', marginTop: 4 }}>{fieldErr.unit_number}</p>}
                       </div>
                     </div>
 

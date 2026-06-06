@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { maskPhone } from '../../utils/format';
 import { X, Calendar, Clock, Phone, AlertCircle, CheckCircle2 } from 'lucide-react';
 import type { SchedulingSlot } from './SchedulingCarousel';
 
@@ -41,7 +42,7 @@ export const SchedulingModal = ({ isOpen, onClose, slot, onConfirm }: Scheduling
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'guests' ? parseInt(value) : value,
+      [name]: name === 'guests' ? parseInt(value) : name === 'phone' ? maskPhone(value) : value,
     }));
   };
 

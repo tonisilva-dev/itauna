@@ -254,6 +254,11 @@ export const Portaria = () => {
         if (histDate === TODAY) setHistVisitas(prev => [entrada, ...prev]);
         if (sol.convite_id) { try { await updateConvite(sol.convite_id, { status: 'usado', portaria_id: sol.portaria_id }); } catch {} }
         toast.success(`Entrada de ${sol.visitante_nome} liberada.`);
+        sendPushNotification({
+          title: '👤 Visitante na portaria',
+          body: `${sol.visitante_nome} chegou${sol.chacara_numero && sol.chacara_numero !== '—' ? ` → Chácara ${sol.chacara_numero}` : ''}`,
+          url: '/dashboard',
+        });
       } else {
         toast(`Acesso de ${sol.visitante_nome} negado.`, { icon: '🚫' });
       }
@@ -309,6 +314,12 @@ export const Portaria = () => {
       if (histDate === TODAY) setHistVisitas(prev => [entry, ...prev]);
       setNome(''); setVeiculo(''); setChacara('');
       toast.success('Entrada registrada!');
+      const tipoLabel = tipo === 'visitante' ? '👤 Visitante' : tipo === 'servico' ? '🔧 Prestador' : '📦 Entrega';
+      sendPushNotification({
+        title: `${tipoLabel} na portaria`,
+        body: `${entry.nome}${destinoStr ? ` → ${destinoStr}` : ''}`,
+        url: '/dashboard',
+      });
     } catch { toast.error('Erro ao registrar entrada.'); }
     finally { setSubmitting(false); }
   };

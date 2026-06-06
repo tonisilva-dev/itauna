@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { maskPhone } from '../../utils/format';
 import { X, Users, Check, AlertCircle } from 'lucide-react';
 import type { Event } from './EventsCarousel';
 
@@ -44,7 +45,7 @@ export const EventParticipationModal = ({
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'numberOfGuests' ? parseInt(value) : value,
+      [name]: name === 'numberOfGuests' ? parseInt(value) : name === 'phone' ? maskPhone(value) : value,
     }));
   };
 

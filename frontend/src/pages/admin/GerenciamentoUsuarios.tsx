@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { PageCarousel3D } from '../../components/ui/PageCarousel3D';
 import type { SlideItem } from '../../components/ui/PageCarousel3D';
-import { gotoSlide } from '../../utils/format';
+import { gotoSlide, maskPhone, maskCPF } from '../../utils/format';
 
 interface Usuario {
   id: string;
@@ -328,7 +328,7 @@ export const GerenciamentoUsuarios = () => {
                 type="tel"
                 placeholder="(11) 99999-9999"
                 value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
+                onChange={(e) => setTelefone(maskPhone(e.target.value))}
                 className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
               />
             </div>
@@ -340,7 +340,7 @@ export const GerenciamentoUsuarios = () => {
                 type="text"
                 placeholder="123.456.789-10"
                 value={cpf}
-                onChange={(e) => setCpf(e.target.value)}
+                onChange={(e) => setCpf(maskCPF(e.target.value))}
                 className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
               />
             </div>

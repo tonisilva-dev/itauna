@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { maskPhone } from '../utils/format';
 import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, Mail, Phone as PhoneIcon } from 'lucide-react';
 import {
   fetchTelefonesUteis, fetchTelefonesAdmin,
@@ -120,13 +121,13 @@ const TelefoneForm = ({
         </div>
         <div>
           <span style={labelStyle}>Telefone principal *</span>
-          <input style={inputStyle} value={form.telefone} required
-            onChange={e => f('telefone', e.target.value)} placeholder="Ex: (43) 3252-1500" />
+          <input style={inputStyle} value={form.telefone} required type="tel" inputMode="numeric"
+            onChange={e => f('telefone', maskPhone(e.target.value))} placeholder="Ex: (43) 3252-1500" />
         </div>
         <div>
           <span style={labelStyle}>Telefone alternativo</span>
-          <input style={inputStyle} value={form.telefone2 ?? ''}
-            onChange={e => f('telefone2', e.target.value)} placeholder="Opcional" />
+          <input style={inputStyle} value={form.telefone2 ?? ''} type="tel" inputMode="numeric"
+            onChange={e => f('telefone2', maskPhone(e.target.value))} placeholder="Opcional" />
         </div>
         <div>
           <span style={labelStyle}>Ordem</span>
@@ -208,8 +209,8 @@ const SecretariaForm = ({
         </div>
         <div>
           <span style={labelStyle}>Telefone</span>
-          <input style={inputStyle} value={form.telefone ?? ''}
-            onChange={e => f('telefone', e.target.value)}
+          <input style={inputStyle} value={form.telefone ?? ''} type="tel" inputMode="numeric"
+            onChange={e => f('telefone', maskPhone(e.target.value))}
             placeholder="(43) 3252-1500" />
         </div>
       </div>

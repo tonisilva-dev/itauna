@@ -19,7 +19,7 @@ import {
   fetchMinhasEncomendas, fetchUnitByNumber,
   type DbConvite, type DbRecorrente, type DbEncomenda, type DbPortariaRegistro,
 } from '@/lib/supabase-queries';
-import { gotoSlide, formatUnidade } from '../../utils/format';
+import { gotoSlide, formatUnidade, maskPhone } from '../../utils/format';
 
 const GREEN  = '#10b981';
 const CYAN   = '#57d8ff';
@@ -424,7 +424,7 @@ export const AcessoVisitas = () => {
             </div>
             <div>
               <label className="input-label text-[11px]">Telefone</label>
-              <input type="tel" className="input" placeholder="(43) 9..." value={cvTel} onChange={e => setCvTel(e.target.value)} />
+              <input type="tel" className="input" placeholder="(43) 9..." value={cvTel} onChange={e => setCvTel(maskPhone(e.target.value))} />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -523,7 +523,7 @@ export const AcessoVisitas = () => {
             </div>
             <div>
               <label className="input-label text-[11px]">Telefone</label>
-              <input type="tel" className="input" placeholder="(43) 9..." value={rcTel} onChange={e => setRcTel(e.target.value)} />
+              <input type="tel" className="input" placeholder="(43) 9..." value={rcTel} onChange={e => setRcTel(maskPhone(e.target.value))} />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

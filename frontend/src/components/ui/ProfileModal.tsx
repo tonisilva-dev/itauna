@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { maskPhone } from '../../utils/format';
 import { X, User, Mail, Phone, Home, Save, AlertCircle } from 'lucide-react';
 
 interface ProfileModalProps {
@@ -37,7 +38,7 @@ export const ProfileModal = ({ isOpen, onClose, onSave }: ProfileModalProps) => 
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'phone' ? maskPhone(value) : value,
     }));
   };
 
