@@ -28,6 +28,7 @@ const Perfil          = lazy(() => import('./pages/perfil/Perfil').then(m => ({ 
 const Classificados   = lazy(() => import('./pages/classificados/Classificados').then(m => ({ default: m.Classificados })));
 const AchadosPerdidos = lazy(() => import('./pages/achados-perdidos/AchadosPerdidos').then(m => ({ default: m.AchadosPerdidos })));
 const Portaria        = lazy(() => import('./pages/portaria/Portaria').then(m => ({ default: m.Portaria })));
+const AcessoVisitas   = lazy(() => import('./pages/acesso-visitas/AcessoVisitas').then(m => ({ default: m.AcessoVisitas })));
 const QuemSomos       = lazy(() => import('./pages/QuemSomos').then(m => ({ default: m.QuemSomos })));
 const TelefonesUteis         = lazy(() => import('./pages/TelefonesUteis').then(m => ({ default: m.TelefonesUteis })));
 const ResponsabilidadeSocial = lazy(() => import('./pages/ResponsabilidadeSocial').then(m => ({ default: m.ResponsabilidadeSocial })));
@@ -117,7 +118,8 @@ export default function App() {
 
             {/* ── Morador ── */}
             <Route path="/agendamentos"     element={<Agendamentos />} />
-            <Route path="/portaria"         element={<Portaria />} />
+            <Route path="/portaria"         element={<GestorRoute><Portaria /></GestorRoute>} />
+            <Route path="/acesso-visitas"   element={<AcessoVisitas />} />
             <Route path="/ocorrencias"      element={<Ocorrencias />} />
             <Route path="/comunicados"      element={<Comunicados />} />
             <Route path="/documentos"       element={<Documentos />} />

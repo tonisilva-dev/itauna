@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   DollarSign, Shield, Bell, Calendar, AlertCircle, Image,
@@ -7,6 +7,7 @@ import {
   Eye, User, Package,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { countEncomendasPendentes } from '@/lib/supabase-queries';
 import './AppMenu.css';
 
@@ -32,12 +33,13 @@ const APPS: AppIcon[] = [
   { path: '/comunicados',       label: 'Comunicados',      Icon: Bell,         gradient: 'linear-gradient(145deg,#92400e,#f59e0b)', nivel: 'morador' },
   { path: '/agendamentos',      label: 'Reservas',         Icon: Calendar,     gradient: 'linear-gradient(145deg,#1e3a8a,#3b82f6)', nivel: 'morador' },
   { path: '/ocorrencias',       label: 'Ocorrências',      Icon: AlertCircle,  gradient: 'linear-gradient(145deg,#991b1b,#ef4444)', nivel: 'morador' },
-  { path: '/portaria',          label: 'Acesso & Visitas', Icon: Shield,       gradient: 'linear-gradient(145deg,#164e63,#06b6d4)', nivel: 'morador' },
-  { path: '/portaria?enc=1',    label: 'Encomendas',       Icon: Package,      gradient: 'linear-gradient(145deg,#78350f,#f59e0b)', nivel: 'morador' },
+  { path: '/acesso-visitas',      label: 'Acesso & Visitas', Icon: Shield,       gradient: 'linear-gradient(145deg,#164e63,#06b6d4)', nivel: 'morador' },
+  { path: '/acesso-visitas?enc=1', label: 'Encomendas',    Icon: Package,      gradient: 'linear-gradient(145deg,#78350f,#f59e0b)', nivel: 'morador' },
   { path: '/documentos',        label: 'Documentos',       Icon: FileText,     gradient: 'linear-gradient(145deg,#312e81,#6366f1)', nivel: 'morador' },
   { path: '/achados-perdidos',  label: 'Achados',          Icon: Search,       gradient: 'linear-gradient(145deg,#14532d,#22c55e)', nivel: 'morador' },
   { path: '/parceiros',         label: 'Parceiros',        Icon: Building2,    gradient: 'linear-gradient(145deg,#0c4a6e,#0ea5e9)', nivel: 'morador' },
 
+  { path: '/portaria',           label: 'Portaria',  Icon: Shield,        gradient: 'linear-gradient(145deg,#0c4a6e,#06b6d4)', nivel: 'gestor' },
   { path: '/unidades',           label: 'Chácaras',  Icon: Home,          gradient: 'linear-gradient(145deg,#374151,#9ca3af)', nivel: 'gestor' },
   { path: '/moradores',          label: 'Moradores', Icon: Users,         gradient: 'linear-gradient(145deg,#5b21b6,#c084fc)', nivel: 'gestor' },
   { path: '/usuarios',           label: 'Usuários',  Icon: ShieldCheck,   gradient: 'linear-gradient(145deg,#155e75,#22d3ee)', nivel: 'gestor' },
@@ -67,11 +69,35 @@ export const AppMenu = () => {
   const [burst, setBurst] = useState<Burst | null>(null);
   const [pressed, setPressed] = useState<string | null>(null);
   const [encPendentes, setEncPendentes] = useState(0);
+  const encChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
     if (isGestor || !user?.unit_number) return;
     const chacara = String(user.unit_number).padStart(3, '0');
+
+    // Carga inicial
     countEncomendasPendentes(chacara).then(setEncPendentes).catch(() => {});
+
+    // Realtime: badge sobe quando chega encomenda, desce quando porteiro confirma retirada
+    encChannelRef.current = supabase
+      .channel(`menu-enc-${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'portaria_encomendas',
+        filter: `chacara_numero=eq.${chacara}`,
+      }, () => setEncPendentes(prev => prev + 1))
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'portaria_encomendas',
+        filter: `chacara_numero=eq.${chacara}`,
+      }, payload => {
+        const upd = payload.new as { status: string };
+        const old = payload.old as { status: string };
+        if (upd.status === 'retirada' && old.status !== 'retirada') {
+          setEncPendentes(prev => Math.max(0, prev - 1));
+        }
+      })
+      .subscribe();
+
+    return () => { encChannelRef.current?.unsubscribe(); };
   }, [isGestor, user]);
 
   const handleClick = useCallback((app: AppIcon, e: React.MouseEvent) => {
@@ -90,7 +116,7 @@ export const AppMenu = () => {
   }, [navigate]);
 
   const appsComBadge = APPS.map(a =>
-    a.path === '/portaria?enc=1' && encPendentes > 0 ? { ...a, badge: encPendentes } : a
+    a.path === '/acesso-visitas?enc=1' && encPendentes > 0 ? { ...a, badge: encPendentes } : a
   );
   const visitante = appsComBadge.filter(a => a.nivel === 'visitante');
   const morador   = appsComBadge.filter(a => a.nivel === 'morador');
