@@ -162,6 +162,7 @@ export const Benfeitorias = () => {
           fmtMoney(o.orcamento),
           fmtDate(o.data_prevista),
         ]),
+        [3, 4],
       );
       rb.save(`benfeitorias-${TODAY}.pdf`);
       toast.success('Relatório PDF gerado!', { id: 'pdf-benf' });

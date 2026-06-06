@@ -354,6 +354,7 @@ const FinanceiroGestor = () => {
             formatCurrency(c.despesas),
             formatCurrency(c.receitas - c.despesas),
           ]),
+          [1, 2, 3],
         );
       }
 
@@ -371,6 +372,7 @@ const FinanceiroGestor = () => {
             STATUS_LABEL[f.status] ?? f.status,
             formatCurrency(Number(f.amount)),
           ]),
+          [5],
         );
       }
 

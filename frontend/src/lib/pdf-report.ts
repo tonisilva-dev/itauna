@@ -188,11 +188,11 @@ export class ReportBuilder {
       // Barra de acento no topo
       d.setFillColor(...accent);
       d.roundedRect(x, this.y, w, 1.6, 0.8, 0.8, 'F');
-      // Valor
+      // Valor (alinhado à direita)
       d.setTextColor(...C.text);
       d.setFont('helvetica', 'bold');
       d.setFontSize(16);
-      d.text(c.value, x + 4, this.y + 11);
+      d.text(c.value, x + w - 4, this.y + 11, { align: 'right' });
       // Label
       d.setTextColor(...C.muted);
       d.setFont('helvetica', 'normal');
@@ -204,8 +204,13 @@ export class ReportBuilder {
   }
 
   /* ── Tabela ── */
-  table(head: string[], body: (string | number)[][]) {
+  /* numericCols: índices das colunas com valores numéricos (alinhadas à direita) */
+  table(head: string[], body: (string | number)[][], numericCols?: number[]) {
     this.ensureSpace(20);
+    const columnStyles: Record<number, object> = {};
+    (numericCols ?? []).forEach(i => {
+      columnStyles[i] = { halign: 'right' };
+    });
     autoTable(this.doc, {
       startY: this.y,
       head: [head],
@@ -217,6 +222,7 @@ export class ReportBuilder {
       theme: 'grid',
       tableLineColor: C.line,
       tableLineWidth: 0.1,
+      columnStyles,
     });
     this.y = (this.doc as any).lastAutoTable.finalY + 8;
   }
@@ -377,6 +383,7 @@ export async function generateExecutiveReport(opts?: { periodoDias?: number; gen
         c.mes, formatCurrency(c.receitas), formatCurrency(c.despesas),
         formatCurrency(c.receitas - c.despesas),
       ]),
+      [1, 2, 3],
     );
   }
 
@@ -391,6 +398,7 @@ export async function generateExecutiveReport(opts?: { periodoDias?: number; gen
   rb.table(
     ['Tipo', 'Acessos', 'Participação'],
     accType.map(t => [TIPO_LABEL[t.tipo] ?? t.tipo, t.total, `${t.porcentagem}%`]),
+    [1, 2],
   );
 
   rb.sectionTitle('Fluxo por Hora do Dia');

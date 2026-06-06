@@ -103,6 +103,7 @@ export const AnaliseAcesso = () => {
       rb.table(
         ['Tipo', 'Acessos', 'Participação'],
         byType.map(t => [TIPO_LABEL[t.tipo] ?? t.tipo, t.total, `${t.porcentagem}%`]),
+        [1, 2],
       );
 
       // Fluxo por hora
@@ -131,6 +132,7 @@ export const AnaliseAcesso = () => {
             d.acessos,
             `${d.media_permanencia}m`,
           ]),
+          [1, 2],
         );
       }
 
@@ -298,7 +300,7 @@ export const AnaliseAcesso = () => {
                           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fff' }}>
                             {icon} {t.tipo.charAt(0).toUpperCase() + t.tipo.slice(1)}
                           </span>
-                          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>{t.total} ({t.porcentagem}%)</span>
+                          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{t.total} ({t.porcentagem}%)</span>
                         </div>
                         <div
                           style={{
@@ -428,7 +430,7 @@ export const AnaliseAcesso = () => {
                         <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fff' }}>
                           {b.bloco === 'Sem quadra' ? '🏠 Sem quadra' : `🏘️ Bloco ${b.bloco}`}
                         </span>
-                        <span style={{ fontSize: '0.7rem', color: CYAN, fontWeight: 600 }}>{b.acessos} <span style={{ color: 'rgba(255,255,255,0.35)' }}>({share}%)</span></span>
+                        <span style={{ fontSize: '0.7rem', color: CYAN, fontWeight: 600, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{b.acessos} <span style={{ color: 'rgba(255,255,255,0.35)' }}>({share}%)</span></span>
                       </div>
                       <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${PURPLE}, ${CYAN})`, transition: 'width 0.3s' }} />
