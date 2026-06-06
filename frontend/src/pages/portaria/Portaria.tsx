@@ -25,7 +25,7 @@ import {
   type DbPortariaRegistro, type DbPortariaAutorizado, type DbSolicitacao,
   type DbConvite, type DbEncomenda,
 } from '@/lib/supabase-queries';
-import { gotoSlide } from '../../utils/format';
+import { gotoSlide, formatUnidade } from '../../utils/format';
 
 /* ── Apito (Web Audio API) ── */
 function tocarApito() {
@@ -620,7 +620,7 @@ export const Portaria = () => {
                           {isToday && !usado && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md animate-pulse" style={{ background: 'rgba(245,158,11,0.15)', color: YELLOW, border: '1px solid rgba(245,158,11,0.3)' }}>HOJE</span>}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.45)' }}>🏡 Chácara {v.chacara_numero}</span>
+                          <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.45)' }}>🏡 Unidade {formatUnidade(v.chacara_bloco, Number(v.chacara_numero))}</span>
                           <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>·</span>
                           <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.45)' }}>
                             📅 {new Date(v.data_visita + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}

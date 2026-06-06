@@ -16,10 +16,10 @@ import QRCode from 'qrcode';
 import {
   fetchMeusConvites, insertConvite, cancelarConvite,
   fetchMeusRecorrentes, insertRecorrente, deleteRecorrente,
-  fetchMinhasEncomendas,
+  fetchMinhasEncomendas, fetchUnitByNumber,
   type DbConvite, type DbRecorrente, type DbEncomenda, type DbPortariaRegistro,
 } from '@/lib/supabase-queries';
-import { gotoSlide } from '../../utils/format';
+import { gotoSlide, formatUnidade } from '../../utils/format';
 
 const GREEN  = '#10b981';
 const CYAN   = '#57d8ff';
@@ -64,6 +64,9 @@ export const AcessoVisitas = () => {
   const [convites, setConvites]       = useState<DbConvite[]>([]);
   const [recorrentes, setRecorrentes] = useState<DbRecorrente[]>([]);
   const [encomendas, setEncomendas]   = useState<DbEncomenda[]>([]);
+  const [meuBloco, setMeuBloco]       = useState<string | null>(null);
+  // Identificação da unidade do morador (ex: "B04" ou "042")
+  const minhaUnidade = user?.unit_number != null ? formatUnidade(meuBloco, user.unit_number) : null;
 
   // Form agendar visita
   const [cvNome, setCvNome]       = useState('');
@@ -105,6 +108,12 @@ export const AcessoVisitas = () => {
     }).catch(() => toast.error('Erro ao carregar dados.'))
       .finally(() => setLoading(false));
   }, [user, chacaraNum]);
+
+  // Carrega a quadra/bloco da unidade do morador (para identificação no QR)
+  useEffect(() => {
+    if (!user?.unit_number) return;
+    fetchUnitByNumber(user.unit_number).then(u => setMeuBloco(u?.block ?? null)).catch(() => {});
+  }, [user]);
 
   /* ── Realtime: notificações do morador ── */
   useEffect(() => {
@@ -181,7 +190,7 @@ export const AcessoVisitas = () => {
     setCvSaving(true);
     try {
       const novo = await insertConvite({
-        morador_id: user.id, chacara_numero: chacaraNum,
+        morador_id: user.id, chacara_numero: chacaraNum, chacara_bloco: meuBloco,
         visitante_nome: cvNome.trim(), visitante_cpf: cvCpf.replace(/\D/g, '') || null,
         visitante_tel: cvTel.trim() || null, tipo: cvTipo,
         data_visita: cvData, num_pessoas: cvPessoas,
@@ -696,7 +705,7 @@ export const AcessoVisitas = () => {
                 <p style={{ fontSize: '0.68rem', fontWeight: 700, color: CYAN, letterSpacing: '0.06em' }}>QR CODE DO CONVITE</p>
                 <p style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff', marginTop: 2 }}>{qrConviteModal.visitante_nome}</p>
                 <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
-                  {VISITA_TIPO[qrConviteModal.tipo].emoji} Chácara {qrConviteModal.chacara_numero} · {new Date(qrConviteModal.data_visita + 'T12:00:00').toLocaleDateString('pt-BR')}
+                  {VISITA_TIPO[qrConviteModal.tipo].emoji} Unidade {formatUnidade(qrConviteModal.chacara_bloco, Number(qrConviteModal.chacara_numero))} · {new Date(qrConviteModal.data_visita + 'T12:00:00').toLocaleDateString('pt-BR')}
                 </p>
               </div>
               <button onClick={() => { setQrConviteModal(null); setQrConviteUrl(null); }} className="w-8 h-8 rounded-xl flex items-center justify-center cursor-pointer" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>

@@ -1310,6 +1310,7 @@ export interface DbConvite {
   id: string;
   morador_id: string;
   chacara_numero: string;
+  chacara_bloco?: string | null;
   visitante_nome: string;
   visitante_cpf: string | null;
   visitante_tel: string | null;

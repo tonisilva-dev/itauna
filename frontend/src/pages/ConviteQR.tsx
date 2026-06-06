@@ -16,6 +16,7 @@ import {
   fetchConviteById, insertSolicitacao, fetchSolicitacaoById, isPortariaBusy,
   type DbConvite,
 } from '../lib/supabase-queries';
+import { formatUnidade } from '../utils/format';
 
 const CYAN  = '#57d8ff';
 const GREEN = '#10b981';
@@ -235,7 +236,7 @@ export const ConviteQR = () => {
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <Home size={12} style={{ color: CYAN }} />
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>Chácara <strong style={{ color: '#fff' }}>{convite.chacara_numero}</strong></span>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>Unidade <strong style={{ color: '#fff' }}>{formatUnidade(convite.chacara_bloco, Number(convite.chacara_numero))}</strong></span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <CalendarDays size={12} style={{ color: CYAN }} />
@@ -369,7 +370,7 @@ export const ConviteQR = () => {
               }}>
                 <p style={{ fontSize: 14, color: '#fff', fontWeight: 700 }}>{convite.visitante_nome}</p>
                 <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
-                  Chácara {convite.chacara_numero} · {convite.num_pessoas} pessoa{convite.num_pessoas > 1 ? 's' : ''}
+                  Unidade {formatUnidade(convite.chacara_bloco, Number(convite.chacara_numero))} · {convite.num_pessoas} pessoa{convite.num_pessoas > 1 ? 's' : ''}
                 </p>
               </div>
             )}
