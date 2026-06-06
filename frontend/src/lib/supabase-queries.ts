@@ -1684,19 +1684,6 @@ export interface AccessByDayOfWeek {
   acessos: number;
 }
 
-export interface TopDestino {
-  destino: string;
-  acessos: number;
-  tempo_medio_minutos: number;
-}
-
-export interface TopVisitante {
-  nome: string;
-  tipo: 'visitante' | 'entrega' | 'servico';
-  acessos: number;
-  ultima_visita: string;
-}
-
 export interface DailyFlowPoint {
   data: string;
   acessos: number;
@@ -1778,73 +1765,6 @@ export async function fetchAccessByHour(dataInicio: string, dataFim: string): Pr
   });
 
   return byHour.map((count, hora) => ({ hora, acessos: count as number }));
-}
-
-export async function fetchTopDestinos(dataInicio: string, dataFim: string, limite: number = 10): Promise<TopDestino[]> {
-  const { data, error } = await db
-    .from('portaria_registros')
-    .select('destino, entrada_at, saida_at')
-    .gte('entrada_at', `${dataInicio}T00:00:00`)
-    .lt('entrada_at', `${dataFim}T23:59:59`)
-    .limit(10000);
-
-  if (error) throw error;
-
-  const records = (data ?? []) as Array<{ destino: string; entrada_at: string; saida_at: string | null }>;
-  const byDestino: Record<string, { count: number; tempos: number[] }> = {};
-
-  records.forEach(r => {
-    if (!byDestino[r.destino]) byDestino[r.destino] = { count: 0, tempos: [] };
-    byDestino[r.destino].count++;
-
-    if (r.saida_at) {
-      const minutos = (new Date(r.saida_at).getTime() - new Date(r.entrada_at).getTime()) / 60000;
-      byDestino[r.destino].tempos.push(minutos);
-    }
-  });
-
-  return Object.entries(byDestino)
-    .map(([destino, { count, tempos }]) => ({
-      destino,
-      acessos: count,
-      tempo_medio_minutos: tempos.length > 0 ? Math.round(tempos.reduce((a, b) => a + b) / tempos.length) : 0,
-    }))
-    .sort((a, b) => b.acessos - a.acessos)
-    .slice(0, limite);
-}
-
-export async function fetchTopVisitantes(dataInicio: string, dataFim: string, limite: number = 10): Promise<TopVisitante[]> {
-  const { data, error } = await db
-    .from('portaria_registros')
-    .select('nome, tipo, entrada_at')
-    .gte('entrada_at', `${dataInicio}T00:00:00`)
-    .lt('entrada_at', `${dataFim}T23:59:59`)
-    .limit(10000);
-
-  if (error) throw error;
-
-  const records = (data ?? []) as Array<{ nome: string; tipo: string; entrada_at: string }>;
-  const byVisitante: Record<string, { tipo: string; acessos: number; ultima: string }> = {};
-
-  records.forEach(r => {
-    const key = `${r.nome}|${r.tipo}`;
-    if (!byVisitante[key]) byVisitante[key] = { tipo: r.tipo, acessos: 0, ultima: r.entrada_at };
-    byVisitante[key].acessos++;
-    byVisitante[key].ultima = new Date(r.entrada_at) > new Date(byVisitante[key].ultima) ? r.entrada_at : byVisitante[key].ultima;
-  });
-
-  return Object.entries(byVisitante)
-    .map(([key, v]) => {
-      const [nome] = key.split('|');
-      return {
-        nome,
-        tipo: v.tipo as any,
-        acessos: v.acessos,
-        ultima_visita: v.ultima,
-      };
-    })
-    .sort((a, b) => b.acessos - a.acessos)
-    .slice(0, limite);
 }
 
 export async function fetchDailyFlowSeries(dataInicio: string, dataFim: string): Promise<DailyFlowPoint[]> {

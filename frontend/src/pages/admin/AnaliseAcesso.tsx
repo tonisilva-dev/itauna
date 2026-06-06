@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  TrendingUp, Users, Clock, Activity, MapPin, AlertCircle,
-  Download, Filter, ArrowUp, ArrowDown,
+  TrendingUp, Users, Clock, AlertCircle, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
@@ -9,9 +8,9 @@ import { StatCard } from '../../components/ui/StatCard';
 import toast from 'react-hot-toast';
 import {
   fetchAnalyticsSummary, fetchAccessByType, fetchAccessByHour,
-  fetchTopDestinos, fetchTopVisitantes, fetchDailyFlowSeries,
+  fetchDailyFlowSeries,
   type AnalyticsSummary, type AccessByType, type AccessByHour,
-  type TopDestino, type TopVisitante, type DailyFlowPoint,
+  type DailyFlowPoint,
 } from '@/lib/supabase-queries';
 
 const GREEN = '#10b981';
@@ -36,8 +35,6 @@ export const AnaliseAcesso = () => {
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [byType, setByType] = useState<AccessByType[]>([]);
   const [byHour, setByHour] = useState<AccessByHour[]>([]);
-  const [topDestinos, setTopDestinos] = useState<TopDestino[]>([]);
-  const [topVisitantes, setTopVisitantes] = useState<TopVisitante[]>([]);
   const [dailyFlow, setDailyFlow] = useState<DailyFlowPoint[]>([]);
 
   const [dataInicio, dataFim] = getPeriod(periodo);
@@ -48,15 +45,11 @@ export const AnaliseAcesso = () => {
       fetchAnalyticsSummary(dataInicio, dataFim),
       fetchAccessByType(dataInicio, dataFim),
       fetchAccessByHour(dataInicio, dataFim),
-      fetchTopDestinos(dataInicio, dataFim),
-      fetchTopVisitantes(dataInicio, dataFim),
       fetchDailyFlowSeries(dataInicio, dataFim),
-    ]).then(([s, t, h, d, v, f]) => {
+    ]).then(([s, t, h, f]) => {
       setSummary(s);
       setByType(t);
       setByHour(h);
-      setTopDestinos(d);
-      setTopVisitantes(v);
       setDailyFlow(f);
     }).catch(() => toast.error('Erro ao carregar análises.'))
       .finally(() => setLoading(false));
@@ -293,100 +286,6 @@ export const AnaliseAcesso = () => {
                 <div className="rounded-xl p-2.5 text-[0.65rem] text-center text-white/25">
                   Hora com maior fluxo: {byHour.reduce((a, b) => b.acessos > a.acessos ? b : a, byHour[0]).hora}h
                 </div>
-              </>
-            )}
-          </div>
-        </SlidePanel>
-      ),
-    },
-
-    {
-      key: 'analise-destinos',
-      label: 'Por Destino',
-      content: (
-        <SlidePanel
-          eyebrow="Localização"
-          title={<>Chácaras Mais <span className="grad-text">Visitadas</span></>}
-          badges={[
-            { icon: '🏡', label: `${topDestinos.length} destinos` },
-            { icon: '👥', label: `${topDestinos.reduce((a, b) => a + b.acessos, 0)} acessos` },
-          ]}
-        >
-          <div className="flex flex-col h-full gap-2">
-            {loading ? (
-              <div className="flex items-center justify-center flex-1 text-white/30">Carregando...</div>
-            ) : (
-              <>
-                <div className="space-y-1.5 overflow-y-auto flex-1 pr-1">
-                  {topDestinos.slice(0, 12).map((d, i) => (
-                    <div key={i} className="rounded-lg p-2" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fff' }} className="truncate">
-                          {d.destino}
-                        </span>
-                        <span style={{ fontSize: '0.7rem', color: CYAN, fontWeight: 600 }}>{d.acessos}</span>
-                      </div>
-                      <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)' }}>
-                        Tempo médio: {d.tempo_medio_minutos}m
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                {topDestinos.length === 0 && (
-                  <div className="flex items-center justify-center flex-1 text-white/30 text-xs">
-                    Sem dados no período
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </SlidePanel>
-      ),
-    },
-
-    {
-      key: 'analise-visitantes',
-      label: 'Top Visitantes',
-      content: (
-        <SlidePanel
-          eyebrow="Frequência"
-          title={<>Visitantes Mais <span className="grad-text">Assíduos</span></>}
-          badges={[
-            { icon: '🔁', label: 'Reincidências' },
-            { icon: '👥', label: `Top ${topVisitantes.length}` },
-          ]}
-        >
-          <div className="flex flex-col h-full gap-2">
-            {loading ? (
-              <div className="flex items-center justify-center flex-1 text-white/30">Carregando...</div>
-            ) : (
-              <>
-                <div className="space-y-1.5 overflow-y-auto flex-1 pr-1">
-                  {topVisitantes.slice(0, 10).map((v, i) => {
-                    const icon = v.tipo === 'visitante' ? '👤' : v.tipo === 'entrega' ? '📦' : '🔧';
-                    return (
-                      <div key={i} className="rounded-lg p-2" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span>{icon}</span>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fff' }} className="flex-1 truncate">
-                            {v.nome}
-                          </span>
-                          <span style={{ fontSize: '0.7rem', color: CYAN, fontWeight: 600 }}>{v.acessos}x</span>
-                        </div>
-                        <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)' }}>
-                          Última: {new Date(v.ultima_visita).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {topVisitantes.length === 0 && (
-                  <div className="flex items-center justify-center flex-1 text-white/30 text-xs">
-                    Sem dados no período
-                  </div>
-                )}
               </>
             )}
           </div>
