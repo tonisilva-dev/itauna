@@ -24,8 +24,9 @@ import {
   fetchMeusConvites, insertConvite, cancelarConvite, updateConvite,
   fetchMeusRecorrentes, insertRecorrente, deleteRecorrente,
   fetchConvitesProgramados,
+  fetchEncomendasPendentes, fetchMinhasEncomendas, insertEncomenda, marcarEncomendaRetirada,
   type DbPortariaRegistro, type DbPortariaAutorizado, type DbSolicitacao,
-  type DbConvite, type DbRecorrente,
+  type DbConvite, type DbRecorrente, type DbEncomenda,
 } from '@/lib/supabase-queries';
 
 /* ── Apito (Web Audio API) — doorbell de duas notas ── */
@@ -161,6 +162,16 @@ export const Portaria = () => {
   const [visitasProgLoading, setVisitasProgLoading] = useState(false);
   const [visitasProgFilter, setVisitasProgFilter]   = useState<'hoje' | 'semana'>('hoje');
 
+  // Encomendas
+  const [encomendas, setEncomendas]         = useState<DbEncomenda[]>([]);
+  const [encFilter, setEncFilter]           = useState<'aguardando' | 'todas'>('aguardando');
+  // form nova encomenda (gestor)
+  const [encChacara, setEncChacara]   = useState('');
+  const [encDesc, setEncDesc]         = useState('');
+  const [encTipo, setEncTipo]         = useState<DbEncomenda['tipo']>('outro');
+  const [encRemetente, setEncRemetente] = useState('');
+  const [encSaving, setEncSaving]     = useState(false);
+
   /* ── Carga inicial ── */
   useEffect(() => {
     if (!user) return;
@@ -169,12 +180,14 @@ export const Portaria = () => {
       isGestor ? fetchPortariaAutorizados() : (chacaraNum ? fetchPortariaAutorizadosByChacara(chacaraNum) : Promise.resolve([])),
       !isGestor ? fetchMeusConvites(user.id) : Promise.resolve([]),
       !isGestor ? fetchMeusRecorrentes(user.id) : Promise.resolve([]),
-    ]).then(([vis, aut, cvs, rcs]) => {
+      isGestor ? fetchEncomendasPendentes() : (chacaraNum ? fetchMinhasEncomendas(chacaraNum) : Promise.resolve([])),
+    ]).then(([vis, aut, cvs, rcs, encs]) => {
       setVisitas(vis as DbPortariaRegistro[]);
       setHistVisitas(vis as DbPortariaRegistro[]);
       setAutorizados(aut as DbPortariaAutorizado[]);
       setConvites(cvs as DbConvite[]);
       setRecorrentes(rcs as DbRecorrente[]);
+      setEncomendas(encs as DbEncomenda[]);
     }).catch(() => toast.error('Erro ao carregar dados da portaria.'))
       .finally(() => setLoading(false));
   }, [user, isGestor, chacaraNum]);
@@ -248,6 +261,17 @@ export const Portaria = () => {
               style: { background: 'rgba(87,216,255,0.12)', border: '1px solid rgba(87,216,255,0.3)', color: '#fff' },
             });
           }
+        })
+        .on('postgres_changes', {
+          event: 'INSERT', schema: 'public', table: 'portaria_encomendas',
+          filter: `chacara_numero=eq.${chacaraNum}`,
+        }, payload => {
+          const enc = payload.new as DbEncomenda;
+          setEncomendas(prev => [enc, ...prev]);
+          toast(`📦 Nova encomenda aguardando retirada na portaria!\n${enc.descricao}`, {
+            duration: 10000,
+            style: { background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', color: '#fff', fontWeight: 600 },
+          });
         });
     }
 
@@ -448,6 +472,40 @@ export const Portaria = () => {
     } catch { toast.error('Erro ao carregar visitas programadas.'); }
     finally { setVisitasProgLoading(false); }
   }, []);
+
+  /* ── Encomendas ── */
+  const handleRegistrarEncomenda = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (!encChacara.trim()) { toast.error('Informe o número da chácara.'); return; }
+    if (!encDesc.trim()) { toast.error('Informe a descrição da encomenda.'); return; }
+    setEncSaving(true);
+    try {
+      const chNum = encChacara.trim().padStart(3, '0');
+      const nova = await insertEncomenda({
+        chacara_numero: chNum,
+        descricao: encDesc.trim(),
+        tipo: encTipo,
+        remetente: encRemetente.trim() || null,
+        registrado_por: user.id,
+      });
+      setEncomendas(prev => [nova, ...prev]);
+      setEncChacara(''); setEncDesc(''); setEncRemetente(''); setEncTipo('outro');
+      toast.success(`Encomenda registrada para Chácara ${chNum}. Morador notificado!`);
+    } catch { toast.error('Erro ao registrar encomenda.'); }
+    finally { setEncSaving(false); }
+  };
+
+  const handleMarcarRetirada = async (id: string, descricao: string) => {
+    try {
+      await marcarEncomendaRetirada(id);
+      setEncomendas(prev => prev.map(e => e.id === id
+        ? { ...e, status: 'retirada' as const, retirada_at: new Date().toISOString() }
+        : e
+      ));
+      toast.success(`Retirada de "${descricao}" confirmada.`);
+    } catch { toast.error('Erro ao confirmar retirada.'); }
+  };
 
   /* ── MORADOR: criar recorrente ── */
   const handleCreateRecorrente = async (e: React.FormEvent) => {
@@ -801,6 +859,127 @@ export const Portaria = () => {
       ),
     } as SlideItem] : []),
 
+    /* ════════ GESTOR: Encomendas ════════ */
+    ...(isGestor ? [{
+      key: 'portaria-encomendas',
+      label: 'Encomendas',
+      content: (
+        <SlidePanel
+          eyebrow="Correspondências & Entregas"
+          title={<>Controle de <span className="grad-text">Encomendas</span></>}
+          badges={[
+            { icon: '📦', label: `${encomendas.filter(e => e.status === 'aguardando').length} aguardando` },
+            { icon: '🔔', label: 'Morador notificado' },
+            { icon: '✅', label: 'Retirada confirmada' },
+          ]}
+        >
+          <div className="flex flex-col h-full gap-3">
+            {/* Form registro */}
+            <form onSubmit={handleRegistrarEncomenda} className="rounded-2xl p-3 space-y-2.5" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.18)' }}>
+              <p style={{ fontSize: '0.7rem', fontWeight: 700, color: YELLOW, letterSpacing: '0.05em' }}>REGISTRAR NOVA ENCOMENDA</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="input-label text-[11px]">Nº da Chácara *</label>
+                  <input type="text" className="input" inputMode="numeric" placeholder="Ex: 042" maxLength={3}
+                    value={encChacara} onChange={e => setEncChacara(e.target.value.replace(/\D/g, ''))} />
+                </div>
+                <div>
+                  <label className="input-label text-[11px]">Tipo</label>
+                  <select className="input" value={encTipo} onChange={e => setEncTipo(e.target.value as DbEncomenda['tipo'])}>
+                    <option value="correios">📮 Correios / Sedex</option>
+                    <option value="motoboy">🛵 Motoboy</option>
+                    <option value="app_delivery">📱 App (iFood, etc.)</option>
+                    <option value="outro">📦 Outro</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="input-label text-[11px]">Descrição *</label>
+                <input type="text" className="input" placeholder="Ex: Fatura COPEL, Carnê IPTU, Controle eletrônico..."
+                  value={encDesc} onChange={e => setEncDesc(e.target.value)} />
+              </div>
+              <div>
+                <label className="input-label text-[11px]">Remetente (opcional)</label>
+                <input type="text" className="input" placeholder="Ex: COPEL, Prefeitura de Londrina..."
+                  value={encRemetente} onChange={e => setEncRemetente(e.target.value)} />
+              </div>
+              <button type="submit" disabled={encSaving} className="btn-primary w-full justify-center py-2 text-xs font-bold gap-1.5">
+                {encSaving ? <><Loader2 size={12} className="animate-spin" /> Registrando...</> : <><Package size={12} /> Registrar e Notificar Morador</>}
+              </button>
+            </form>
+
+            {/* Filtro */}
+            <div className="flex gap-1 p-0.5 rounded-xl bg-white/5">
+              {([
+                { v: 'aguardando', l: `📦 Aguardando (${encomendas.filter(e => e.status === 'aguardando').length})` },
+                { v: 'todas',      l: `📋 Todas (${encomendas.length})` },
+              ] as const).map(f => (
+                <button key={f.v} onClick={() => setEncFilter(f.v)}
+                  className="flex-1 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-all"
+                  style={{
+                    background: encFilter === f.v ? 'rgba(245,158,11,0.15)' : 'transparent',
+                    color: encFilter === f.v ? YELLOW : 'rgba(255,255,255,0.4)',
+                    border: encFilter === f.v ? '1px solid rgba(245,158,11,0.3)' : '1px solid transparent',
+                  }}>{f.l}</button>
+              ))}
+            </div>
+
+            {/* Lista */}
+            <div className="space-y-2 overflow-y-auto flex-1 pr-0.5">
+              {loading ? (
+                <div className="flex items-center justify-center gap-2 py-6 text-white/30 text-xs"><Loader2 size={13} className="animate-spin" /></div>
+              ) : encomendas.filter(e => encFilter === 'todas' || e.status === 'aguardando').length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-2">
+                  <CheckCircle2 size={24} style={{ color: 'rgba(16,185,129,0.4)' }} />
+                  <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>Nenhuma encomenda pendente.</p>
+                </div>
+              ) : encomendas.filter(e => encFilter === 'todas' || e.status === 'aguardando').map(enc => {
+                const tipoLabel: Record<DbEncomenda['tipo'], string> = {
+                  correios: '📮 Correios', motoboy: '🛵 Motoboy', app_delivery: '📱 App', outro: '📦 Outro',
+                };
+                const retirada = enc.status === 'retirada';
+                return (
+                  <div key={enc.id} className="rounded-2xl p-3" style={{
+                    background: retirada ? 'rgba(16,185,129,0.04)' : 'rgba(245,158,11,0.05)',
+                    border: `1px solid ${retirada ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}`,
+                  }}>
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-base" style={{ background: retirada ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)' }}>
+                        {retirada ? '✅' : '📦'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.78rem' }} className="truncate">{enc.descricao}</p>
+                          {retirada && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(16,185,129,0.12)', color: GREEN }}>RETIRADA</span>}
+                          {!retirada && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md animate-pulse" style={{ background: 'rgba(245,158,11,0.12)', color: YELLOW }}>AGUARDANDO</span>}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>🏡 Chácara {enc.chacara_numero}</span>
+                          <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)' }}>·</span>
+                          <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>{tipoLabel[enc.tipo]}</span>
+                          {enc.remetente && <><span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)' }}>·</span><span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>{enc.remetente}</span></>}
+                        </div>
+                        <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.25)', marginTop: 2 }}>
+                          {retirada && enc.retirada_at ? `Retirada em ${new Date(enc.retirada_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}` : `Chegou em ${new Date(enc.created_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}`}
+                        </p>
+                      </div>
+                      {!retirada && (
+                        <button onClick={() => handleMarcarRetirada(enc.id, enc.descricao)}
+                          className="px-2 py-1 rounded-lg text-[9px] font-bold cursor-pointer flex-shrink-0"
+                          style={{ background: 'rgba(16,185,129,0.1)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.25)' }}>
+                          Retirada
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </SlidePanel>
+      ),
+    } as SlideItem] : []),
+
     /* ════════ MORADOR: Agendar Visita ════════ */
     ...(!isGestor ? [{
       key: 'portaria-agendar',
@@ -993,6 +1172,76 @@ export const Portaria = () => {
               </div>
             )}
           </form>
+        </SlidePanel>
+      ),
+    } as SlideItem] : []),
+
+    /* ════════ MORADOR: Minhas Encomendas ════════ */
+    ...(!isGestor ? [{
+      key: 'portaria-encomendas-morador',
+      label: 'Encomendas',
+      content: (
+        <SlidePanel
+          eyebrow="Portaria"
+          title={<>Minhas <span className="grad-text">Encomendas</span></>}
+          badges={[
+            { icon: '📦', label: `${encomendas.filter(e => e.status === 'aguardando').length} aguardando` },
+            { icon: '🔔', label: 'Notificação automática' },
+            { icon: '📮', label: 'Correios, motoboy...' },
+          ]}
+        >
+          <div className="flex flex-col h-full gap-3">
+            <div className="rounded-xl p-3" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)' }}>
+              <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
+                📦 Quando uma encomenda chegar na portaria para a sua chácara, você receberá uma notificação automática no app.
+              </p>
+            </div>
+
+            {encomendas.length === 0 ? (
+              <div className="flex flex-col items-center justify-center flex-1 gap-3 py-8">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.14)' }}>📭</div>
+                <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.35)', textAlign: 'center' }}>
+                  Nenhuma encomenda registrada para sua chácara.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 overflow-y-auto flex-1 pr-0.5">
+                {encomendas.map(enc => {
+                  const tipoLabel: Record<DbEncomenda['tipo'], string> = {
+                    correios: '📮 Correios', motoboy: '🛵 Motoboy', app_delivery: '📱 App', outro: '📦 Outro',
+                  };
+                  const retirada = enc.status === 'retirada';
+                  return (
+                    <div key={enc.id} className="rounded-2xl p-3" style={{
+                      background: retirada ? 'rgba(255,255,255,0.02)' : 'rgba(245,158,11,0.06)',
+                      border: `1px solid ${retirada ? 'rgba(255,255,255,0.06)' : 'rgba(245,158,11,0.22)'}`,
+                    }}>
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ background: retirada ? 'rgba(255,255,255,0.04)' : 'rgba(245,158,11,0.08)' }}>
+                          {retirada ? '✅' : '📦'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                            <p style={{ fontWeight: 700, color: retirada ? 'rgba(255,255,255,0.5)' : '#fff', fontSize: '0.8rem' }} className="truncate">{enc.descricao}</p>
+                            {!retirada && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md animate-pulse" style={{ background: 'rgba(245,158,11,0.15)', color: YELLOW, border: '1px solid rgba(245,158,11,0.3)' }}>NA PORTARIA</span>}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>{tipoLabel[enc.tipo]}</span>
+                            {enc.remetente && <><span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)' }}>·</span><span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>{enc.remetente}</span></>}
+                          </div>
+                          <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.25)', marginTop: 2 }}>
+                            {retirada && enc.retirada_at
+                              ? `Retirada em ${new Date(enc.retirada_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}`
+                              : `Chegou em ${new Date(enc.created_at).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </SlidePanel>
       ),
     } as SlideItem] : []),

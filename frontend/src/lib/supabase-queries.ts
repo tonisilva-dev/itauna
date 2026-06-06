@@ -1595,6 +1595,58 @@ export async function deleteCampanha(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/* ─── Portaria: Encomendas e Correspondências ─────────────────── */
+
+export interface DbEncomenda {
+  id: string;
+  chacara_numero: string;
+  descricao: string;
+  tipo: 'correios' | 'motoboy' | 'app_delivery' | 'outro';
+  remetente: string | null;
+  status: 'aguardando' | 'retirada';
+  registrado_por: string | null;
+  retirada_at: string | null;
+  created_at: string;
+}
+
+export async function fetchEncomendasPendentes(): Promise<DbEncomenda[]> {
+  const { data, error } = await db
+    .from('portaria_encomendas')
+    .select('*')
+    .eq('status', 'aguardando')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as DbEncomenda[];
+}
+
+export async function fetchMinhasEncomendas(chacaraNumero: string): Promise<DbEncomenda[]> {
+  const { data, error } = await db
+    .from('portaria_encomendas')
+    .select('*')
+    .eq('chacara_numero', chacaraNumero)
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if (error) throw error;
+  return (data ?? []) as DbEncomenda[];
+}
+
+export async function insertEncomenda(
+  payload: Pick<DbEncomenda, 'chacara_numero' | 'descricao' | 'tipo' | 'remetente'> & { registrado_por: string }
+): Promise<DbEncomenda> {
+  const { data, error } = await db
+    .from('portaria_encomendas').insert(payload).select().single();
+  if (error) throw error;
+  return data as DbEncomenda;
+}
+
+export async function marcarEncomendaRetirada(id: string): Promise<void> {
+  const { error } = await db
+    .from('portaria_encomendas')
+    .update({ status: 'retirada', retirada_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 /* ─── Dashboard ────────────────────────────────────────────────── */
 
 export async function fetchDashboardSummary() {
