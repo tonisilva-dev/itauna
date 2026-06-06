@@ -15,6 +15,56 @@ const FALLBACK = ['/bg-area-livre-1.webp', '/bg-area-livre-2.webp'];
 const SLIDE_MS = 10_000;
 const FADE_MS  = 1_100;
 
+/* ── Taglines rotativas: copywriting + storytelling + PNL ── */
+interface Tagline {
+  headline: string;       // frase principal (serif, impactante)
+  sub: string;            // âncora concreta / subheadline
+  accent?: string;        // cor de destaque opcional
+}
+
+const TAGLINES: Tagline[] = [
+  {
+    headline: 'Encanto para quem visita.\nPertencimento para quem vive.',
+    sub: '360 chácaras · 3,8 km² de natureza preservada · Ibiporã – PR',
+    accent: '#57d8ff',
+  },
+  {
+    headline: 'Aqui o silêncio tem perfume de mato\ne o céu cabe inteiro na janela.',
+    sub: 'Fauna nativa, lago central e mata preservada a 10 min de Londrina',
+    accent: '#10b981',
+  },
+  {
+    headline: 'Onde as crianças correm livres\ne as portas ficam abertas.',
+    sub: 'Portaria 24h · Acesso controlado · Segurança que você sente',
+    accent: '#5a84ff',
+  },
+  {
+    headline: 'Luz do sol nas ruas.\nÁgua do subsolo.\nFuturo preservado.',
+    sub: 'Iluminação fotovoltaica · Poços artesianos SAMAE · Responsabilidade ambiental',
+    accent: '#f59e0b',
+  },
+  {
+    headline: 'Não é um endereço.\nÉ o estilo de vida\nque você sempre mereceu.',
+    sub: 'Documentação 100% regularizada · Plataforma digital integrada · 20+ anos de história',
+    accent: '#a78bfa',
+  },
+  {
+    headline: 'O lago reflete o céu.\nA comunidade reflete\nquem você quer ser.',
+    sub: 'Beach tennis · Salão de festas · Pista de caminhada · Playground',
+    accent: '#10b981',
+  },
+  {
+    headline: 'Fundado em 2005.\nConstruído para durar\ngenerações.',
+    sub: 'O maior condomínio periurbano de alto padrão do Norte do Paraná',
+    accent: '#57d8ff',
+  },
+  {
+    headline: 'Aqui a natureza não é cenário.\nÉ a razão de tudo.',
+    sub: 'Vias em paralelepípedo · Lago preservado · Espécies nativas catalogadas',
+    accent: '#10b981',
+  },
+];
+
 /* ── Estilos visuais que alternam a cada ciclo ── */
 type BgStyle = {
   overlay: string;
@@ -468,6 +518,7 @@ export const LandingPage = () => {
   const [photos, setPhotos] = useState<string[]>(FALLBACK);
   const [photoIdx, setPhotoIdx] = useState(0);
   const [styleIdx, setStyleIdx] = useState(0);
+  const [taglineIdx, setTaglineIdx] = useState(0);
   const [visible, setVisible] = useState(true);
   const [infoOpen, setInfoOpen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -492,6 +543,7 @@ export const LandingPage = () => {
       setTimeout(() => {
         setPhotoIdx(i => (i + 1) % photos.length);
         setStyleIdx(i => (i + 1) % BG_STYLES.length);
+        setTaglineIdx(i => (i + 1) % TAGLINES.length);
         setVisible(true);
       }, FADE_MS);
     }, SLIDE_MS);
@@ -499,6 +551,7 @@ export const LandingPage = () => {
   }, [photos.length]);
 
   const currentStyle = BG_STYLES[styleIdx];
+  const currentTagline = TAGLINES[taglineIdx];
 
   return (
     <>
@@ -547,28 +600,62 @@ export const LandingPage = () => {
           </Link>
         </div>
 
-        {/* Centro — tagline elegante */}
+        {/* Centro — tagline rotativa com copywriting + PNL */}
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          gap: 16, padding: '0 clamp(20px,6vw,60px)', textAlign: 'center',
+          gap: 20, padding: '0 clamp(20px,6vw,60px)', textAlign: 'center',
           opacity: visible ? 1 : 0,
           transition: `opacity ${FADE_MS}ms cubic-bezier(.4,0,.2,1)`,
         }}>
+          {/* Acento decorativo */}
+          <div style={{
+            width: 40, height: 3, borderRadius: 2,
+            background: currentTagline.accent ?? CYAN,
+            boxShadow: `0 0 12px ${currentTagline.accent ?? CYAN}80`,
+            marginBottom: 4,
+          }} />
+
+          {/* Headline principal */}
           <p style={{
-            fontSize: 'clamp(26px,5.5vw,58px)', fontWeight: 300, letterSpacing: '0.02em',
-            color: '#fff', lineHeight: 1.15,
-            textShadow: '0 4px 32px rgba(0,0,0,0.70)',
+            fontSize: 'clamp(24px,5vw,54px)', fontWeight: 300, letterSpacing: '0.01em',
+            color: '#fff', lineHeight: 1.18,
+            textShadow: '0 4px 40px rgba(0,0,0,0.75)',
             fontFamily: 'Georgia, "Times New Roman", serif',
+            whiteSpace: 'pre-line',
+            maxWidth: '820px',
           }}>
-            Encanto para quem visita,<br />pertencimento para quem vive.
+            {currentTagline.headline}
           </p>
+
+          {/* Sub — âncora concreta */}
           <p style={{
-            fontSize: 'clamp(12px,2vw,16px)', fontWeight: 400, letterSpacing: '0.18em',
-            textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)',
-            textShadow: '0 2px 16px rgba(0,0,0,0.60)',
+            fontSize: 'clamp(10px,1.6vw,13px)', fontWeight: 500, letterSpacing: '0.15em',
+            textTransform: 'uppercase',
+            color: `${currentTagline.accent ?? CYAN}CC`,
+            textShadow: '0 2px 20px rgba(0,0,0,0.65)',
+            maxWidth: '600px',
+            lineHeight: 1.6,
           }}>
-            Condomínio de Chácaras Itaúna &nbsp;·&nbsp; Ibiporã – PR
+            {currentTagline.sub}
           </p>
+
+          {/* CTA inline sutil */}
+          <Link to="/login" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+            padding: '10px 22px', borderRadius: 30,
+            background: 'rgba(6,10,20,0.55)',
+            border: `1px solid ${currentTagline.accent ?? CYAN}55`,
+            color: currentTagline.accent ?? CYAN,
+            fontWeight: 700, fontSize: 'clamp(11px,1.8vw,13px)',
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+            textDecoration: 'none',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            boxShadow: `0 4px 20px rgba(0,0,0,0.35), inset 0 0 0 1px ${currentTagline.accent ?? CYAN}18`,
+            transition: 'all 0.3s ease',
+            pointerEvents: 'auto',
+          }}>
+            Acessar o portal <ArrowRight size={13} strokeWidth={2.5} />
+          </Link>
         </div>
 
         {/* Bottom bar */}
