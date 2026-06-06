@@ -37,6 +37,7 @@ const ConviteQR              = lazy(() => import('./pages/ConviteQR').then(m => 
 const AnaliseCenarios        = lazy(() => import('./pages/financeiro/AnaliseCenarios').then(m => ({ default: m.AnaliseCenarios })));
 const ChecklistServicos      = lazy(() => import('./pages/servicos/ChecklistServicos').then(m => ({ default: m.ChecklistServicos })));
 const AnaliseAcesso          = lazy(() => import('./pages/admin/AnaliseAcesso').then(m => ({ default: m.AnaliseAcesso })));
+const Benfeitorias           = lazy(() => import('./pages/benfeitorias/Benfeitorias').then(m => ({ default: m.Benfeitorias })));
 const Privacidade     = lazy(() => import('./pages/Privacidade').then(m => ({ default: m.Privacidade })));
 const Preview         = lazy(() => import('./pages/Preview').then(m => ({ default: m.Preview })));
 
@@ -122,6 +123,7 @@ export default function App() {
             <Route path="/portaria"         element={<GestorRoute><Portaria /></GestorRoute>} />
             <Route path="/acesso-visitas"   element={<AcessoVisitas />} />
             <Route path="/ocorrencias"      element={<Ocorrencias />} />
+            <Route path="/benfeitorias"     element={<Benfeitorias />} />
             <Route path="/comunicados"      element={<Comunicados />} />
             <Route path="/documentos"       element={<Documentos />} />
             <Route path="/achados-perdidos" element={<AchadosPerdidos />} />

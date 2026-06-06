@@ -4,7 +4,7 @@ import {
   DollarSign, Shield, Bell, Calendar, AlertCircle, Image,
   FileText, Tag, Search, Building2, TreePine, Home, Users,
   ShieldCheck, Lock, Phone, Leaf, TrendingUp, ClipboardList,
-  Eye, User, Package, Activity, DoorOpen,
+  Eye, User, Package, Activity, DoorOpen, HardHat,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -40,6 +40,7 @@ const APPS: AppIcon[] = [
   { path: '/acesso-visitas?enc=1', label: 'Encomendas',     Icon: Package,      gradient: 'linear-gradient(145deg,#78350f,#f59e0b)', grupo: 'essenciais', featured: true },
   { path: '/agendamentos',       label: 'Reservas',         Icon: Calendar,     gradient: 'linear-gradient(145deg,#1e3a8a,#3b82f6)', grupo: 'essenciais' },
   { path: '/financeiro',         label: 'Transparência',    Icon: Eye,          gradient: 'linear-gradient(145deg,#065f46,#10b981)', grupo: 'essenciais' },
+  { path: '/benfeitorias',       label: 'Benfeitorias',     Icon: HardHat,      gradient: 'linear-gradient(145deg,#9a3412,#f97316)', grupo: 'essenciais' },
 
   /* ── COMUNIDADE & SERVIÇOS — convívio, informação e apoio ── */
   { path: '/documentos',         label: 'Documentos',       Icon: FileText,     gradient: 'linear-gradient(145deg,#312e81,#6366f1)', grupo: 'comunidade' },

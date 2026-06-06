@@ -1800,6 +1800,92 @@ export async function fetchDailyFlowSeries(dataInicio: string, dataFim: string):
     .sort((a, b) => a.data.localeCompare(b.data));
 }
 
+/* ─── Benfeitorias e Obras ─────────────────────────────────────── */
+
+export interface DbBenfeitoria {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  categoria: 'infraestrutura' | 'lazer' | 'seguranca' | 'paisagismo' | 'manutencao' | 'outros';
+  status: 'planejada' | 'em_andamento' | 'pausada' | 'concluida';
+  responsavel: string | null;
+  orcamento: number | null;
+  progresso: number;
+  data_inicio: string | null;
+  data_prevista: string | null;
+  data_conclusao: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbBenfeitoriaEtapa {
+  id: string;
+  benfeitoria_id: string;
+  titulo: string;
+  descricao: string | null;
+  status: 'pendente' | 'em_andamento' | 'concluida';
+  ordem: number;
+  concluida_at: string | null;
+  created_at: string;
+}
+
+export async function fetchBenfeitorias(): Promise<DbBenfeitoria[]> {
+  const { data, error } = await db
+    .from('benfeitorias')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as DbBenfeitoria[];
+}
+
+export async function fetchBenfeitoriaEtapas(benfeitoriaId: string): Promise<DbBenfeitoriaEtapa[]> {
+  const { data, error } = await db
+    .from('benfeitoria_etapas')
+    .select('*')
+    .eq('benfeitoria_id', benfeitoriaId)
+    .order('ordem', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as DbBenfeitoriaEtapa[];
+}
+
+export async function insertBenfeitoria(
+  payload: Omit<DbBenfeitoria, 'id' | 'created_at' | 'updated_at'>
+): Promise<DbBenfeitoria> {
+  const { data, error } = await db.from('benfeitorias').insert(payload).select().single();
+  if (error) throw error;
+  return data as DbBenfeitoria;
+}
+
+export async function updateBenfeitoria(id: string, payload: Partial<DbBenfeitoria>): Promise<void> {
+  const { error } = await db.from('benfeitorias').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteBenfeitoria(id: string): Promise<void> {
+  const { error } = await db.from('benfeitorias').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function insertBenfeitoriaEtapa(
+  payload: Omit<DbBenfeitoriaEtapa, 'id' | 'created_at' | 'concluida_at'> & { concluida_at?: string | null }
+): Promise<DbBenfeitoriaEtapa> {
+  const { data, error } = await db.from('benfeitoria_etapas').insert(payload).select().single();
+  if (error) throw error;
+  return data as DbBenfeitoriaEtapa;
+}
+
+export async function updateBenfeitoriaEtapa(id: string, payload: Partial<DbBenfeitoriaEtapa>): Promise<void> {
+  const { error } = await db.from('benfeitoria_etapas').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteBenfeitoriaEtapa(id: string): Promise<void> {
+  const { error } = await db.from('benfeitoria_etapas').delete().eq('id', id);
+  if (error) throw error;
+}
+
 /* ─── Dashboard ────────────────────────────────────────────────── */
 
 export async function fetchDashboardSummary() {
