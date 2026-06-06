@@ -113,7 +113,7 @@ const BgScene = ({
       )}
 
       {style.layout === 'split' && (
-        <div style={{ ...wrapStyle, display: 'flex' }}>
+        <div className="landing-bg-flex" style={wrapStyle}>
           <div style={{ flex: 1, overflow: 'hidden' }}>
             <img src={get(0)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
           </div>
@@ -124,7 +124,7 @@ const BgScene = ({
       )}
 
       {style.layout === 'triptych' && (
-        <div style={{ ...wrapStyle, display: 'flex' }}>
+        <div className="landing-bg-flex" style={wrapStyle}>
           <div style={{ flex: 1, overflow: 'hidden' }}>
             <img src={get(0)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
           </div>

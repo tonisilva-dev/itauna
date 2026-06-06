@@ -4,6 +4,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* LandingPage: imagens em coluna no mobile, linha no desktop */
+.landing-bg-flex {
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 768px) {
+  .landing-bg-flex {
+    flex-direction: row;
+  }
+}
+
 /* =========================================================
    DESIGN TOKENS — modeloTop.html
    ========================================================= */

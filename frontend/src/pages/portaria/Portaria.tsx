@@ -4,7 +4,8 @@ import {
   Shield, Car, User, Clock, CheckCircle2, Plus, Loader2,
   Trash2, UserPlus, AlertTriangle, Package, Wrench,
   CalendarDays, QrCode, Download, Check, X, CalendarPlus,
-  RefreshCw, BadgeCheck, Users,
+  RefreshCw, BadgeCheck, Users, Share2, Copy, ClipboardCheck,
+  ListChecks,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
@@ -22,6 +23,7 @@ import {
   fetchSolicitacoesPendentes, resolverSolicitacao,
   fetchMeusConvites, insertConvite, cancelarConvite, updateConvite,
   fetchMeusRecorrentes, insertRecorrente, deleteRecorrente,
+  fetchConvitesProgramados,
   type DbPortariaRegistro, type DbPortariaAutorizado, type DbSolicitacao,
   type DbConvite, type DbRecorrente,
 } from '@/lib/supabase-queries';
@@ -149,6 +151,16 @@ export const Portaria = () => {
   const [rcFim, setRcFim]         = useState('');
   const [rcSaving, setRcSaving]   = useState(false);
 
+  // Modal QR do convite (morador)
+  const [qrConviteModal, setQrConviteModal] = useState<DbConvite | null>(null);
+  const [qrConviteUrl, setQrConviteUrl]     = useState<string | null>(null);
+  const [qrCopied, setQrCopied]             = useState(false);
+
+  // Painel visitas programadas (gestor)
+  const [visitasProg, setVisitasProg]         = useState<DbConvite[]>([]);
+  const [visitasProgLoading, setVisitasProgLoading] = useState(false);
+  const [visitasProgFilter, setVisitasProgFilter]   = useState<'hoje' | 'semana'>('hoje');
+
   /* ── Carga inicial ── */
   useEffect(() => {
     if (!user) return;
@@ -167,10 +179,11 @@ export const Portaria = () => {
       .finally(() => setLoading(false));
   }, [user, isGestor, chacaraNum]);
 
-  /* ── Realtime: solicitações QR (gestor) ── */
+  /* ── Realtime: solicitações QR + visitas programadas (gestor) ── */
   useEffect(() => {
     if (!isGestor) return;
     fetchSolicitacoesPendentes().then(setSolicitacoes).catch(() => {});
+    loadVisitasProg();
 
     channelRef.current = supabase
       .channel('portaria-qr-solicitacoes')
@@ -193,6 +206,53 @@ export const Portaria = () => {
 
     return () => { channelRef.current?.unsubscribe(); };
   }, [isGestor]);
+
+  /* ── Realtime: notificações para o MORADOR (entrada/saída de convidado) ── */
+  const moradorChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  useEffect(() => {
+    if (isGestor || !user) return;
+
+    moradorChannelRef.current = supabase
+      .channel(`morador-convites-${user.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'portaria_convites',
+        filter: `morador_id=eq.${user.id}`,
+      }, payload => {
+        const upd = payload.new as DbConvite;
+        const old = payload.old as DbConvite;
+        // Entrada confirmada
+        if (upd.status === 'usado' && old.status !== 'usado') {
+          toast(`🚗 ${upd.visitante_nome} entrou na sua chácara!`, {
+            duration: 8000,
+            style: { background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', color: '#fff', fontWeight: 600 },
+          });
+          setConvites(prev => prev.map(c => c.id === upd.id ? { ...c, ...upd } : c));
+        }
+      })
+      .subscribe();
+
+    // Realtime para registros de saída da chácara do morador
+    if (chacaraNum) {
+      moradorChannelRef.current
+        .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'portaria_registros',
+        }, payload => {
+          const upd = payload.new as DbPortariaRegistro;
+          const old = payload.old as DbPortariaRegistro;
+          if (
+            upd.destino === `Chácara ${chacaraNum}` &&
+            upd.saida_at && !old.saida_at
+          ) {
+            toast(`🚪 ${upd.nome} saiu da sua chácara.`, {
+              duration: 6000,
+              style: { background: 'rgba(87,216,255,0.12)', border: '1px solid rgba(87,216,255,0.3)', color: '#fff' },
+            });
+          }
+        });
+    }
+
+    return () => { moradorChannelRef.current?.unsubscribe(); };
+  }, [isGestor, user, chacaraNum]);
 
   const setCard = (id: string, patch: Partial<{ pessoas: number; cpfOk: boolean }>) =>
     setCardState(prev => ({ ...prev, [id]: { pessoas: prev[id]?.pessoas ?? 1, cpfOk: prev[id]?.cpfOk ?? false, ...patch } }));
@@ -335,7 +395,9 @@ export const Portaria = () => {
       } as any);
       setConvites(prev => [novo, ...prev]);
       setCvNome(''); setCvCpf(''); setCvTel(''); setCvObs(''); setCvPessoas(1);
-      toast.success('Visita agendada! O visitante será reconhecido na portaria.');
+      toast.success('Visita agendada! Clique no ícone QR para gerar e compartilhar o convite.');
+      // Abre modal do QR imediatamente para o morador já compartilhar
+      abrirQrConvite(novo);
       gotoSlide(1);
     } catch { toast.error('Erro ao agendar visita.'); }
     finally { setCvSaving(false); }
@@ -348,6 +410,44 @@ export const Portaria = () => {
       toast.success('Convite cancelado.');
     } catch { toast.error('Erro ao cancelar.'); }
   };
+
+  /* ── Abrir modal QR do convite ── */
+  const abrirQrConvite = useCallback(async (convite: DbConvite) => {
+    setQrConviteModal(convite);
+    setQrCopied(false);
+    try {
+      const url = `${window.location.origin}/convite/${convite.id}`;
+      const opt = { width: 300, margin: 2, color: { dark: '#ffffff', light: '#07101c' } };
+      const dataUrl = await QRCode.toDataURL(url, opt);
+      setQrConviteUrl(dataUrl);
+    } catch { toast.error('Erro ao gerar QR Code.'); }
+  }, []);
+
+  const copiarLinkConvite = useCallback(async () => {
+    if (!qrConviteModal) return;
+    const url = `${window.location.origin}/convite/${qrConviteModal.id}`;
+    await navigator.clipboard.writeText(url);
+    setQrCopied(true);
+    setTimeout(() => setQrCopied(false), 2500);
+  }, [qrConviteModal]);
+
+  const baixarQrConvite = useCallback(() => {
+    if (!qrConviteUrl || !qrConviteModal) return;
+    const a = document.createElement('a');
+    a.href = qrConviteUrl;
+    a.download = `convite-${qrConviteModal.visitante_nome.replace(/\s+/g, '-')}.png`;
+    a.click();
+  }, [qrConviteUrl, qrConviteModal]);
+
+  /* ── Carregar visitas programadas (gestor) ── */
+  const loadVisitasProg = useCallback(async () => {
+    setVisitasProgLoading(true);
+    try {
+      const data = await fetchConvitesProgramados();
+      setVisitasProg(data);
+    } catch { toast.error('Erro ao carregar visitas programadas.'); }
+    finally { setVisitasProgLoading(false); }
+  }, []);
 
   /* ── MORADOR: criar recorrente ── */
   const handleCreateRecorrente = async (e: React.FormEvent) => {
@@ -388,6 +488,11 @@ export const Portaria = () => {
     if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
     return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
   };
+
+  const TODAY_STR = new Date().toISOString().slice(0, 10);
+  const visitasHoje   = visitasProg.filter(v => v.data_visita === TODAY_STR);
+  const visitasFuturas = visitasProg.filter(v => v.data_visita > TODAY_STR);
+  const visitasFiltradas = visitasProgFilter === 'hoje' ? visitasHoje : visitasProg;
 
   /* ════════════════════════════════════════════════════════════════
      SLIDES
@@ -578,6 +683,124 @@ export const Portaria = () => {
       ),
     } as SlideItem] : []),
 
+    /* ════════ GESTOR: Visitas Programadas ════════ */
+    ...(isGestor ? [{
+      key: 'portaria-visitas-prog',
+      label: 'Visitas Programadas',
+      content: (
+        <SlidePanel
+          eyebrow="Agenda da Portaria"
+          title={<>Visitas <span className="grad-text">Programadas</span></>}
+          badges={[
+            { icon: '📅', label: `${visitasHoje.length} hoje` },
+            { icon: '🔮', label: `${visitasFuturas.length} futuras` },
+            { icon: '✅', label: 'Pré-cadastradas' },
+          ]}
+          actions={
+            <button onClick={loadVisitasProg} className="btn-primary py-1.5 px-3 text-xs gap-1 flex items-center">
+              <RefreshCw size={12} /> Atualizar
+            </button>
+          }
+        >
+          <div className="flex flex-col h-full gap-3">
+            {/* Filtro */}
+            <div className="flex gap-1 p-0.5 rounded-xl bg-white/5">
+              {([
+                { v: 'hoje',   l: `📅 Hoje (${visitasHoje.length})` },
+                { v: 'semana', l: `🗓️ Próximas (${visitasProg.length})` },
+              ] as const).map(f => (
+                <button key={f.v} onClick={() => setVisitasProgFilter(f.v)}
+                  className="flex-1 py-2 rounded-lg text-[10px] font-bold cursor-pointer transition-all"
+                  style={{
+                    background: visitasProgFilter === f.v ? 'rgba(87,216,255,0.15)' : 'transparent',
+                    color: visitasProgFilter === f.v ? CYAN : 'rgba(255,255,255,0.45)',
+                    border: visitasProgFilter === f.v ? '1px solid rgba(87,216,255,0.25)' : '1px solid transparent',
+                  }}>
+                  {f.l}
+                </button>
+              ))}
+            </div>
+
+            {/* Lista de convites */}
+            {visitasProgLoading ? (
+              <div className="flex items-center justify-center gap-2 flex-1 text-white/30 text-xs">
+                <Loader2 size={14} className="animate-spin" /> Carregando...
+              </div>
+            ) : visitasFiltradas.length === 0 ? (
+              <div className="flex flex-col items-center justify-center flex-1 gap-3 py-8">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(87,216,255,0.06)', border: '1px solid rgba(87,216,255,0.14)' }}>
+                  <CalendarDays size={24} style={{ color: 'rgba(87,216,255,0.5)' }} />
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.35)', textAlign: 'center' }}>
+                  {visitasProgFilter === 'hoje' ? 'Nenhuma visita agendada para hoje.' : 'Nenhuma visita programada.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 overflow-y-auto flex-1 pr-0.5">
+                {visitasFiltradas.map(v => {
+                  const vt = VISITA_TIPO[v.tipo];
+                  const isToday = v.data_visita === TODAY_STR;
+                  const usado = v.status === 'usado';
+                  return (
+                    <div key={v.id} className="rounded-2xl p-3" style={{
+                      background: usado ? 'rgba(16,185,129,0.05)' : isToday ? 'rgba(87,216,255,0.06)' : 'rgba(255,255,255,0.025)',
+                      border: `1px solid ${usado ? 'rgba(16,185,129,0.22)' : isToday ? 'rgba(87,216,255,0.22)' : 'rgba(255,255,255,0.07)'}`,
+                    }}>
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                          {vt.emoji}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p style={{ fontWeight: 800, color: '#fff', fontSize: '0.82rem' }}>{v.visitante_nome}</p>
+                            {usado && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(16,185,129,0.15)', color: GREEN, border: '1px solid rgba(16,185,129,0.3)' }}>ENTROU</span>}
+                            {isToday && !usado && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md animate-pulse" style={{ background: 'rgba(245,158,11,0.15)', color: YELLOW, border: '1px solid rgba(245,158,11,0.3)' }}>HOJE</span>}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.45)' }}>🏡 Chácara {v.chacara_numero}</span>
+                            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>·</span>
+                            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.45)' }}>
+                              📅 {new Date(v.data_visita + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                            </span>
+                            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>·</span>
+                            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.45)' }}>👥 {v.num_pessoas}p</span>
+                          </div>
+                          {v.morador && (
+                            <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>
+                              Morador: {v.morador.full_name}
+                            </p>
+                          )}
+                          {v.visitante_cpf && (
+                            <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.28)', fontFamily: 'monospace', marginTop: 1 }}>
+                              CPF: {fmtCpfMask(v.visitante_cpf)}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <span style={{
+                            fontSize: '0.65rem', fontWeight: 700,
+                            padding: '2px 6px', borderRadius: 6,
+                            background: vt.emoji === '👤' ? 'rgba(87,216,255,0.1)' : vt.emoji === '🔧' ? 'rgba(90,132,255,0.1)' : 'rgba(245,158,11,0.1)',
+                            color: vt.emoji === '👤' ? CYAN : vt.emoji === '🔧' ? BLUE : YELLOW,
+                          }}>{vt.label}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="rounded-xl p-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <p style={{ fontSize: '0.66rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.6, textAlign: 'center' }}>
+                📋 Convites pré-cadastrados pelos moradores · QR Code enviado ao convidado
+              </p>
+            </div>
+          </div>
+        </SlidePanel>
+      ),
+    } as SlideItem] : []),
+
     /* ════════ MORADOR: Agendar Visita ════════ */
     ...(!isGestor ? [{
       key: 'portaria-agendar',
@@ -657,9 +880,18 @@ export const Portaria = () => {
                         {c.status === 'usado' ? (
                           <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(16,185,129,0.12)', color: GREEN }}>ENTROU</span>
                         ) : (
-                          <button onClick={() => handleCancelConvite(c.id)} className="w-6 h-6 rounded-lg flex items-center justify-center cursor-pointer flex-shrink-0" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
-                            <X size={11} style={{ color: '#fca5a5' }} />
-                          </button>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <button
+                              onClick={() => abrirQrConvite(c)}
+                              title="Ver QR Code do convite"
+                              className="w-6 h-6 rounded-lg flex items-center justify-center cursor-pointer"
+                              style={{ background: 'rgba(87,216,255,0.10)', border: '1px solid rgba(87,216,255,0.25)' }}>
+                              <QrCode size={11} style={{ color: CYAN }} />
+                            </button>
+                            <button onClick={() => handleCancelConvite(c.id)} className="w-6 h-6 rounded-lg flex items-center justify-center cursor-pointer" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                              <X size={11} style={{ color: '#fca5a5' }} />
+                            </button>
+                          </div>
                         )}
                       </div>
                     );
@@ -1047,6 +1279,66 @@ export const Portaria = () => {
   return (
     <div className="w-full h-full">
       <PageCarousel3D slides={slides} />
+
+      {/* ── Modal QR Code do Convite (morador) ── */}
+      {qrConviteModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)' }}
+          onClick={() => { setQrConviteModal(null); setQrConviteUrl(null); }}
+        >
+          <div
+            className="rounded-3xl p-6 max-w-sm w-full space-y-4"
+            style={{ background: 'linear-gradient(135deg,rgba(13,20,35,.99),rgba(7,16,28,.99))', border: '1px solid rgba(87,216,255,0.25)', boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p style={{ fontSize: '0.68rem', fontWeight: 700, color: CYAN, letterSpacing: '0.06em' }}>QR CODE DO CONVITE</p>
+                <p style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff', marginTop: 2 }}>{qrConviteModal.visitante_nome}</p>
+                <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
+                  {VISITA_TIPO[qrConviteModal.tipo].emoji} Chácara {qrConviteModal.chacara_numero} · {new Date(qrConviteModal.data_visita + 'T12:00:00').toLocaleDateString('pt-BR')}
+                </p>
+              </div>
+              <button onClick={() => { setQrConviteModal(null); setQrConviteUrl(null); }} className="w-8 h-8 rounded-xl flex items-center justify-center cursor-pointer" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <X size={14} style={{ color: 'rgba(255,255,255,0.6)' }} />
+              </button>
+            </div>
+
+            {/* QR */}
+            <div className="flex justify-center">
+              {qrConviteUrl ? (
+                <div className="rounded-2xl p-4" style={{ background: '#07101c', border: '1px solid rgba(87,216,255,0.2)' }}>
+                  <img src={qrConviteUrl} alt="QR Convite" style={{ width: 220, height: 220, display: 'block' }} />
+                </div>
+              ) : (
+                <div className="w-[220px] h-[220px] rounded-2xl flex items-center justify-center" style={{ background: '#07101c', border: '1px solid rgba(87,216,255,0.2)' }}>
+                  <Loader2 size={28} style={{ color: CYAN }} className="animate-spin" />
+                </div>
+              )}
+            </div>
+
+            {/* Instrução */}
+            <div className="rounded-xl p-3" style={{ background: 'rgba(87,216,255,0.06)', border: '1px solid rgba(87,216,255,0.15)' }}>
+              <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.65, textAlign: 'center' }}>
+                📤 Encaminhe este QR Code ao seu convidado.<br />
+                Na portaria, ele exibe na câmera do totem e informa os CPFs de quem está entrando.
+              </p>
+            </div>
+
+            {/* Ações */}
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={baixarQrConvite} disabled={!qrConviteUrl} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold cursor-pointer" style={{ background: 'rgba(87,216,255,0.1)', color: CYAN, border: '1px solid rgba(87,216,255,0.25)' }}>
+                <Download size={13} /> Salvar PNG
+              </button>
+              <button onClick={copiarLinkConvite} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold cursor-pointer" style={{ background: qrCopied ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.06)', color: qrCopied ? GREEN : 'rgba(255,255,255,0.6)', border: `1px solid ${qrCopied ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.1)'}` }}>
+                {qrCopied ? <><ClipboardCheck size={13} /> Copiado!</> : <><Copy size={13} /> Copiar link</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

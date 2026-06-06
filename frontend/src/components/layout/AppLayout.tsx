@@ -20,8 +20,10 @@ export const AppLayout = () => (
     {/* Shell */}
     <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100svh', width: '100%' }}>
       <AppHeader />
-      <main style={{ flex: 1, overflow: 'hidden', width: '100%', height: 0 }}>
-        <Outlet />
+      <main style={{ flex: 1, overflow: 'hidden', width: '100%', minHeight: 0, position: 'relative' }}>
+        <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+          <Outlet />
+        </div>
       </main>
     </div>
   </>

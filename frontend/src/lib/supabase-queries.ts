@@ -34,6 +34,7 @@ export interface DbIncident {
   description: string; created_at: string;
   user_id: string;
   resolved_at?: string | null;
+  seen_by_gestor_at?: string | null;
   profiles?: { full_name: string | null };
 }
 
@@ -325,6 +326,86 @@ export async function updateIncidentStatus(
   if (error) throw error;
 }
 
+export async function markIncidentSeenByGestor(id: string): Promise<void> {
+  const { error } = await db
+    .from('incidents')
+    .update({ seen_by_gestor_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('seen_by_gestor_at', null); // só atualiza se ainda não foi marcado
+  if (error) throw error;
+}
+
+/* ─── Ocorrências: Linha do Tempo ──────────────────────────────── */
+
+export interface DbIncidentUpdate {
+  id: string;
+  incident_id: string;
+  user_id: string | null;
+  tipo: 'criado' | 'status' | 'comentario' | 'resolucao';
+  status_anterior: string | null;
+  status_novo: string | null;
+  mensagem: string | null;
+  created_at: string;
+  profiles?: { full_name: string | null };
+}
+
+export async function fetchIncidentUpdates(incidentId: string): Promise<DbIncidentUpdate[]> {
+  const { data, error } = await db
+    .from('incident_updates')
+    .select('*, profiles!user_id(full_name)')
+    .eq('incident_id', incidentId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as DbIncidentUpdate[];
+}
+
+export async function addIncidentUpdate(payload: {
+  incident_id: string;
+  user_id: string;
+  tipo: DbIncidentUpdate['tipo'];
+  status_anterior?: string | null;
+  status_novo?: string | null;
+  mensagem?: string | null;
+}): Promise<DbIncidentUpdate> {
+  const { data, error } = await db
+    .from('incident_updates')
+    .insert(payload)
+    .select('*, profiles!user_id(full_name)')
+    .single();
+  if (error) throw error;
+  return data as DbIncidentUpdate;
+}
+
+export async function updateIncidentStatusWithNote(
+  id: string,
+  status: DbIncident['status'],
+  note: string | null,
+  userId: string,
+  statusAnterior: string,
+): Promise<void> {
+  const tipo: DbIncidentUpdate['tipo'] = status === 'resolvido' ? 'resolucao' : 'status';
+  const patch: Record<string, unknown> = { status };
+  if (status === 'resolvido') patch.resolved_at = new Date().toISOString();
+  const { error } = await db.from('incidents').update(patch).eq('id', id);
+  if (error) throw error;
+  await addIncidentUpdate({
+    incident_id: id, user_id: userId, tipo,
+    status_anterior: statusAnterior, status_novo: status,
+    mensagem: note || null,
+  });
+}
+
+export async function addIncidentComment(
+  incidentId: string,
+  userId: string,
+  mensagem: string,
+): Promise<DbIncidentUpdate> {
+  return addIncidentUpdate({
+    incident_id: incidentId, user_id: userId,
+    tipo: 'comentario', mensagem,
+  });
+}
+
 /* ─── Financeiro ───────────────────────────────────────────────── */
 
 /** Lista lançamentos de um mês de referência com filtros opcionais */
@@ -384,16 +465,15 @@ export async function updateFinanceStatus(
   if (error) throw error;
 }
 
-/** KPIs do mês: despesas pagas, pendentes e total geral */
+/** KPIs do mês (ou de todos os meses se referenceMonth for vazio) */
 export async function fetchFinanceSummary(referenceMonth: string): Promise<{
   totalDespesas: number;
   totalPendentes: number;
   totalGeral: number;
 }> {
-  const { data, error } = await db
-    .from('finances')
-    .select('amount, type, status')
-    .eq('reference_month', referenceMonth);
+  let q = db.from('finances').select('amount, type, status');
+  if (referenceMonth) q = q.eq('reference_month', referenceMonth);
+  const { data, error } = await q;
   if (error) throw error;
   const rows = data ?? [];
   const totalDespesas  = rows.filter(r => r.type === 'despesa' && r.status === 'pago').reduce((s, r) => s + Number(r.amount), 0);
@@ -1281,6 +1361,27 @@ export async function fetchConvitesHoje(): Promise<DbConvite[]> {
     .select('*, morador:profiles!morador_id(full_name, unit_number, phone)')
     .eq('data_visita', TODAY_STR())
     .eq('status', 'ativo')
+    .order('created_at');
+  if (error) throw error;
+  return (data ?? []) as DbConvite[];
+}
+
+export async function fetchConviteById(id: string): Promise<DbConvite | null> {
+  const { data } = await db
+    .from('portaria_convites')
+    .select('*, morador:profiles!morador_id(full_name, unit_number, phone)')
+    .eq('id', id)
+    .maybeSingle();
+  return data as DbConvite | null;
+}
+
+export async function fetchConvitesProgramados(): Promise<DbConvite[]> {
+  const { data, error } = await db
+    .from('portaria_convites')
+    .select('*, morador:profiles!morador_id(full_name, unit_number, phone)')
+    .gte('data_visita', TODAY_STR())
+    .in('status', ['ativo', 'usado'])
+    .order('data_visita')
     .order('created_at');
   if (error) throw error;
   return (data ?? []) as DbConvite[];

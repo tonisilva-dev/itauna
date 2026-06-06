@@ -58,11 +58,11 @@ const FinanceiroMorador = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.unit_number) { setLoading(false); return; }
-    Promise.all([
-      fetchUnitByNumber(user.unit_number),
-      fetchFinances({ category: 'Rateio Individual', limit: 24 }),
-    ]).then(([u, fins]) => {
+    const promises: [Promise<DbUnit | null>, Promise<DbFinance[]>] = [
+      user?.unit_number ? fetchUnitByNumber(user.unit_number) : Promise.resolve(null),
+      fetchFinances({ limit: 48 }),
+    ];
+    Promise.all(promises).then(([u, fins]) => {
       setUnit(u);
       setRateios(fins);
     }).catch(() => {}).finally(() => setLoading(false));
@@ -184,7 +184,7 @@ const FinanceiroGestor = () => {
   const [filter, setFilter] = useState<'todos' | 'receita' | 'despesa'>('todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState('');
 
   const PAGE_SIZE = 30;
 
@@ -309,10 +309,13 @@ const FinanceiroGestor = () => {
     } catch { toast.error('Erro ao atualizar status.'); }
   };
 
-  const monthOptions = Array.from({ length: 12 }, (_, i) => {
-    const d = subMonths(new Date(), i);
-    return { value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy', { locale: ptBR }).toUpperCase() };
-  });
+  const monthOptions = [
+    { value: '', label: 'TODOS OS MESES' },
+    ...Array.from({ length: 24 }, (_, i) => {
+      const d = subMonths(new Date(), i);
+      return { value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy', { locale: ptBR }).toUpperCase() };
+    }),
+  ];
 
   const slideResumo = (
     <SlidePanel
@@ -651,6 +654,7 @@ export const Financeiro = () => {
         style={{
           animation: 'fadeIn 0.3s ease-out forwards',
           opacity: 0,
+          height: '100%',
         }}
       >
         <style>{`

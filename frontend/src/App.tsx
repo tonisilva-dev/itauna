@@ -32,6 +32,7 @@ const QuemSomos       = lazy(() => import('./pages/QuemSomos').then(m => ({ defa
 const TelefonesUteis         = lazy(() => import('./pages/TelefonesUteis').then(m => ({ default: m.TelefonesUteis })));
 const ResponsabilidadeSocial = lazy(() => import('./pages/ResponsabilidadeSocial').then(m => ({ default: m.ResponsabilidadeSocial })));
 const AcessoQR               = lazy(() => import('./pages/AcessoQR').then(m => ({ default: m.AcessoQR })));
+const ConviteQR              = lazy(() => import('./pages/ConviteQR').then(m => ({ default: m.ConviteQR })));
 const AnaliseCenarios        = lazy(() => import('./pages/financeiro/AnaliseCenarios').then(m => ({ default: m.AnaliseCenarios })));
 const ChecklistServicos      = lazy(() => import('./pages/servicos/ChecklistServicos').then(m => ({ default: m.ChecklistServicos })));
 const Privacidade     = lazy(() => import('./pages/Privacidade').then(m => ({ default: m.Privacidade })));
@@ -138,6 +139,9 @@ export default function App() {
 
           {/* Acesso QR — pública (visitantes sem login) */}
           <Route path="/acesso" element={<AcessoQR />} />
+
+          {/* Convite QR — pública (convidados via link do morador) */}
+          <Route path="/convite/:id" element={<ConviteQR />} />
 
           {/* Política de Privacidade — pública */}
           <Route path="/privacidade" element={<Privacidade />} />
