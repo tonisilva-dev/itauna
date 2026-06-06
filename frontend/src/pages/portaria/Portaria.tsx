@@ -1,5 +1,6 @@
 import { gotoSlide } from '../../utils/format';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Shield, Car, User, Clock, CheckCircle2, Plus, Loader2,
   Trash2, UserPlus, AlertTriangle, Package, Wrench,
@@ -90,6 +91,16 @@ const isVencido = (validade: string | null) => {
 export const Portaria = () => {
   const { user, isGestor } = useAuth();
   const chacaraNum = user?.unit_number ? String(user.unit_number).padStart(3, '0') : null;
+  const [searchParams] = useSearchParams();
+
+  // Deep link: /portaria?enc=1 → navega direto para o slide de encomendas
+  useEffect(() => {
+    if (!searchParams.get('enc')) return;
+    // Morador: slides = Controle(0), Agendar(1), Recorrentes(2), Encomendas(3)
+    const idx = isGestor ? 3 : 3;
+    const t = setTimeout(() => gotoSlide(idx), 150);
+    return () => clearTimeout(t);
+  }, [searchParams, isGestor]);
 
   const [visitas, setVisitas]         = useState<DbPortariaRegistro[]>([]);
   const [histVisitas, setHistVisitas] = useState<DbPortariaRegistro[]>([]);
@@ -877,7 +888,7 @@ export const Portaria = () => {
             {/* Form registro */}
             <form onSubmit={handleRegistrarEncomenda} className="rounded-2xl p-3 space-y-2.5" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.18)' }}>
               <p style={{ fontSize: '0.7rem', fontWeight: 700, color: YELLOW, letterSpacing: '0.05em' }}>REGISTRAR NOVA ENCOMENDA</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="input-label text-[11px]">Nº da Chácara *</label>
                   <input type="text" className="input" inputMode="numeric" placeholder="Ex: 042" maxLength={3}
@@ -1004,7 +1015,7 @@ export const Portaria = () => {
               <label className="input-label text-[11px]">Nome do visitante *</label>
               <input type="text" className="input" placeholder="Ex: Maria Oliveira" value={cvNome} onChange={e => setCvNome(e.target.value)} required />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="input-label text-[11px]">CPF {cvTipo !== 'entrega' ? '*' : '(opcional)'}</label>
                 <input type="tel" inputMode="numeric" className="input" placeholder="000.000.000-00" value={cvCpf} onChange={e => setCvCpf(fmtCpfInput(e.target.value))} />
@@ -1014,7 +1025,7 @@ export const Portaria = () => {
                 <input type="tel" className="input" placeholder="(43) 9..." value={cvTel} onChange={e => setCvTel(e.target.value)} />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="input-label text-[11px]">Tipo</label>
                 <select className="input" value={cvTipo} onChange={e => setCvTipo(e.target.value as any)}>
@@ -1105,7 +1116,7 @@ export const Portaria = () => {
               <label className="input-label text-[11px]">Nome *</label>
               <input type="text" className="input" placeholder="Ex: Ana — Faxina" value={rcNome} onChange={e => setRcNome(e.target.value)} required />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="input-label text-[11px]">CPF</label>
                 <input type="tel" inputMode="numeric" className="input" placeholder="000.000.000-00" value={rcCpf} onChange={e => setRcCpf(fmtCpfInput(e.target.value))} />
@@ -1115,7 +1126,7 @@ export const Portaria = () => {
                 <input type="tel" className="input" placeholder="(43) 9..." value={rcTel} onChange={e => setRcTel(e.target.value)} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="input-label text-[11px]">Tipo</label>
                 <select className="input" value={rcTipo} onChange={e => setRcTipo(e.target.value as any)}>
@@ -1384,7 +1395,7 @@ export const Portaria = () => {
           ]}
         >
           <form onSubmit={handleRegisterEntry} className="flex flex-col gap-3 py-1 text-xs">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="input-label text-[11px]">Nome Completo *</label>
                 <input type="text" className="input" placeholder="Ex: Lucas Santana" value={nome} onChange={e => setNome(e.target.value)} required />
@@ -1394,7 +1405,7 @@ export const Portaria = () => {
                 <input type="text" className="input" placeholder="Ex: Corolla — ABC-1234" value={veiculo} onChange={e => setVeiculo(e.target.value)} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="input-label text-[11px]">Tipo</label>
                 <select className="input" value={tipo} onChange={e => setTipo(e.target.value as DbPortariaRegistro['tipo'])}>
@@ -1502,7 +1513,7 @@ export const Portaria = () => {
               <label className="input-label text-[11px]">Nome do Prestador / Empresa *</label>
               <input type="text" className="input" placeholder="Ex: Empresa de Jardinagem" value={autNome} onChange={e => setAutNome(e.target.value)} required />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="input-label text-[11px]">Chácara / Área</label>
                 <input type="text" className="input" placeholder="Ex: Áreas comuns" value={autChacara} onChange={e => setAutChacara(e.target.value)} />

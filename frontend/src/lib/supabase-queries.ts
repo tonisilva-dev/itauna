@@ -1639,6 +1639,16 @@ export async function insertEncomenda(
   return data as DbEncomenda;
 }
 
+export async function countEncomendasPendentes(chacaraNumero: string): Promise<number> {
+  const { count, error } = await db
+    .from('portaria_encomendas')
+    .select('id', { count: 'exact', head: true })
+    .eq('chacara_numero', chacaraNumero)
+    .eq('status', 'aguardando');
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function marcarEncomendaRetirada(id: string): Promise<void> {
   const { error } = await db
     .from('portaria_encomendas')

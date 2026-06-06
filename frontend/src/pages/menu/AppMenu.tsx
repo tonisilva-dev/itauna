@@ -1,12 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   DollarSign, Shield, Bell, Calendar, AlertCircle, Image,
   FileText, Tag, Search, Building2, TreePine, Home, Users,
   ShieldCheck, Lock, Phone, Leaf, TrendingUp, ClipboardList,
-  Eye, User,
+  Eye, User, Package,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { countEncomendasPendentes } from '@/lib/supabase-queries';
 import './AppMenu.css';
 
 type Nivel = 'visitante' | 'morador' | 'gestor';
@@ -17,6 +18,7 @@ interface AppIcon {
   Icon: React.ElementType;
   gradient: string;
   nivel: Nivel;
+  badge?: number;
 }
 
 const APPS: AppIcon[] = [
@@ -26,14 +28,15 @@ const APPS: AppIcon[] = [
   { path: '/telefones-uteis',         label: 'Telefones',     Icon: Phone,         gradient: 'linear-gradient(145deg,#c2410c,#fb923c)', nivel: 'visitante' },
   { path: '/responsabilidade-social', label: 'Resp. Social',  Icon: Leaf,          gradient: 'linear-gradient(145deg,#166534,#4ade80)', nivel: 'visitante' },
 
-  { path: '/financeiro',        label: 'Transparência', Icon: Eye,          gradient: 'linear-gradient(145deg,#065f46,#10b981)', nivel: 'morador' },
-  { path: '/comunicados',       label: 'Comunicados',   Icon: Bell,         gradient: 'linear-gradient(145deg,#92400e,#f59e0b)', nivel: 'morador' },
-  { path: '/agendamentos',      label: 'Agendamentos',  Icon: Calendar,     gradient: 'linear-gradient(145deg,#1e3a8a,#3b82f6)', nivel: 'morador' },
-  { path: '/ocorrencias',       label: 'Ocorrências',   Icon: AlertCircle,  gradient: 'linear-gradient(145deg,#991b1b,#ef4444)', nivel: 'morador' },
-  { path: '/portaria',          label: 'Portaria',      Icon: Shield,       gradient: 'linear-gradient(145deg,#164e63,#06b6d4)', nivel: 'morador' },
-  { path: '/documentos',        label: 'Documentos',    Icon: FileText,     gradient: 'linear-gradient(145deg,#312e81,#6366f1)', nivel: 'morador' },
-  { path: '/achados-perdidos',  label: 'Achados',       Icon: Search,       gradient: 'linear-gradient(145deg,#14532d,#22c55e)', nivel: 'morador' },
-  { path: '/parceiros',         label: 'Parceiros',     Icon: Building2,    gradient: 'linear-gradient(145deg,#0c4a6e,#0ea5e9)', nivel: 'morador' },
+  { path: '/financeiro',        label: 'Transparência',    Icon: Eye,          gradient: 'linear-gradient(145deg,#065f46,#10b981)', nivel: 'morador' },
+  { path: '/comunicados',       label: 'Comunicados',      Icon: Bell,         gradient: 'linear-gradient(145deg,#92400e,#f59e0b)', nivel: 'morador' },
+  { path: '/agendamentos',      label: 'Reservas',         Icon: Calendar,     gradient: 'linear-gradient(145deg,#1e3a8a,#3b82f6)', nivel: 'morador' },
+  { path: '/ocorrencias',       label: 'Ocorrências',      Icon: AlertCircle,  gradient: 'linear-gradient(145deg,#991b1b,#ef4444)', nivel: 'morador' },
+  { path: '/portaria',          label: 'Acesso & Visitas', Icon: Shield,       gradient: 'linear-gradient(145deg,#164e63,#06b6d4)', nivel: 'morador' },
+  { path: '/portaria?enc=1',    label: 'Encomendas',       Icon: Package,      gradient: 'linear-gradient(145deg,#78350f,#f59e0b)', nivel: 'morador' },
+  { path: '/documentos',        label: 'Documentos',       Icon: FileText,     gradient: 'linear-gradient(145deg,#312e81,#6366f1)', nivel: 'morador' },
+  { path: '/achados-perdidos',  label: 'Achados',          Icon: Search,       gradient: 'linear-gradient(145deg,#14532d,#22c55e)', nivel: 'morador' },
+  { path: '/parceiros',         label: 'Parceiros',        Icon: Building2,    gradient: 'linear-gradient(145deg,#0c4a6e,#0ea5e9)', nivel: 'morador' },
 
   { path: '/unidades',           label: 'Chácaras',  Icon: Home,          gradient: 'linear-gradient(145deg,#374151,#9ca3af)', nivel: 'gestor' },
   { path: '/moradores',          label: 'Moradores', Icon: Users,         gradient: 'linear-gradient(145deg,#5b21b6,#c084fc)', nivel: 'gestor' },
@@ -59,10 +62,17 @@ interface Burst {
 }
 
 export const AppMenu = () => {
-  const { isGestor } = useAuth();
+  const { isGestor, user } = useAuth();
   const navigate = useNavigate();
   const [burst, setBurst] = useState<Burst | null>(null);
   const [pressed, setPressed] = useState<string | null>(null);
+  const [encPendentes, setEncPendentes] = useState(0);
+
+  useEffect(() => {
+    if (isGestor || !user?.unit_number) return;
+    const chacara = String(user.unit_number).padStart(3, '0');
+    countEncomendasPendentes(chacara).then(setEncPendentes).catch(() => {});
+  }, [isGestor, user]);
 
   const handleClick = useCallback((app: AppIcon, e: React.MouseEvent) => {
     const el = e.currentTarget as HTMLElement;
@@ -76,12 +86,15 @@ export const AppMenu = () => {
       sy: `${th / r.height}`,
       gradient: app.gradient,
     });
-    setTimeout(() => { setBurst(null); navigate(app.path); }, 360);
+    setTimeout(() => { setBurst(null); navigate(app.path, { replace: false }); }, 360);
   }, [navigate]);
 
-  const visitante = APPS.filter(a => a.nivel === 'visitante');
-  const morador   = APPS.filter(a => a.nivel === 'morador');
-  const gestor    = APPS.filter(a => a.nivel === 'gestor');
+  const appsComBadge = APPS.map(a =>
+    a.path === '/portaria?enc=1' && encPendentes > 0 ? { ...a, badge: encPendentes } : a
+  );
+  const visitante = appsComBadge.filter(a => a.nivel === 'visitante');
+  const morador   = appsComBadge.filter(a => a.nivel === 'morador');
+  const gestor    = appsComBadge.filter(a => a.nivel === 'gestor');
 
   return (
     <>
@@ -162,11 +175,22 @@ const AppIconBtn = ({ app, onClickApp, pressed, setPressed }: {
       onTouchStart={() => setPressed(app.path)}
       onTouchEnd={() => setPressed(null)}
     >
-      <div className="menu-icon-frame" style={{ background: app.gradient }}>
+      <div className="menu-icon-frame" style={{ background: app.gradient, position: 'relative' }}>
         <div className="menu-icon-gloss" />
         <div className="menu-icon-inner">
           <app.Icon className="menu-icon-svg" />
         </div>
+        {app.badge && app.badge > 0 ? (
+          <span style={{
+            position: 'absolute', top: -4, right: -4,
+            minWidth: 18, height: 18, borderRadius: 9,
+            background: '#ef4444', color: '#fff',
+            fontSize: '0.6rem', fontWeight: 800,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '0 4px', border: '2px solid #07101c',
+            lineHeight: 1,
+          }}>{app.badge > 9 ? '9+' : app.badge}</span>
+        ) : null}
       </div>
       <span className="menu-icon-label">{app.label}</span>
     </button>
