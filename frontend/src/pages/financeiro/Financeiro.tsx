@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { DollarSign, Plus, TrendingDown, Wallet, Search, RefreshCw, TrendingUp, CheckCircle2, Loader2, Calendar, Home, AlertTriangle, Eye, LockKeyhole, FileDown } from 'lucide-react';
+import { DollarSign, Plus, TrendingDown, Wallet, Search, RefreshCw, TrendingUp, CheckCircle2, Loader2, Calendar, Home, AlertTriangle, Eye, LockKeyhole, FileDown, CreditCard } from 'lucide-react';
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatCard } from '../../components/ui/StatCard';
@@ -8,6 +8,7 @@ import { formatCurrency, formatDate, gotoSlide, TODAY } from '../../utils/format
 import { format, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { fetchFinances, fetchFinanceSummary, fetchFinanceTrend, insertFinance, updateFinanceStatus, fetchUnitByNumber, type DbFinance, type DbUnit } from '../../lib/supabase-queries';
+import { CobrancasSlide, MinhasCobrancasSlide } from './Cobrancas';
 import { useMemo } from 'react';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
@@ -373,7 +374,10 @@ const FinanceiroMorador = () => {
 
   return (
     <div className="w-full h-full">
-      <PageCarousel3D slides={[slideDashboard, slideCategorias, slideSituacao, slideRateios]} />
+      <PageCarousel3D slides={[
+        slideDashboard, slideCategorias, slideSituacao, slideRateios,
+        { key: 'fin-m-cobrancas', label: 'Boletos', content: <div className="w-full h-full overflow-y-auto px-1"><MinhasCobrancasSlide /></div> },
+      ]} />
     </div>
   );
 };
@@ -936,11 +940,18 @@ const FinanceiroGestor = () => {
     </SlidePanel>
   );
 
+  const slideCobrancas = (
+    <div className="w-full h-full overflow-y-auto px-1">
+      <CobrancasSlide />
+    </div>
+  );
+
   const slides3D: SlideItem[] = [
     { key: 'financeiro-resumo',        label: 'Painel',       content: slideResumo },
     { key: 'financeiro-analise',       label: 'Análise',      content: slideAnalise },
     { key: 'financeiro-movimentacoes', label: 'Lançamentos',  content: slideMovimentacoes },
     { key: 'financeiro-registrar',     label: 'Lançar',       content: slideRegistrar },
+    { key: 'financeiro-cobrancas',     label: 'Cobranças',    content: slideCobrancas },
   ];
 
   return (

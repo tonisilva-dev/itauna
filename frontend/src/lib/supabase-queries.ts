@@ -1945,3 +1945,74 @@ export async function fetchDashboardSummary() {
     units:         units.status         === 'fulfilled' ? units.value         : [],
   };
 }
+
+/* ─── Cobranças (Asaas + CNAB) ─────────────────────────────────── */
+
+export interface DbCobranca {
+  id: string;
+  unit_number: number;
+  unit_id: string | null;
+  morador_id: string | null;
+  reference_month: string;   // YYYY-MM
+  amount: number;
+  due_date: string;
+  status: 'pendente' | 'pago' | 'vencido' | 'cancelado';
+  payment_date: string | null;
+  payment_method: string | null;
+  asaas_id: string | null;
+  asaas_invoice_url: string | null;
+  asaas_pix_qrcode: string | null;
+  asaas_pix_payload: string | null;
+  asaas_customer_id: string | null;
+  cnab_nosso_numero: string | null;
+  cnab_imported_at: string | null;
+  created_at: string;
+  profiles?: { full_name: string | null; email: string } | null;
+}
+
+export async function fetchCobrancas(reference_month: string): Promise<DbCobranca[]> {
+  const { data, error } = await db
+    .from('cobrancas')
+    .select('*, profiles!morador_id(full_name, email)')
+    .eq('reference_month', reference_month)
+    .order('unit_number');
+  if (error) throw error;
+  return (data ?? []) as DbCobranca[];
+}
+
+export async function fetchMinhasCobrancas(): Promise<DbCobranca[]> {
+  const { data, error } = await db
+    .from('cobrancas')
+    .select('*')
+    .order('reference_month', { ascending: false })
+    .limit(24);
+  if (error) throw error;
+  return (data ?? []) as DbCobranca[];
+}
+
+export async function updateCobranca(id: string, payload: Partial<DbCobranca>): Promise<void> {
+  const { error } = await db.from('cobrancas').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export async function insertCobrancaManual(payload: {
+  unit_number: number; unit_id?: string | null; morador_id?: string | null;
+  reference_month: string; amount: number; due_date: string;
+  cnab_nosso_numero?: string;
+}): Promise<DbCobranca> {
+  const { data, error } = await db
+    .from('cobrancas')
+    .upsert({ ...payload, status: 'pendente' }, { onConflict: 'unit_number,reference_month' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DbCobranca;
+}
+
+export async function marcarCobrancaPaga(id: string, payment_method = 'manual'): Promise<void> {
+  const { error } = await db
+    .from('cobrancas')
+    .update({ status: 'pago', payment_date: new Date().toISOString().slice(0, 10), payment_method })
+    .eq('id', id);
+  if (error) throw error;
+}
