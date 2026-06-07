@@ -40,6 +40,7 @@ const AnaliseAcesso          = lazy(() => import('./pages/admin/AnaliseAcesso').
 const Benfeitorias           = lazy(() => import('./pages/benfeitorias/Benfeitorias').then(m => ({ default: m.Benfeitorias })));
 const Privacidade     = lazy(() => import('./pages/Privacidade').then(m => ({ default: m.Privacidade })));
 const Preview         = lazy(() => import('./pages/Preview').then(m => ({ default: m.Preview })));
+const Reunioes        = lazy(() => import('./pages/reunioes/Reunioes').then(m => ({ default: m.Reunioes })));
 
 /* ── Guards ── */
 
@@ -124,6 +125,7 @@ export default function App() {
             <Route path="/acesso-visitas"   element={<AcessoVisitas />} />
             <Route path="/ocorrencias"      element={<Ocorrencias />} />
             <Route path="/benfeitorias"     element={<Benfeitorias />} />
+            <Route path="/reunioes"         element={<Reunioes />} />
             <Route path="/comunicados"      element={<Comunicados />} />
             <Route path="/documentos"       element={<Documentos />} />
             <Route path="/achados-perdidos" element={<AchadosPerdidos />} />

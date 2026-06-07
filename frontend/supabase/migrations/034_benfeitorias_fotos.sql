@@ -18,12 +18,18 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
--- RLS Storage
-CREATE POLICY "benfeitorias_photos_select" ON storage.objects
-  FOR SELECT USING (bucket_id = 'benfeitorias');
+-- RLS Storage (idempotente)
+DO $$ BEGIN
+  CREATE POLICY "benfeitorias_photos_select" ON storage.objects
+    FOR SELECT USING (bucket_id = 'benfeitorias');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "benfeitorias_photos_insert" ON storage.objects
-  FOR INSERT TO authenticated WITH CHECK (bucket_id = 'benfeitorias');
+DO $$ BEGIN
+  CREATE POLICY "benfeitorias_photos_insert" ON storage.objects
+    FOR INSERT TO authenticated WITH CHECK (bucket_id = 'benfeitorias');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY "benfeitorias_photos_delete" ON storage.objects
-  FOR DELETE TO authenticated USING (bucket_id = 'benfeitorias');
+DO $$ BEGIN
+  CREATE POLICY "benfeitorias_photos_delete" ON storage.objects
+    FOR DELETE TO authenticated USING (bucket_id = 'benfeitorias');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

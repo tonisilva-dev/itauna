@@ -4,7 +4,7 @@ import {
   DollarSign, Shield, Bell, Calendar, AlertCircle, Image,
   FileText, Tag, Search, Building2, TreePine, Home, Users,
   ShieldCheck, Lock, Phone, Leaf, TrendingUp, ClipboardList,
-  Eye, User, Package, Activity, DoorOpen, HardHat,
+  Eye, User, Package, Activity, DoorOpen, HardHat, Video,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -39,6 +39,7 @@ const APPS: AppIcon[] = [
   { path: '/comunicados',        label: 'Comunicados',      Icon: Bell,         gradient: 'linear-gradient(145deg,#92400e,#f59e0b)', grupo: 'essenciais', featured: true },
   { path: '/agendamentos',       label: 'Reservas',         Icon: Calendar,     gradient: 'linear-gradient(145deg,#1e3a8a,#3b82f6)', grupo: 'essenciais' },
   { path: '/ocorrencias',        label: 'Ocorrências',      Icon: AlertCircle,  gradient: 'linear-gradient(145deg,#991b1b,#ef4444)', grupo: 'essenciais' },
+  { path: '/reunioes',           label: 'Reuniões',         Icon: Video,        gradient: 'linear-gradient(145deg,#4c1d95,#a855f7)', grupo: 'essenciais' },
   { path: '/acesso-visitas',     label: 'Acesso & Visitas', Icon: Shield,       gradient: 'linear-gradient(145deg,#164e63,#06b6d4)', grupo: 'essenciais' },
   { path: '/acesso-visitas?enc=1', label: 'Encomendas',     Icon: Package,      gradient: 'linear-gradient(145deg,#78350f,#f59e0b)', grupo: 'essenciais' },
 
