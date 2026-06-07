@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, db } from '../lib/supabase';
 import type { Profile } from '../types/database';
 import { getBiometricState } from '../lib/biometric';
 
@@ -56,8 +56,9 @@ function clearProfileCache() {
 
 async function fetchProfile(supabaseUser: any): Promise<Profile> {
   try {
+    const query = supabase.from('profiles').select('*').eq('id', supabaseUser.id).single();
     const result = await Promise.race<{ data: Profile | null; error: unknown } | { data: null }>([
-      supabase.from('profiles').select('*').eq('id', supabaseUser.id).single() as Promise<{ data: Profile | null; error: unknown }>,
+      query as unknown as Promise<{ data: Profile | null; error: unknown }>,
       new Promise<{ data: null }>(resolve =>
         setTimeout(() => resolve({ data: null }), 3000)
       ),
@@ -189,7 +190,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const updateProfile = async (data: Partial<Profile>) => {
     if (!user) return;
-    const result = await supabase.from('profiles').update(data).eq('id', user.id);
+    const result = await db.from('profiles').update(data).eq('id', user.id);
     if (!result.error) setUser({ ...user, ...data });
     return result;
   };

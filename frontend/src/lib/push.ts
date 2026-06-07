@@ -2,7 +2,7 @@
  * push.ts — Utilitários para Web Push PWA
  * Gerencia permissão, subscription e envio de notificações.
  */
-import { supabase } from './supabase';
+import { supabase, db } from './supabase';
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string;
 
@@ -43,7 +43,7 @@ export async function subscribePush(userId: string): Promise<boolean> {
     keys: { p256dh: string; auth: string };
   };
 
-  await supabase.from('push_subscriptions').upsert(
+  await db.from('push_subscriptions').upsert(
     { user_id: userId, endpoint, p256dh: keys.p256dh, auth: keys.auth },
     { onConflict: 'endpoint' }
   );
@@ -58,7 +58,7 @@ export async function unsubscribePush(): Promise<void> {
   if (!sub) return;
   const { endpoint } = sub.toJSON() as { endpoint: string };
   await sub.unsubscribe();
-  await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+  await db.from('push_subscriptions').delete().eq('endpoint', endpoint);
 }
 
 /** Verifica se este dispositivo já está inscrito */
