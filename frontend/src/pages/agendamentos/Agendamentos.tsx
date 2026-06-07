@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
 import { StatCard } from '../../components/ui/StatCard';
-import { formatCurrency, gotoSlide } from '../../utils/format';
+import { formatCurrency, gotoSlide, TODAY } from '../../utils/format';
 import toast from 'react-hot-toast';
 import {
   fetchAreasComuns, fetchBookings, createBooking, cancelBooking,
@@ -17,7 +17,6 @@ import {
   type DbAreaComum, type DbBooking,
 } from '@/lib/supabase-queries';
 
-const TODAY = new Date().toISOString().slice(0, 10);
 const getNow = () => new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
 const GREEN  = '#10b981';

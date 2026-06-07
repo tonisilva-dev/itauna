@@ -16,7 +16,7 @@ import {
   fetchConviteById, insertSolicitacao, fetchSolicitacaoById, isPortariaBusy,
   type DbConvite,
 } from '../lib/supabase-queries';
-import { formatUnidade } from '../utils/format';
+import { formatUnidade, maskCPF } from '../utils/format';
 
 const CYAN  = '#57d8ff';
 const GREEN = '#10b981';
@@ -27,14 +27,6 @@ const TIPO_LABEL: Record<string, { emoji: string; label: string }> = {
   prestador: { emoji: '🔧', label: 'Prestador de Serviço'},
   entrega:   { emoji: '📦', label: 'Entrega'             },
 };
-
-function fmtCpf(raw: string): string {
-  const d = raw.replace(/\D/g, '').slice(0, 11);
-  if (d.length <= 3) return d;
-  if (d.length <= 6) return `${d.slice(0,3)}.${d.slice(3)}`;
-  if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
-  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
-}
 
 type Step = 'loading' | 'cpfs' | 'busy' | 'waiting' | 'approved' | 'denied' | 'not_found' | 'expired';
 
@@ -61,7 +53,7 @@ export const ConviteQR = () => {
       setConvite(c);
       // Pré-preenche CPF principal se disponível no convite
       const initial = Array.from({ length: c.num_pessoas }, (_, i) =>
-        i === 0 && c.visitante_cpf ? fmtCpf(c.visitante_cpf) : ''
+        i === 0 && c.visitante_cpf ? maskCPF(c.visitante_cpf) : ''
       );
       setCpfs(initial);
       setStep('cpfs');
@@ -138,7 +130,7 @@ export const ConviteQR = () => {
   };
 
   const setCpf = (idx: number, val: string) =>
-    setCpfs(prev => prev.map((c, i) => i === idx ? fmtCpf(val) : c));
+    setCpfs(prev => prev.map((c, i) => i === idx ? maskCPF(val) : c));
 
   const fmtData = (d: string) =>
     new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });

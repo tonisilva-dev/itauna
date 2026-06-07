@@ -56,11 +56,8 @@ function clearProfileCache() {
 
 async function fetchProfile(supabaseUser: any): Promise<Profile> {
   try {
-    const result = await Promise.race<any>([
-      (supabase.from('profiles') as any)
-        .select('*')
-        .eq('id', supabaseUser.id)
-        .single(),
+    const result = await Promise.race<{ data: Profile | null; error: unknown } | { data: null }>([
+      supabase.from('profiles').select('*').eq('id', supabaseUser.id).single() as Promise<{ data: Profile | null; error: unknown }>,
       new Promise<{ data: null }>(resolve =>
         setTimeout(() => resolve({ data: null }), 3000)
       ),
@@ -69,7 +66,9 @@ async function fetchProfile(supabaseUser: any): Promise<Profile> {
       saveProfileCache(result.data as Profile);
       return result.data as Profile;
     }
-  } catch {}
+  } catch (err) {
+    console.warn('[itauna:auth] fetchProfile falhou', err);
+  }
   const cached = loadProfileCache();
   if (cached && cached.id === supabaseUser.id) return cached;
   return buildFallbackProfile(supabaseUser);
@@ -190,8 +189,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const updateProfile = async (data: Partial<Profile>) => {
     if (!user) return;
-    const result = await (supabase.from('profiles') as any)
-      .update(data).eq('id', user.id);
+    const result = await supabase.from('profiles').update(data).eq('id', user.id);
     if (!result.error) setUser({ ...user, ...data });
     return result;
   };

@@ -73,6 +73,9 @@ export const parseDateBR = (value: string): string | null => {
 
 export const currentMonth = (): string => format(new Date(), 'yyyy-MM');
 
+/** Data de hoje em formato ISO YYYY-MM-DD — use em defaultValues de formulários */
+export const TODAY = new Date().toISOString().slice(0, 10);
+
 export const unitLabel = (num: number): string => `Chácara ${String(num).padStart(3, '0')}`;
 
 /**

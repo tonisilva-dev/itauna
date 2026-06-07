@@ -4,8 +4,7 @@ import { DollarSign, Plus, TrendingDown, Wallet, Search, RefreshCw, TrendingUp, 
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatCard } from '../../components/ui/StatCard';
-import { formatCurrency, formatDate } from '../../utils/format';
-import { gotoSlide } from '../../utils/format';
+import { formatCurrency, formatDate, gotoSlide, TODAY } from '../../utils/format';
 import { format, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { fetchFinances, fetchFinanceSummary, fetchFinanceTrend, insertFinance, updateFinanceStatus, fetchUnitByNumber, type DbFinance, type DbUnit } from '../../lib/supabase-queries';
@@ -27,8 +26,6 @@ const CATEGORIES = [
   'Benfeitorias / Reformas', 'Reparos e Consertos', 'Serviços Terceirizados',
   'Rateio Individual', 'Fundo de Reserva', 'Fundo de Férias / 13º', 'Despesas Bancárias',
 ];
-
-const TODAY = new Date().toISOString().slice(0, 10);
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;

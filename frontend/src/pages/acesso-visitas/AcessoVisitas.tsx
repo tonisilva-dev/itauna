@@ -19,13 +19,12 @@ import {
   fetchMinhasEncomendas, fetchUnitByNumber,
   type DbConvite, type DbRecorrente, type DbEncomenda, type DbPortariaRegistro,
 } from '@/lib/supabase-queries';
-import { gotoSlide, formatUnidade, maskPhone } from '../../utils/format';
+import { gotoSlide, formatUnidade, maskPhone, maskCPF, TODAY } from '../../utils/format';
 
 const GREEN  = '#10b981';
 const CYAN   = '#57d8ff';
 const BLUE   = '#5a84ff';
 const YELLOW = '#f59e0b';
-const TODAY  = new Date().toISOString().slice(0, 10);
 
 const VISITA_TIPO = {
   convidado: { emoji: '👤', label: 'Convidado' },
@@ -38,14 +37,6 @@ const DIAS = [
   { k: 'qua', l: 'Qua' }, { k: 'qui', l: 'Qui' }, { k: 'sex', l: 'Sex' },
   { k: 'sab', l: 'Sáb' },
 ];
-
-const fmtCpfInput = (v: string) => {
-  const d = v.replace(/\D/g, '').slice(0, 11);
-  if (d.length <= 3) return d;
-  if (d.length <= 6) return `${d.slice(0,3)}.${d.slice(3)}`;
-  if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
-  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
-};
 
 export const AcessoVisitas = () => {
   const { user } = useAuth();
@@ -420,7 +411,7 @@ export const AcessoVisitas = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="input-label text-[11px]">CPF {cvTipo !== 'entrega' ? '*' : '(opcional)'}</label>
-              <input type="tel" inputMode="numeric" className="input" placeholder="000.000.000-00" value={cvCpf} onChange={e => setCvCpf(fmtCpfInput(e.target.value))} />
+              <input type="tel" inputMode="numeric" className="input" placeholder="000.000.000-00" value={cvCpf} onChange={e => setCvCpf(maskCPF(e.target.value))} />
             </div>
             <div>
               <label className="input-label text-[11px]">Telefone</label>
@@ -519,7 +510,7 @@ export const AcessoVisitas = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="input-label text-[11px]">CPF</label>
-              <input type="tel" inputMode="numeric" className="input" placeholder="000.000.000-00" value={rcCpf} onChange={e => setRcCpf(fmtCpfInput(e.target.value))} />
+              <input type="tel" inputMode="numeric" className="input" placeholder="000.000.000-00" value={rcCpf} onChange={e => setRcCpf(maskCPF(e.target.value))} />
             </div>
             <div>
               <label className="input-label text-[11px]">Telefone</label>

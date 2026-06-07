@@ -1053,24 +1053,14 @@ export async function deleteParceiro(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Evolução mensal separada por tipo (receita vs despesa) para gráfico */
+/** Evolução mensal separada por tipo (receita vs despesa) para gráfico — agrega no servidor via RPC */
 export async function fetchFinanceTrend(): Promise<{ mes: string; receitas: number; despesas: number }[]> {
-  const { data, error } = await db
-    .from('finances')
-    .select('reference_month,amount,type')
-    .order('reference_month', { ascending: true });
+  const { data, error } = await db.rpc('finance_trend');
   if (error) throw error;
-  const map: Record<string, { receitas: number; despesas: number }> = {};
-  for (const row of data ?? []) {
-    const m = row.reference_month as string;
-    if (!map[m]) map[m] = { receitas: 0, despesas: 0 };
-    if (row.type === 'receita') map[m].receitas += Number(row.amount);
-    else map[m].despesas += Number(row.amount);
-  }
   const MONTHS = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
-  return Object.entries(map).map(([month, v]) => {
-    const [year, m] = month.split('-');
-    return { mes: `${MONTHS[Number(m) - 1]}/${year.slice(2)}`, ...v };
+  return (data ?? []).map((row: { mes: string; receitas: number; despesas: number }) => {
+    const [year, m] = row.mes.split('-');
+    return { mes: `${MONTHS[Number(m) - 1]}/${year.slice(2)}`, receitas: Number(row.receitas), despesas: Number(row.despesas) };
   });
 }
 

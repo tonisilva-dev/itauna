@@ -25,7 +25,7 @@ import {
   type DbPortariaRegistro, type DbPortariaAutorizado, type DbSolicitacao,
   type DbConvite, type DbEncomenda,
 } from '@/lib/supabase-queries';
-import { gotoSlide, formatUnidade } from '../../utils/format';
+import { gotoSlide, formatUnidade, TODAY, formatCPF } from '../../utils/format';
 import { sendPushNotification } from '@/lib/push';
 
 /* ── Apito (Web Audio API) ── */
@@ -53,8 +53,6 @@ const CYAN   = '#57d8ff';
 const BLUE   = '#5a84ff';
 const YELLOW = '#f59e0b';
 const RED    = '#ef4444';
-const TODAY  = new Date().toISOString().slice(0, 10);
-
 const TIPO_CONFIG = {
   visitante: { icon: User,    color: CYAN,   label: 'Visitante', bg: 'rgba(87,216,255,0.08)'  },
   entrega:   { icon: Package, color: YELLOW, label: 'Entrega',   bg: 'rgba(245,158,11,0.08)'  },
@@ -69,13 +67,6 @@ const VISITA_TIPO = {
 
 const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-const fmtCpfMask = (cpf: string | null) => {
-  if (!cpf) return null;
-  const d = cpf.replace(/\D/g, '');
-  if (d.length !== 11) return cpf;
-  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
-};
 
 const isVencido = (validade: string | null) => {
   if (!validade) return false;
@@ -140,17 +131,20 @@ export const Portaria = () => {
   /* ── Carga inicial ── */
   useEffect(() => {
     if (!user) return;
+    let mounted = true;
     Promise.all([
       fetchPortariaHoje(),
       fetchPortariaAutorizados(),
       fetchEncomendasPendentes(),
     ]).then(([vis, aut, encs]) => {
+      if (!mounted) return;
       setVisitas(vis as DbPortariaRegistro[]);
       setHistVisitas(vis as DbPortariaRegistro[]);
       setAutorizados(aut as DbPortariaAutorizado[]);
       setEncomendas(encs as DbEncomenda[]);
-    }).catch(() => toast.error('Erro ao carregar dados da portaria.'))
-      .finally(() => setLoading(false));
+    }).catch(() => { if (mounted) toast.error('Erro ao carregar dados da portaria.'); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
   }, [user]);
 
   /* ── Realtime: solicitações QR ── */
@@ -487,7 +481,7 @@ export const Portaria = () => {
                         <p style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.45)' }}>
                           {sol.chacara_numero && sol.chacara_numero !== '—' ? `Chácara ${sol.chacara_numero}` : 'Sem chácara'} · {fmtTime(sol.created_at)}
                         </p>
-                        {sol.visitante_cpf && <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>CPF: {fmtCpfMask(sol.visitante_cpf)}</p>}
+                        {sol.visitante_cpf && <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>CPF: {formatCPF(sol.visitante_cpf)}</p>}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -653,7 +647,7 @@ export const Portaria = () => {
                         )}
                         {v.visitante_cpf && (
                           <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.28)', fontFamily: 'monospace', marginTop: 1 }}>
-                            CPF: {fmtCpfMask(v.visitante_cpf)}
+                            CPF: {formatCPF(v.visitante_cpf)}
                           </p>
                         )}
                       </div>

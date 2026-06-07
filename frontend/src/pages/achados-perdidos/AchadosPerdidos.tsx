@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, CheckCircle2, AlertCircle, Loader2, MapPin, Calendar, AlertTriangle, Package, MessageSquare, X, User, Phone } from 'lucide-react';
-import { gotoSlide, maskPhone } from '../../utils/format';
+import { gotoSlide, maskPhone, TODAY } from '../../utils/format';
 import { PageCarousel3D } from '../../components/ui/PageCarousel3D';
 import type { SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
@@ -11,8 +11,6 @@ import {
   fetchAchadosPerdidos, insertAchadoPerdido, resolveAchadoPerdido,
   type DbAchadoPerdido,
 } from '@/lib/supabase-queries';
-
-const TODAY = new Date().toISOString().slice(0, 10);
 
 const RED    = '#ef4444';
 const GREEN  = '#10b981';

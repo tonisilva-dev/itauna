@@ -7,7 +7,7 @@ import {
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
 import { StatCard } from '../../components/ui/StatCard';
-import { gotoSlide } from '../../utils/format';
+import { gotoSlide, TODAY } from '../../utils/format';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -23,8 +23,6 @@ const GREEN = '#10b981';
 const YELLOW = '#f59e0b';
 const BLUE = '#5a84ff';
 const RED = '#ef4444';
-const TODAY = new Date().toISOString().slice(0, 10);
-
 const CATEGORIA = {
   infraestrutura: { emoji: '🏗️', label: 'Infraestrutura' },
   lazer:          { emoji: '🏖️', label: 'Lazer' },
@@ -76,6 +74,7 @@ export const Benfeitorias = () => {
   const [etapasLoading, setEtapasLoading] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState<DbBenfeitoria['status'] | 'todos'>('todos');
   const chRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const selectedRef = useRef<DbBenfeitoria | null>(null);
 
   // Form nova obra (gestor)
   const [fTitulo, setFTitulo] = useState('');
@@ -103,6 +102,9 @@ export const Benfeitorias = () => {
 
   useEffect(() => { load(); }, [load]);
 
+  // Mantém ref sincronizada para evitar re-subscrição a cada clique em obra
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
+
   // Realtime: morador acompanha avanços ao vivo
   useEffect(() => {
     chRef.current = supabase
@@ -110,11 +112,12 @@ export const Benfeitorias = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'benfeitorias' }, () => load())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'benfeitoria_etapas' }, payload => {
         const row = (payload.new ?? payload.old) as any;
-        if (selected && row?.benfeitoria_id === selected.id) loadEtapas(selected.id);
+        const sel = selectedRef.current;
+        if (sel && row?.benfeitoria_id === sel.id) loadEtapas(sel.id);
       })
       .subscribe();
     return () => { chRef.current?.unsubscribe(); };
-  }, [load, selected]);
+  }, [load]);
 
   const loadEtapas = async (id: string) => {
     setEtapasLoading(true);

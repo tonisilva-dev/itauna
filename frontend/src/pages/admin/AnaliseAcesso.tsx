@@ -7,6 +7,7 @@ import { SlidePanel } from '../../components/ui/SlidePanel';
 import { StatCard } from '../../components/ui/StatCard';
 import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
+import { TODAY } from '../../utils/format';
 import {
   fetchAnalyticsSummary, fetchAccessByType, fetchAccessByHour,
   fetchDailyFlowSeries, fetchAccessByBlock,
@@ -20,8 +21,6 @@ const BLUE = '#5a84ff';
 const YELLOW = '#f59e0b';
 const RED = '#ef4444';
 const PURPLE = '#a78bfa';
-
-const TODAY = new Date().toISOString().slice(0, 10);
 
 const getPeriod = (dias: number): [string, string] => {
   const fim = new Date();

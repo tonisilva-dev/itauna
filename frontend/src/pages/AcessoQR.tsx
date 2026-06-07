@@ -12,25 +12,17 @@ import {
   insertSolicitacao, fetchSolicitacaoById, isPortariaBusy,
   fetchConviteByCpf, fetchRecorrenteByCpf,
 } from '../lib/supabase-queries';
+import { maskCPF } from '../utils/format';
 
 /* ── Paleta ── */
 const CYAN  = '#57d8ff';
 const GREEN = '#10b981';
 const RED   = '#ef4444';
 
-/* ── Formatar CPF: 000.000.000-00 ── */
-function fmtCpf(raw: string): string {
-  const d = raw.replace(/\D/g, '').slice(0, 11);
-  if (d.length <= 3) return d;
-  if (d.length <= 6) return `${d.slice(0,3)}.${d.slice(3)}`;
-  if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
-  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
-}
-
 /* ── Mascarar CPF para exibição: ***.456.789-** ── */
 function maskCpf(raw: string): string {
   const d = raw.replace(/\D/g, '');
-  if (d.length < 11) return fmtCpf(raw);
+  if (d.length < 11) return maskCPF(raw);
   return `***.${d.slice(3,6)}.${d.slice(6,9)}-**`;
 }
 
@@ -100,7 +92,7 @@ export const AcessoQR = () => {
 
   const handleCpf = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/\D/g, '').slice(0, 11);
-    setCpf(fmtCpf(raw));
+    setCpf(maskCPF(raw));
   };
 
   const handleSubmit = useCallback(async () => {

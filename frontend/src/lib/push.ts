@@ -43,7 +43,7 @@ export async function subscribePush(userId: string): Promise<boolean> {
     keys: { p256dh: string; auth: string };
   };
 
-  await (supabase.from('push_subscriptions') as any).upsert(
+  await supabase.from('push_subscriptions').upsert(
     { user_id: userId, endpoint, p256dh: keys.p256dh, auth: keys.auth },
     { onConflict: 'endpoint' }
   );
@@ -58,7 +58,7 @@ export async function unsubscribePush(): Promise<void> {
   if (!sub) return;
   const { endpoint } = sub.toJSON() as { endpoint: string };
   await sub.unsubscribe();
-  await (supabase.from('push_subscriptions') as any).delete().eq('endpoint', endpoint);
+  await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
 }
 
 /** Verifica se este dispositivo já está inscrito */
@@ -85,7 +85,7 @@ export async function sendPushNotification(payload: {
 }): Promise<void> {
   try {
     await supabase.functions.invoke('send-push', { body: payload });
-  } catch {
-    // Falha silenciosa — notificação push é best-effort
+  } catch (err) {
+    console.warn('[itauna:push] sendPushNotification falhou', err);
   }
 }

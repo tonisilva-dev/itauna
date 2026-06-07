@@ -418,6 +418,15 @@ export interface TelefoneUtil {
   secretarias?: TelefoneSecretaria[];
 }
 
+export interface PushSubscription {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  created_at: string;
+}
+
 // Supabase Database type placeholder
 export type Database = {
   public: {
@@ -449,9 +458,12 @@ export type Database = {
       cenarios_orcamentarios:     { Row: CenarioOrcamentario;   Insert: Partial<CenarioOrcamentario>;   Update: Partial<CenarioOrcamentario> };
       servicos_checklist:         { Row: ServicoChecklist;       Insert: Partial<ServicoChecklist>;       Update: Partial<ServicoChecklist> };
       servicos_checklist_itens:   { Row: ServicoChecklistItem;   Insert: Partial<ServicoChecklistItem>;   Update: Partial<ServicoChecklistItem> };
+      push_subscriptions:         { Row: PushSubscription;        Insert: Partial<PushSubscription>;        Update: Partial<PushSubscription> };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      finance_trend: { Args: Record<string, never>; Returns: { mes: string; receitas: number; despesas: number }[] };
+    };
     Enums: Record<string, never>;
   };
 };

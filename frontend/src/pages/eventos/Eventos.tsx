@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { gotoSlide } from '../../utils/format';
+import { gotoSlide, TODAY } from '../../utils/format';
 import { Plus, Calendar as CalendarIcon, ChevronRight, Loader2, Users, Clock, MapPin, Tag, CheckCircle2, Edit2, Save, X, AlertTriangle, Trash2 } from 'lucide-react';
 import { format, parseISO, isFuture, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -28,8 +28,6 @@ const CAT_CONFIG: Record<string, { color: string; bg: string; border: string }> 
   'Cultural':  { color: YELLOW, bg: 'rgba(245,158,11,0.09)',  border: 'rgba(245,158,11,0.25)'  },
 };
 const getCat = (cat: string) => CAT_CONFIG[cat] ?? { color: CYAN, bg: 'rgba(87,216,255,0.08)', border: 'rgba(87,216,255,0.2)' };
-
-const TODAY = new Date().toISOString().slice(0, 10);
 
 export const Eventos = () => {
   const { isGestor, user } = useAuth();
