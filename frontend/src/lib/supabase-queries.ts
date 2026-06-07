@@ -1852,6 +1852,8 @@ export interface DbBenfeitoria {
   data_inicio: string | null;
   data_prevista: string | null;
   data_conclusao: string | null;
+  foto_antes_url: string | null;
+  foto_depois_url: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -1865,6 +1867,7 @@ export interface DbBenfeitoriaEtapa {
   status: 'pendente' | 'em_andamento' | 'concluida';
   percentual: number;
   ordem: number;
+  foto_url: string | null;
   concluida_at: string | null;
   created_at: string;
 }
