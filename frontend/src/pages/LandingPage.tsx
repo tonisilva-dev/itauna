@@ -139,6 +139,8 @@ const BgScene = ({
   visible: boolean;
 }) => {
   const n = photos.length;
+  if (n === 0) return null;
+
   const get = (offset: number) => photos[(startIdx + offset) % n];
 
   const wrapStyle: React.CSSProperties = {
@@ -489,7 +491,7 @@ const InfoModal = ({ onClose }: { onClose: () => void }) => {
 
 /* ═══════════════════════════════════════════════════════ */
 export const LandingPage = () => {
-  const [photos, setPhotos] = useState<string[]>(FALLBACK);
+  const [photos, setPhotos] = useState<string[]>([]);
   const [photoIdx, setPhotoIdx] = useState(0);
   const [styleIdx, setStyleIdx] = useState(0);
   const [taglineIdx, setTaglineIdx] = useState(0);
@@ -504,9 +506,13 @@ export const LandingPage = () => {
         const filtered = fotos.filter(f => f.category === 'Natureza');
         const pool = filtered.length > 0 ? filtered : fotos;
         const shuffled = [...pool].sort(() => Math.random() - 0.5);
-        setPhotos(shuffled.map(f => f.src));
+        setVisible(false);
+        setTimeout(() => {
+          setPhotos(shuffled.map(f => f.src));
+          setVisible(true);
+        }, 80);
       })
-      .catch(() => {}); // usa FALLBACK
+      .catch(() => setPhotos(FALLBACK));
   }, []);
 
   /* Ciclo de 27 s */
