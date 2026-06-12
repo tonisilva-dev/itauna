@@ -571,14 +571,11 @@ export const LandingPage = () => {
         }}>
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 'clamp(34px,7vw,42px)', height: 'clamp(34px,7vw,42px)',
-              borderRadius: 12, background: 'linear-gradient(135deg,#72e3ff,#669dff)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 24px rgba(87,216,255,0.45)',
-            }}>
-              <TreePine size={18} color="#07101c" />
-            </div>
+            <img
+              src="/logo-itauna-192.png"
+              alt="Logo Itaúna"
+              style={{ width: 'clamp(34px,7vw,42px)', height: 'clamp(34px,7vw,42px)', borderRadius: 10, objectFit: 'contain', background: '#fff', flexShrink: 0 }}
+            />
             <div>
               <p style={{ fontWeight: 800, fontSize: 'clamp(13px,3vw,15px)', color: '#fff', lineHeight: 1, textShadow: '0 2px 12px rgba(0,0,0,0.6)' }}>Itaúna</p>
               <p style={{ fontSize: 'clamp(9px,2vw,11px)', color: 'rgba(255,255,255,0.50)', marginTop: 3 }}>Chácaras · Ibiporã–PR</p>

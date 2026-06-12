@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, NavLink } from 'react-router-dom';
-import { ArrowLeft, LogOut, TreePine } from 'lucide-react';
+import { ArrowLeft, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar } from '../ui/Avatar';
 import { PushButton } from '../PushButton';
@@ -72,14 +72,11 @@ export const AppHeader = () => {
         {/* Left: logo (home) ou back button (módulo) */}
         {isHome ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 38, height: 38, borderRadius: 12, flexShrink: 0,
-              background: 'linear-gradient(135deg, #72e3ff, #669dff)',
-              boxShadow: '0 0 18px rgba(87,216,255,0.35)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <TreePine size={19} style={{ color: '#fff' }} />
-            </div>
+            <img
+              src="/logo-itauna-192.png"
+              alt="Logo Itaúna"
+              style={{ width: 38, height: 38, borderRadius: 10, flexShrink: 0, objectFit: 'contain', background: '#fff' }}
+            />
             <div>
               <p style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff', lineHeight: 1 }}>Itaúna</p>
               <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>Chácaras · Ibiporã-PR</p>
