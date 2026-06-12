@@ -748,8 +748,18 @@ export const Dashboard = () => {
   ];
 
   return (
-    <div className="w-full h-full">
-      <PageCarousel3D slides={isGestor ? gestorSlides : moradorSlides} />
+    <div
+      className="w-full h-full"
+      style={{
+        backgroundImage: 'url(/bg-dashboard.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'local',
+      }}
+    >
+      <div style={{ width: '100%', height: '100%', background: 'rgba(5,10,22,0.55)', backdropFilter: 'none' }}>
+        <PageCarousel3D slides={isGestor ? gestorSlides : moradorSlides} />
+      </div>
     </div>
   );
 };

@@ -54,7 +54,7 @@ export const Sidebar = ({ onClose, collapsed = false, onToggle }: SidebarProps) 
   const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   const handleSignOut = () => setConfirmSignOut(true);
-  const doSignOut     = () => { setConfirmSignOut(false); signOut(); };
+  const doSignOut     = async () => { setConfirmSignOut(false); try { await signOut(); } catch {} window.location.replace('/'); };
 
   const visible = navItems.filter(item => !item.gestorOnly || isGestor);
 
@@ -216,7 +216,7 @@ export const Sidebar = ({ onClose, collapsed = false, onToggle }: SidebarProps) 
                 {user?.role === 'admin' ? 'Administrador' : user?.role === 'sindico' ? 'Síndico' : `Chácara ${user?.unit_number ?? ''}`}
               </p>
             </div>
-            <button onClick={signOut} className="btn-ghost p-1.5 rounded-lg flex-shrink-0" title="Sair">
+            <button onClick={async () => { try { await signOut(); } catch {} window.location.replace('/'); }} className="btn-ghost p-1.5 rounded-lg flex-shrink-0" title="Sair">
               <LogOut style={{ width: 15, height: 15, color: 'rgba(255,255,255,0.4)' }} />
             </button>
           </div>

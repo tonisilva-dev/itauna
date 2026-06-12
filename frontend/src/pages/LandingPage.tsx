@@ -12,8 +12,8 @@ import { fetchGaleriaFotos } from '../lib/supabase-queries';
 /* ── Fallback quando galeria vazia ── */
 const FALLBACK = ['/bg-area-livre-1.webp', '/bg-area-livre-2.webp'];
 
-const SLIDE_MS = 10_000;
-const FADE_MS  = 1_100;
+const SLIDE_MS = 18_000;
+const FADE_MS  = 1_500;
 
 /* ── Taglines rotativas: copywriting + storytelling + PNL ── */
 interface Tagline {
@@ -69,33 +69,33 @@ const TAGLINES: Tagline[] = [
 type BgStyle = {
   overlay: string;
   imgFilter: string;
-  layout: 'full' | 'split';
+  layout: 'full';
   rays: boolean;
 };
 
 const BG_STYLES: BgStyle[] = [
   {
-    layout: 'split',
-    overlay: 'linear-gradient(105deg,rgba(4,4,6,.55) 0%,rgba(6,6,8,.38) 100%)',
-    imgFilter: 'brightness(0.80) saturate(0.95)',
+    layout: 'full',
+    overlay: 'linear-gradient(180deg,rgba(4,4,6,.40) 0%,rgba(4,4,6,.68) 60%,rgba(4,4,6,.90) 100%)',
+    imgFilter: 'brightness(0.82) saturate(1.0)',
     rays: true,
   },
   {
     layout: 'full',
     overlay: 'linear-gradient(180deg,rgba(4,4,6,.48) 0%,rgba(4,4,6,.74) 60%,rgba(4,4,6,.92) 100%)',
-    imgFilter: 'brightness(0.75) saturate(0.80)',
+    imgFilter: 'brightness(0.75) saturate(0.85)',
     rays: false,
   },
   {
-    layout: 'split',
-    overlay: 'linear-gradient(135deg,rgba(5,5,7,.58) 0%,rgba(4,4,6,.42) 100%)',
-    imgFilter: 'brightness(0.78) saturate(1.05)',
+    layout: 'full',
+    overlay: 'linear-gradient(135deg,rgba(5,5,7,.50) 0%,rgba(4,4,6,.72) 100%)',
+    imgFilter: 'brightness(0.80) saturate(1.05)',
     rays: true,
   },
   {
-    layout: 'split',
-    overlay: 'linear-gradient(90deg,rgba(4,4,6,.62) 0%,rgba(6,6,8,.34) 100%)',
-    imgFilter: 'brightness(0.72) saturate(0.25) contrast(1.08)',
+    layout: 'full',
+    overlay: 'linear-gradient(90deg,rgba(4,4,6,.55) 0%,rgba(6,6,8,.75) 100%)',
+    imgFilter: 'brightness(0.78) saturate(0.90) contrast(1.05)',
     rays: false,
   },
 ];
@@ -156,22 +156,9 @@ const BgScene = ({
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-      {style.layout === 'full' && (
-        <div style={wrapStyle}>
-          <img src={get(0)} alt="" style={imgStyle} fetchPriority="high" decoding="sync" />
-        </div>
-      )}
-
-      {style.layout === 'split' && (
-        <div className="landing-bg-flex" style={wrapStyle}>
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            <img src={get(0)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
-          </div>
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            <img src={get(1)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
-          </div>
-        </div>
-      )}
+      <div style={wrapStyle}>
+        <img src={get(0)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
+      </div>
 
 
       {/* Overlay colorido */}

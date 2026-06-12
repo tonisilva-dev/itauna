@@ -34,7 +34,7 @@ export const Topbar = ({ onMenuClick, title }: TopbarProps) => {
   const [showSearch, setShowSearch]         = useState(false);
   const [showQuemSomos, setShowQuemSomos]   = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
-  const doSignOut = () => { setConfirmSignOut(false); signOut(); };
+  const doSignOut = async () => { setConfirmSignOut(false); try { await signOut(); } catch {} window.location.replace('/'); };
 
   return (
     <>
