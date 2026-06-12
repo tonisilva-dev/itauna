@@ -359,6 +359,8 @@ export const Login = () => {
     }
 
     setSubmitting(true);
+    // Garante que o flag de logout não bloqueie o SIGNED_IN após login com senha
+    localStorage.removeItem('itauna_logged_out');
     try {
       const { data, error: err } = await signIn(sanitize(email).trim(), password);
       if (err) throw err;
