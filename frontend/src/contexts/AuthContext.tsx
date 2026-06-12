@@ -193,6 +193,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { session: sess } } = await supabase.auth.getSession();
     if (!sess?.user) return false;
     localStorage.removeItem(BIOMETRIC_LOCK_KEY);
+    localStorage.removeItem(LOGGED_OUT_KEY);
     setSession(sess);
     const profile = await fetchProfile(sess.user);
     setUser(profile);
