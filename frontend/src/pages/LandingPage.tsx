@@ -514,7 +514,7 @@ export const LandingPage = () => {
   useEffect(() => {
     fetchGaleriaFotos()
       .then(fotos => {
-        const filtered = fotos.filter(f => f.category === 'Natureza' || f.category === 'Infraestrutura');
+        const filtered = fotos.filter(f => f.category === 'Natureza');
         const pool = filtered.length > 0 ? filtered : fotos;
         const shuffled = [...pool].sort(() => Math.random() - 0.5);
         setPhotos(shuffled.map(f => f.src));
