@@ -725,7 +725,7 @@ export async function insertGaleriaFoto(payload: {
 export async function deleteGaleriaFoto(id: string): Promise<void> {
   const { error } = await db
     .from('galeria_fotos')
-    .update({ is_active: false })
+    .delete()
     .eq('id', id);
   if (error) throw error;
 }
