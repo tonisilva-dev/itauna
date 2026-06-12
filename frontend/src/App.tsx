@@ -50,7 +50,7 @@ const Cobrancas       = lazy(() => import('./pages/financeiro/Cobrancas').then(m
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/" replace />;
   return <>{children}</>;
 };
 
@@ -58,7 +58,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const GestorRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, isGestor } = useAuth();
   if (loading) return <PageLoader />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/" replace />;
   if (!isGestor) return <AcessoRestrito />;
   return <>{children}</>;
 };
@@ -67,7 +67,7 @@ const GestorRoute = ({ children }: { children: React.ReactNode }) => {
 const GestorOuAssistenteRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, isGestor } = useAuth();
   if (loading) return <PageLoader />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/" replace />;
   const isAssistente = user.role === 'assistente' || user.role === 'visualizador';
   if (!isGestor && !isAssistente) return <AcessoRestrito />;
   return <>{children}</>;
