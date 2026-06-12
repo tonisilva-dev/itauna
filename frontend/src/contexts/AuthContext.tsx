@@ -40,6 +40,7 @@ function buildFallbackProfile(supabaseUser: any): Profile {
 
 const PROFILE_CACHE_KEY  = 'itauna_profile_cache';
 const BIOMETRIC_LOCK_KEY = 'itauna_biometric_lock';
+const LOGGED_OUT_KEY     = 'itauna_logged_out';
 
 function saveProfileCache(profile: Profile) {
   try { localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile)); } catch {}
@@ -104,21 +105,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       async (event, sess) => {
         if (event === 'INITIAL_SESSION') {
           setSession(sess ?? null);
-          // Só restaura automaticamente se não há lock biométrico pendente.
-          // Lock é criado no signOut() quando biometria está ativa — exige
-          // autenticação explícita via restoreSession() para reentrar.
           const biometricLocked = localStorage.getItem(BIOMETRIC_LOCK_KEY) === '1';
-          if (sess?.user && !biometricLocked) {
+          // Logout explícito: bloqueia restauração automática mesmo com token válido.
+          // Só é limpo no SIGNED_IN (login por senha ou biometria).
+          const loggedOut = localStorage.getItem(LOGGED_OUT_KEY) === '1';
+          if (sess?.user && !biometricLocked && !loggedOut) {
             const cached = loadProfileCache();
             if (cached && cached.id === sess.user.id) setUser(cached);
             const profile = await fetchProfile(sess.user);
             setUser(profile);
+          } else if (loggedOut && sess?.user) {
+            // Garante que o token local seja removido para não reaparecer em futuros refreshes
+            await supabase.auth.signOut({ scope: 'local' });
           }
           clearTimeout(safetyTimer);
           settle();
 
         } else if (event === 'SIGNED_IN') {
           localStorage.removeItem(BIOMETRIC_LOCK_KEY);
+          localStorage.removeItem(LOGGED_OUT_KEY);
           setSession(sess);
           setLoading(true);
           try {
@@ -167,10 +172,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     clearProfileCache();
     setUser(null);
     setSession(null);
+    // Marca logout explícito: impede restauração automática via INITIAL_SESSION no próximo refresh.
+    // Só é removido quando o usuário fizer login novamente (SIGNED_IN).
+    localStorage.setItem(LOGGED_OUT_KEY, '1');
 
     if (getBiometricState().enabled) {
-      // Logout suave: mantém sessão Supabase no localStorage para o login biométrico.
-      // O lock impede que INITIAL_SESSION restaure o usuário sem autenticação real.
+      // Logout suave: mantém token Supabase para reautenticação biométrica.
       localStorage.setItem(BIOMETRIC_LOCK_KEY, '1');
       return;
     }

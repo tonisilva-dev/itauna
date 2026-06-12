@@ -167,7 +167,7 @@ export const AppHeader = () => {
                 }}
               >Cancelar</button>
               <button
-                onClick={() => { setConfirm(false); signOut(); navigate('/'); }}
+                onClick={async () => { setConfirm(false); await signOut(); navigate('/'); }}
                 style={{
                   flex: 1, padding: '11px', borderRadius: 12,
                   background: 'rgba(239,68,68,0.18)', border: '1px solid rgba(239,68,68,0.32)',
