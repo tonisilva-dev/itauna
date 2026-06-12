@@ -189,7 +189,7 @@ export const Moradores = () => {
         <SlidePanel
           eyebrow="Gestão de Pessoas"
           title={<>Censo de <span className="grad-text">Moradores</span></>}
-          subtitle="Cadastro de condôminos, proprietários e inquilinos das 360 chácaras."
+          subtitle="Cadastro de condôminos, proprietários e inquilinos das 389 chácaras."
         >
           <div className="space-y-5 h-full flex flex-col justify-between relative">
             <div className="space-y-4">

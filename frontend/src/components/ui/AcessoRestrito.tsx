@@ -11,7 +11,7 @@ const AMBER = '#f59e0b';
 const GREEN = '#10b981';
 
 const ROUTE_META: Record<string, { label: string; action: string; icon: string }> = {
-  '/unidades':  { label: 'Chácaras',         action: 'gerenciar as 360 unidades, vincular proprietários e controlar status financeiro', icon: '🏡' },
+  '/unidades':  { label: 'Chácaras',         action: 'gerenciar as 389 unidades, vincular proprietários e controlar status financeiro', icon: '🏡' },
   '/moradores': { label: 'Moradores',         action: 'cadastrar, editar e inativar moradores e gerenciar perfis de acesso',            icon: '👥' },
   '/acessos':   { label: 'Gestão de Acessos', action: 'criar assistentes e configurar permissões granulares por módulo',                icon: '🔐' },
 };

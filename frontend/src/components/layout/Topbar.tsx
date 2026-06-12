@@ -244,7 +244,7 @@ export const Topbar = ({ onMenuClick, title }: TopbarProps) => {
             <div className="space-y-4" style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', lineHeight: 1.7 }}>
               <p>
                 O <strong style={{ color: '#fff' }}>Condomínio de Chácaras Itaúna</strong> é um empreendimento
-                exclusivo localizado em Ibiporã – PR, composto por <strong style={{ color: 'var(--cyan)' }}>360 chácaras</strong>{' '}
+                exclusivo localizado em Ibiporã – PR, composto por <strong style={{ color: 'var(--cyan)' }}>389 chácaras</strong>{' '}
                 com infraestrutura completa e segurança 24 horas.
               </p>
               <p>
@@ -253,7 +253,7 @@ export const Topbar = ({ onMenuClick, title }: TopbarProps) => {
               </p>
               <div className="grid grid-cols-2 gap-3 pt-2">
                 {[
-                  { label: '360 Chácaras', desc: 'Unidades cadastradas' },
+                  { label: '389 Chácaras', desc: 'Unidades cadastradas' },
                   { label: 'Gestão 360°', desc: 'Financeiro, eventos, segurança' },
                   { label: 'Segurança 24h', desc: 'Portaria e monitoramento' },
                   { label: 'App moderno', desc: 'Acesso de qualquer dispositivo' },

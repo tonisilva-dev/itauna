@@ -117,7 +117,7 @@ export const Dashboard = () => {
   const regularCount  = units.filter(u => u.status === 'regular').length;
   const inadimplCount = units.filter(u => u.status === 'inadimplente').length;
   const suspCount     = units.filter(u => u.status === 'suspenso').length;
-  const totalUnits    = units.length || 360;
+  const totalUnits    = units.length || 389;
   const adimplPct     = totalUnits > 0 ? Math.round((regularCount / totalUnits) * 100) : 0;
 
   const pieData = [

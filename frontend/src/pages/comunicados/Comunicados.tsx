@@ -456,7 +456,7 @@ export const Comunicados = () => {
             <Megaphone size={11} className="flex-shrink-0" style={{ color: formPriority === 'urgente' ? RED : CYAN }} />
             <p style={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
               Este comunicado será publicado imediatamente no mural e visível para todos os{' '}
-              <strong style={{ color: 'rgba(255,255,255,0.65)' }}>360 condôminos</strong>.
+              <strong style={{ color: 'rgba(255,255,255,0.65)' }}>389 condôminos</strong>.
               {formPinned && <> Será <strong style={{ color: CYAN }}>fixado no topo</strong> do mural.</>}
             </p>
           </div>

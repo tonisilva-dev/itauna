@@ -25,7 +25,7 @@ interface Tagline {
 const TAGLINES: Tagline[] = [
   {
     headline: 'Encanto para quem visita.\nPertencimento para quem vive.',
-    sub: '360 chácaras · 3,8 km² de natureza preservada · Ibiporã – PR',
+    sub: '389 chácaras · 3,8 km² de natureza preservada · Ibiporã – PR',
     accent: '#57d8ff',
   },
   {
@@ -285,7 +285,7 @@ const InfoModal = ({ onClose }: { onClose: () => void }) => {
               <span style={gradStyle}>pertencimento para quem vive.</span>
             </h2>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7 }}>
-              360 chácaras em 3,8 km² de natureza preservada, a 10 minutos de Londrina. Aqui, o campo não é um compromisso — é um privilégio.
+              389 chácaras em 3,8 km² de natureza preservada, a 10 minutos de Londrina. Aqui, o campo não é um compromisso — é um privilégio.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginTop: 16 }}>
               {[
@@ -351,7 +351,7 @@ const InfoModal = ({ onClose }: { onClose: () => void }) => {
             <h3 style={{ fontSize: 16, fontWeight: 800, color: CYAN, marginBottom: 14 }}>Quem Somos</h3>
             <div style={{ ...card, padding: '16px', lineHeight: 1.7, marginBottom: 12 }}>
               <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', marginBottom: 10 }}>
-                Em 2005, os fundadores do Itaúna enxergaram um <strong style={{ color: '#fff' }}>ecossistema de vida</strong>. Foram criadas 360 chácaras em 3,8 km² de território, cada uma com espaço para uma história própria.
+                Em 2005, os fundadores do Itaúna enxergaram um <strong style={{ color: '#fff' }}>ecossistema de vida</strong>. Foram criadas 389 chácaras em 3,8 km² de território, cada uma com espaço para uma história própria.
               </p>
               <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.52)' }}>
                 Hoje, duas décadas depois, o Itaúna é o maior condomínio periurbano de alto padrão do norte do Paraná — com <strong style={{ color: 'rgba(255,255,255,0.8)' }}>documentação 100% regularizada</strong>, iluminação solar e plataforma digital integrada.
@@ -527,11 +527,10 @@ export const LandingPage = () => {
   useEffect(() => {
     fetchGaleriaFotos()
       .then(fotos => {
-        if (fotos.length > 0) {
-          /* Embaralhar para variedade */
-          const shuffled = [...fotos].sort(() => Math.random() - 0.5);
-          setPhotos(shuffled.map(f => f.src));
-        }
+        const filtered = fotos.filter(f => f.category === 'Natureza' || f.category === 'Infraestrutura');
+        const pool = filtered.length > 0 ? filtered : fotos;
+        const shuffled = [...pool].sort(() => Math.random() - 0.5);
+        setPhotos(shuffled.map(f => f.src));
       })
       .catch(() => {}); // usa FALLBACK
   }, []);

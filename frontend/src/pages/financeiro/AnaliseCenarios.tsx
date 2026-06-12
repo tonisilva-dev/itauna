@@ -57,7 +57,7 @@ function impactoMensal(c: DbCenario): number {
 }
 
 function impactoPorUnidade(c: DbCenario): number {
-  return impactoMensal(c) / (c.num_unidades || 360);
+  return impactoMensal(c) / (c.num_unidades || 389);
 }
 
 /* ── Estilos base ──────────────────────────────────────────────── */
@@ -102,7 +102,7 @@ const lbl: React.CSSProperties = {
 const EMPTY: Partial<DbCenario> = {
   titulo: '', tipo: 'contratacao', descricao: '',
   custo_mensal: 0, custo_unico: 0, periodo_meses: undefined,
-  data_inicio: '', status: 'rascunho', num_unidades: 360,
+  data_inicio: '', status: 'rascunho', num_unidades: 389,
 };
 
 const CenarioForm = ({
@@ -120,7 +120,7 @@ const CenarioForm = ({
 
   const total = (form.custo_mensal ?? 0) +
     ((form.custo_unico ?? 0) / (form.periodo_meses || 1));
-  const porUnidade = total / (form.num_unidades || 360);
+  const porUnidade = total / (form.num_unidades || 389);
 
   const handle = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
@@ -200,7 +200,7 @@ const CenarioForm = ({
           <span style={lbl}>Nº de unidades</span>
           <input style={inp} type="number" min={1}
             value={form.num_unidades ?? 360}
-            onChange={e => f('num_unidades', parseInt(e.target.value) || 360)} />
+            onChange={e => f('num_unidades', parseInt(e.target.value) || 389)} />
         </div>
         <div>
           <span style={lbl}>Data de início prevista</span>

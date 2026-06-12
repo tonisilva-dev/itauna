@@ -74,7 +74,7 @@ const APPS: AppDef[] = [
   { id:'acessos',       folder:'seguranca',   name:'Acessos',       sub:'Histórico completo · Autorizados fixos',      bg:'linear-gradient(145deg,#1d4ed8,#60a5fa)', path:'/acesso-visitas',     roles:['admin','morador'], modulo:'moradores',    ico:ICOS.acessos       },
   { id:'analise',       folder:'seguranca',   name:'Análise',       sub:'Horários de pico · Padrões de acesso',        bg:'linear-gradient(145deg,#1e40af,#818cf8)', path:'/analise-acesso',     roles:['admin'],                                  ico:ICOS.analise       },
   // ── Chácara ──
-  { id:'unidades',      folder:'chacara',     name:'Unidades',      sub:'360 chácaras · Proprietário · Status',        bg:'linear-gradient(145deg,#92400e,#f59e0b)', path:'/unidades',           roles:['admin'],           modulo:'unidades',     ico:ICOS.unidades      },
+  { id:'unidades',      folder:'chacara',     name:'Unidades',      sub:'389 chácaras · Proprietário · Status',        bg:'linear-gradient(145deg,#92400e,#f59e0b)', path:'/unidades',           roles:['admin'],           modulo:'unidades',     ico:ICOS.unidades      },
   { id:'agendamentos',  folder:'chacara',     name:'Reservas',      sub:'Piscina · Salão de Festas · Quadra',          bg:'linear-gradient(145deg,#b45309,#fbbf24)', path:'/agendamentos',       roles:['admin','morador'], modulo:'agendamentos', ico:ICOS.agendamentos  },
   { id:'ocorrencias',   folder:'chacara',     name:'Chamados',      sub:'Manutenção · Prioridade · Status',            bg:'linear-gradient(145deg,#c2410c,#fb923c)', path:'/ocorrencias',        roles:['admin','morador'], modulo:'ocorrencias',  ico:ICOS.ocorrencias   },
   // ── Comunicação ──
