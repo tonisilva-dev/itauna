@@ -129,49 +129,51 @@ const LightRays = () => (
   </svg>
 );
 
-/* ── Componente de background multi-layout ── */
+/* ── Componente de background com cross-fade sem piscar ── */
 const BgScene = ({
-  photos, startIdx, style, visible,
+  photos, currentIdx, nextIdx, transitioning, style, nextStyle,
 }: {
   photos: string[];
-  startIdx: number;
+  currentIdx: number;
+  nextIdx: number;
+  transitioning: boolean;
   style: BgStyle;
-  visible: boolean;
+  nextStyle: BgStyle;
 }) => {
-  const n = photos.length;
-  if (n === 0) return null;
+  if (photos.length === 0) return null;
 
-  const get = (offset: number) => photos[(startIdx + offset) % n];
+  const cur  = photos[currentIdx % photos.length];
+  const next = photos[nextIdx % photos.length];
 
-  const wrapStyle: React.CSSProperties = {
-    position: 'absolute', inset: 0,
-    opacity: visible ? 1 : 0,
-    transition: `opacity ${FADE_MS}ms cubic-bezier(.4,0,.2,1)`,
-  };
-
-  const imgStyle: React.CSSProperties = {
+  const baseImg: React.CSSProperties = {
     width: '100%', height: '100%',
     objectFit: 'cover', objectPosition: 'center',
-    filter: style.imgFilter,
     display: 'block',
+  };
+
+  const fadeIn: React.CSSProperties = {
+    position: 'absolute', inset: 0,
+    opacity: transitioning ? 1 : 0,
+    transition: transitioning
+      ? `opacity ${FADE_MS}ms cubic-bezier(.4,0,.2,1)`
+      : 'none',
   };
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-      <div style={wrapStyle}>
-        <img src={get(0)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
+      {/* Camada A — foto atual (sempre visível) */}
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <img src={cur} alt="" style={{ ...baseImg, filter: style.imgFilter }} fetchPriority="high" decoding="async" />
       </div>
+      <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: style.overlay }} />
 
+      {/* Camada B — próxima foto (cross-fade por cima) */}
+      <div style={{ ...fadeIn, zIndex: 2 }}>
+        <img src={next} alt="" style={{ ...baseImg, filter: nextStyle.imgFilter }} decoding="async" />
+      </div>
+      <div style={{ ...fadeIn, zIndex: 3, background: nextStyle.overlay }} />
 
-      {/* Overlay colorido */}
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 2,
-        background: style.overlay,
-        opacity: visible ? 1 : 0,
-        transition: `opacity ${FADE_MS}ms cubic-bezier(.4,0,.2,1)`,
-      }} />
-
-      {style.rays && <LightRays />}
+      {style.rays && !transitioning && <LightRays />}
     </div>
   );
 };
@@ -491,12 +493,14 @@ const InfoModal = ({ onClose }: { onClose: () => void }) => {
 
 /* ═══════════════════════════════════════════════════════ */
 export const LandingPage = () => {
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [photoIdx, setPhotoIdx] = useState(0);
-  const [styleIdx, setStyleIdx] = useState(0);
-  const [taglineIdx, setTaglineIdx] = useState(0);
-  const [visible, setVisible] = useState(true);
-  const [infoOpen, setInfoOpen] = useState(false);
+  const [photos, setPhotos]           = useState<string[]>([]);
+  const [currentIdx, setCurrentIdx]   = useState(0);
+  const [nextIdx, setNextIdx]         = useState(1);
+  const [styleIdx, setStyleIdx]       = useState(0);
+  const [nextStyleIdx, setNextStyleIdx] = useState(1);
+  const [taglineIdx, setTaglineIdx]   = useState(0);
+  const [transitioning, setTransitioning] = useState(false);
+  const [infoOpen, setInfoOpen]       = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /* Carregar fotos da galeria */
@@ -506,37 +510,47 @@ export const LandingPage = () => {
         const filtered = fotos.filter(f => f.category === 'Natureza');
         const pool = filtered.length > 0 ? filtered : fotos;
         const shuffled = [...pool].sort(() => Math.random() - 0.5);
-        setVisible(false);
-        setTimeout(() => {
-          setPhotos(shuffled.map(f => f.src));
-          setVisible(true);
-        }, 80);
+        setPhotos(shuffled.map(f => f.src));
       })
       .catch(() => setPhotos(FALLBACK));
   }, []);
 
-  /* Ciclo de 27 s */
+  /* Ciclo de transição com cross-fade */
   useEffect(() => {
+    if (photos.length === 0) return;
     timerRef.current = setInterval(() => {
-      setVisible(false);
+      const ni  = (currentIdx + 1) % photos.length;
+      const nsi = (styleIdx + 1) % BG_STYLES.length;
+      const nti = (taglineIdx + 1) % TAGLINES.length;
+      setNextIdx(ni);
+      setNextStyleIdx(nsi);
+      setTransitioning(true);
       setTimeout(() => {
-        setPhotoIdx(i => (i + 1) % photos.length);
-        setStyleIdx(i => (i + 1) % BG_STYLES.length);
-        setTaglineIdx(i => (i + 1) % TAGLINES.length);
-        setVisible(true);
+        setCurrentIdx(ni);
+        setStyleIdx(nsi);
+        setTaglineIdx(nti);
+        setTransitioning(false);
       }, FADE_MS);
     }, SLIDE_MS);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [photos.length]);
+  }, [photos.length, currentIdx, styleIdx, taglineIdx]);
 
-  const currentStyle = BG_STYLES[styleIdx];
+  const currentStyle  = BG_STYLES[styleIdx];
+  const nextStyle     = BG_STYLES[nextStyleIdx];
   const currentTagline = TAGLINES[taglineIdx];
 
   return (
     <>
       {/* ── Background cena ── */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 0, overflow: 'hidden', background: '#050506' }}>
-        <BgScene photos={photos} startIdx={photoIdx} style={currentStyle} visible={visible} />
+        <BgScene
+          photos={photos}
+          currentIdx={currentIdx}
+          nextIdx={nextIdx}
+          transitioning={transitioning}
+          style={currentStyle}
+          nextStyle={nextStyle}
+        />
       </div>
 
       {/* ── UI sobre o fundo ── */}
@@ -580,7 +594,7 @@ export const LandingPage = () => {
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           gap: 20, padding: '0 clamp(20px,6vw,60px)', textAlign: 'center',
-          opacity: visible ? 1 : 0,
+          opacity: transitioning ? 0.6 : 1,
           transition: `opacity ${FADE_MS}ms cubic-bezier(.4,0,.2,1)`,
         }}>
           {/* Acento decorativo */}
@@ -627,9 +641,9 @@ export const LandingPage = () => {
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {Array.from({ length: Math.min(photos.length, 8) }).map((_, i) => (
               <div key={i} style={{
-                width: i === photoIdx % Math.min(photos.length, 8) ? 20 : 6,
+                width: i === currentIdx % Math.min(photos.length, 8) ? 20 : 6,
                 height: 4, borderRadius: 2,
-                background: i === photoIdx % Math.min(photos.length, 8) ? CYAN : 'rgba(255,255,255,0.25)',
+                background: i === currentIdx % Math.min(photos.length, 8) ? CYAN : 'rgba(255,255,255,0.25)',
                 transition: 'all 0.4s ease',
               }} />
             ))}
