@@ -13,24 +13,44 @@ import './CarouselNavigation.css';
 
 // Fotos da galeria
 const GALLERY_PHOTOS: CarouselPhoto[] = [
-  { id: 0,  src: '/galeria/natureza/unnamed.webp',         caption: 'Lago ao entardecer',                 category: 'Natureza'       },
-  { id: 1,  src: '/galeria/natureza/unnamed%20(1).webp',   caption: 'Pôr do sol no lago',                 category: 'Natureza'       },
-  { id: 2,  src: '/galeria/natureza/unnamed%20(2).webp',   caption: 'Gansos no lago',                     category: 'Natureza'       },
-  { id: 3,  src: '/galeria/natureza/unnamed%20(5).webp',   caption: 'Pelicanos na represa',               category: 'Natureza'       },
-  { id: 4,  src: '/galeria/natureza/unnamed%20(8).webp',   caption: 'Vista panorâmica da região',         category: 'Natureza'       },
-  { id: 5,  src: '/galeria/natureza/unnamed%20(9).webp',   caption: 'Lago e mata nativa',                 category: 'Natureza'       },
-  { id: 6,  src: '/galeria/natureza/unnamed%20(12).webp',  caption: 'Campos verdes do entorno',           category: 'Natureza'       },
-  { id: 7,  src: '/galeria/infraestrutura/unnamed%20(4).webp',                       caption: 'Portaria — entrada principal',       category: 'Infraestrutura' },
-  { id: 8,  src: '/galeria/infraestrutura/unnamed%20(6).webp',                       caption: 'Sede do condomínio à noite',         category: 'Infraestrutura' },
-  { id: 9,  src: '/galeria/infraestrutura/08afc961-4afa-4af0-a9ce-798057dac397.jpg', caption: 'Rua interna — paralelepípedo',       category: 'Infraestrutura' },
-  { id: 10, src: '/galeria/infraestrutura/73e958d0-b633-471f-8850-70a91d5e8b33.jpg', caption: 'Acesso com vista para a cidade',     category: 'Infraestrutura' },
-  { id: 11, src: '/galeria/infraestrutura/7f0cfdb0-2a54-454d-bcb9-c8259f85df4d.jpg', caption: 'Via interna arborizada',             category: 'Infraestrutura' },
-  { id: 12, src: '/galeria/infraestrutura/8219977a-f662-4de0-b8c1-14b1f17ee4ec.jpg', caption: 'Alameda principal',                  category: 'Infraestrutura' },
-  { id: 13, src: '/galeria/infraestrutura/b4b99e16-7b8b-49dc-825e-9007910465d2.jpg', caption: 'Avenida interna com paisagismo',     category: 'Infraestrutura' },
-  { id: 14, src: '/galeria/natureza/unnamed%20(3).webp',   caption: 'Área de pesca e descanso',           category: 'Lazer'          },
-  { id: 15, src: '/galeria/natureza/unnamed%20(11).webp',  caption: 'Calçada à beira do lago',            category: 'Lazer'          },
-  { id: 16, src: '/galeria/lazer/unnamed%20(10).webp',     caption: 'Fogueira noturna',                   category: 'Lazer'          },
-  { id: 17, src: '/galeria/esportes/bfa38d32-829f-46ba-8e8d-6e55d1a61893.jpg', caption: 'Quadra de futsal',                category: 'Esportes'       },
+  // Natureza
+  { id: 0,  src: '/galeria/natureza/unnamed.webp',                              caption: 'Lago ao entardecer',                          category: 'Natureza'          },
+  { id: 1,  src: '/galeria/natureza/unnamed%20(1).webp',                        caption: 'Pôr do sol no lago',                          category: 'Natureza'          },
+  { id: 2,  src: '/galeria/natureza/unnamed%20(2).webp',                        caption: 'Gansos no lago',                              category: 'Natureza'          },
+  { id: 3,  src: '/galeria/natureza/unnamed%20(5).webp',                        caption: 'Pelicanos na represa',                        category: 'Natureza'          },
+  { id: 4,  src: '/galeria/natureza/unnamed%20(8).webp',                        caption: 'Vista panorâmica da região',                  category: 'Natureza'          },
+  { id: 5,  src: '/galeria/natureza/unnamed%20(9).webp',                        caption: 'Lago e mata nativa',                          category: 'Natureza'          },
+  { id: 6,  src: '/galeria/natureza/unnamed%20(12).webp',                       caption: 'Campos verdes do entorno',                    category: 'Natureza'          },
+  { id: 7,  src: '/galeria/natureza/IMG_20260612_100104851_HDR.jpg',            caption: 'Orla do lago — bancos e arborização',         category: 'Natureza'          },
+  { id: 8,  src: '/galeria/natureza/IMG_20260612_100532036_HDR.jpg',            caption: 'Margem do lago com mata nativa',              category: 'Natureza'          },
+  { id: 9,  src: '/galeria/natureza/IMG_20260612_100221832_HDR.jpg',            caption: 'Verde e água — área de convivência',          category: 'Natureza'          },
+  // Infraestrutura
+  { id: 10, src: '/galeria/infraestrutura/unnamed%20(4).webp',                  caption: 'Portaria — entrada principal',                category: 'Infraestrutura'    },
+  { id: 11, src: '/galeria/infraestrutura/unnamed%20(6).webp',                  caption: 'Sede do condomínio à noite',                  category: 'Infraestrutura'    },
+  { id: 12, src: '/galeria/infraestrutura/08afc961-4afa-4af0-a9ce-798057dac397.jpg', caption: 'Rua interna — paralelepípedo',          category: 'Infraestrutura'    },
+  { id: 13, src: '/galeria/infraestrutura/73e958d0-b633-471f-8850-70a91d5e8b33.jpg', caption: 'Acesso com vista para a cidade',        category: 'Infraestrutura'    },
+  { id: 14, src: '/galeria/infraestrutura/7f0cfdb0-2a54-454d-bcb9-c8259f85df4d.jpg', caption: 'Via interna arborizada',                category: 'Infraestrutura'    },
+  { id: 15, src: '/galeria/infraestrutura/8219977a-f662-4de0-b8c1-14b1f17ee4ec.jpg', caption: 'Alameda principal',                     category: 'Infraestrutura'    },
+  { id: 16, src: '/galeria/infraestrutura/b4b99e16-7b8b-49dc-825e-9007910465d2.jpg', caption: 'Avenida interna com paisagismo',        category: 'Infraestrutura'    },
+  { id: 17, src: '/galeria/infraestrutura/IMG_20260612_100050084.jpg',          caption: 'Sede social com vista para o lago',           category: 'Infraestrutura'    },
+  { id: 18, src: '/galeria/infraestrutura/IMG_20260612_110447545_HDR.jpg',      caption: 'Vestiários renovados — nova fachada',         category: 'Infraestrutura'    },
+  { id: 19, src: '/galeria/infraestrutura/IMG_20260612_111732909.jpg',          caption: 'Via interna com paralelepípedo e vegetação',  category: 'Infraestrutura'    },
+  // Lazer
+  { id: 20, src: '/galeria/natureza/unnamed%20(3).webp',                        caption: 'Área de pesca e descanso',                    category: 'Lazer'             },
+  { id: 21, src: '/galeria/natureza/unnamed%20(11).webp',                       caption: 'Calçada à beira do lago',                     category: 'Lazer'             },
+  { id: 22, src: '/galeria/lazer/unnamed%20(10).webp',                          caption: 'Fogueira noturna',                            category: 'Lazer'             },
+  { id: 23, src: '/galeria/lazer/IMG_20260612_110131071.jpg',                   caption: 'Rua Castanheira — piscina e playground',      category: 'Lazer'             },
+  { id: 24, src: '/galeria/lazer/IMG_20260612_110215625.jpg',                   caption: 'Playground infantil — área gramada',          category: 'Lazer'             },
+  // Esportes
+  { id: 25, src: '/galeria/esportes/bfa38d32-829f-46ba-8e8d-6e55d1a61893.jpg', caption: 'Quadra de futsal',                            category: 'Esportes'          },
+  { id: 26, src: '/galeria/esportes/IMG_20260612_110223853.jpg',                caption: 'Quadra poliesportiva — piso azul renovado',   category: 'Esportes'          },
+  { id: 27, src: '/galeria/esportes/IMG_20260612_110251486.jpg',                caption: 'Quadra de areia — vôlei e futevôlei',        category: 'Esportes'          },
+  { id: 28, src: '/galeria/esportes/IMG_20260612_110540379_HDR.jpg',            caption: 'Área de convivência das quadras',             category: 'Esportes'          },
+  // Registro Memorial
+  { id: 29, src: '/galeria/registroMemorial/03ef42d1-df13-4eba-800a-d14e8d2626a2.jpg', caption: 'Pôr do sol com mar de nuvens — vista do alto', category: 'Registro Memorial' },
+  { id: 30, src: '/galeria/registroMemorial/visaoLua.jpeg',                     caption: 'Lua cheia sobre o condomínio',                category: 'Registro Memorial' },
+  { id: 31, src: '/galeria/registroMemorial/2b05590e-0462-49b5-a9f4-e8ca65745aa3.jpg', caption: 'Memória fotográfica — acervo histórico',      category: 'Registro Memorial' },
+  { id: 32, src: '/galeria/registroMemorial/9708158c-44fe-4ed0-9993-b50e2f567019.jpg', caption: 'Registro memorial — Itaúna ao longo do tempo', category: 'Registro Memorial' },
 ];
 
 interface NavSlide {

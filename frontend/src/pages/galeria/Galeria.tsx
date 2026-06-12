@@ -14,7 +14,7 @@ const CYAN  = '#57d8ff';
 const GREEN = '#10b981';
 const RED   = '#ef4444';
 
-const CATEGORIES = ['Todas', 'Natureza', 'Infraestrutura', 'Lazer', 'Esportes', 'Eventos'];
+const CATEGORIES = ['Todas', 'Natureza', 'Infraestrutura', 'Lazer', 'Esportes', 'Eventos', 'Registro Memorial'];
 
 const toCarousel = (fotos: DbGaleriaFoto[]): CarouselPhoto[] =>
   fotos.map((f, idx) => ({ id: idx, src: f.src, caption: f.caption, category: f.category }));

@@ -138,6 +138,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         } else if (event === 'TOKEN_REFRESHED') {
           setSession(sess);
+
+        } else if ((event as string) === 'TOKEN_REFRESH_ERROR') {
+          // Token inválido/expirado no localStorage — limpa tudo e força novo login
+          clearProfileCache();
+          localStorage.removeItem(BIOMETRIC_LOCK_KEY);
+          await supabase.auth.signOut({ scope: 'local' });
+          setSession(null);
+          setUser(null);
+          settle();
         }
       }
     );
