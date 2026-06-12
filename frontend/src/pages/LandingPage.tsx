@@ -69,7 +69,7 @@ const TAGLINES: Tagline[] = [
 type BgStyle = {
   overlay: string;
   imgFilter: string;
-  layout: 'full' | 'split' | 'triptych';
+  layout: 'full' | 'split';
   rays: boolean;
 };
 
@@ -87,7 +87,7 @@ const BG_STYLES: BgStyle[] = [
     rays: false,
   },
   {
-    layout: 'triptych',
+    layout: 'split',
     overlay: 'linear-gradient(135deg,rgba(5,5,7,.58) 0%,rgba(4,4,6,.42) 100%)',
     imgFilter: 'brightness(0.78) saturate(1.05)',
     rays: true,
@@ -173,19 +173,6 @@ const BgScene = ({
         </div>
       )}
 
-      {style.layout === 'triptych' && (
-        <div className="landing-bg-flex" style={wrapStyle}>
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            <img src={get(0)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
-          </div>
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            <img src={get(1)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
-          </div>
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            <img src={get(2)} alt="" style={imgStyle} fetchPriority="high" decoding="async" />
-          </div>
-        </div>
-      )}
 
       {/* Overlay colorido */}
       <div style={{
@@ -592,7 +579,7 @@ export const LandingPage = () => {
             boxShadow: '0 4px 24px rgba(0,0,0,0.40)',
             whiteSpace: 'nowrap',
           }}>
-            Entrar <ChevronRight size={14} strokeWidth={2.5} />
+            Área Restrita <ChevronRight size={14} strokeWidth={2.5} />
           </Link>
         </div>
 
@@ -635,23 +622,6 @@ export const LandingPage = () => {
             {currentTagline.sub}
           </p>
 
-          {/* CTA inline sutil */}
-          <Link to="/login" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 7,
-            padding: '10px 22px', borderRadius: 30,
-            background: 'rgba(6,10,20,0.55)',
-            border: `1px solid ${currentTagline.accent ?? CYAN}55`,
-            color: currentTagline.accent ?? CYAN,
-            fontWeight: 700, fontSize: 'clamp(11px,1.8vw,13px)',
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-            textDecoration: 'none',
-            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-            boxShadow: `0 4px 20px rgba(0,0,0,0.35), inset 0 0 0 1px ${currentTagline.accent ?? CYAN}18`,
-            transition: 'all 0.3s ease',
-            pointerEvents: 'auto',
-          }}>
-            Acessar o portal <ArrowRight size={13} strokeWidth={2.5} />
-          </Link>
         </div>
 
         {/* Bottom bar */}
