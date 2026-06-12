@@ -1,85 +1,81 @@
 /* ==========================================================
-   SLIDE PANEL — 3-zone flex layout, zero absolute trickery
+   SLIDE PANEL — Layout padrão Itaúna
+   Referência visual: AnaliseCenarios
    ========================================================== */
 
-/* ── Root: fills the slide completely ── */
+/* ── Root: preenche o slide, scroll vertical ── */
 .sp-root {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(87,216,255,.3) transparent;
+}
+.sp-root::-webkit-scrollbar { width: 5px; }
+.sp-root::-webkit-scrollbar-track { background: transparent; }
+.sp-root::-webkit-scrollbar-thumb { background: rgba(87,216,255,.3); border-radius: 3px; }
+
+/* ── Coluna central com largura máxima ── */
+.sp-inner {
+  margin: 0 auto;
+  padding: clamp(20px, 3vw, 36px) clamp(16px, 4vw, 32px) 60px;
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
+  gap: 20px;
 }
 
-/* ── HEADER ── */
+/* ── CABEÇALHO ── */
 .sp-head {
-  flex-shrink: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
-  padding: 12px 20px 11px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
-  min-height: 48px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, transparent 100%);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.sp-head-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 
 .sp-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-width: 0;
+  gap: 7px;
 }
 
 .sp-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
   background: radial-gradient(circle, #57d8ff 0%, #5a84ff 100%);
-  box-shadow: 0 0 0 3px rgba(87, 216, 255, 0.12), 0 0 14px rgba(87, 216, 255, 0.45);
+  box-shadow: 0 0 0 2.5px rgba(87,216,255,.15), 0 0 12px rgba(87,216,255,.5);
 }
 
 .sp-eyebrow {
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #57d8ff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sp-actions {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* ── BODY ── */
-.sp-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px 20px 12px;
-  overflow: hidden;
 }
 
 .sp-title {
-  flex-shrink: 0;
-  font-size: clamp(18px, 3.2vw, 28px);
+  font-size: clamp(26px, 4.5vw, 42px);
   font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 1.1;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
   color: #fff;
   margin: 0;
 }
 
-/* grad-text helper usado por módulos */
+/* grad-text helper */
 .sp-title .grad-text,
 .grad-text {
   background: linear-gradient(135deg, #72e3ff, #669dff);
@@ -88,68 +84,42 @@
   color: transparent;
 }
 
-.sp-content {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 2px;
+.sp-subtitle {
+  font-size: 13px;
+  color: rgba(255,255,255,.48);
+  line-height: 1.65;
+  margin: 0;
+  max-width: 560px;
 }
 
-/* Scrollbar moderno: fino, transparente, com hover */
-.sp-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sp-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.sp-content::-webkit-scrollbar-thumb {
-  background: rgba(87, 216, 255, 0.35);
-  border-radius: 3px;
-  transition: background 0.2s ease;
-}
-
-.sp-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(87, 216, 255, 0.65);
-}
-
-/* Firefox scrollbar */
-.sp-content {
-  scrollbar-color: rgba(87, 216, 255, 0.35) transparent;
-  scrollbar-width: thin;
-}
-
-/* ── FOOTER / BADGES ── */
-.sp-foot {
+.sp-actions {
   flex-shrink: 0;
   display: flex;
-  align-items: stretch;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.02) 100%);
-  min-height: 38px;
-  max-height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+/* ── BADGES / STATS ── */
+.sp-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .sp-badge {
-  flex: 1;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 6px 4px;
-  font-size: clamp(9px, 1.1vw, 11px);
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: rgba(255,255,255,.055);
+  border: 1px solid rgba(255,255,255,.09);
+  font-size: 11px;
   font-weight: 600;
-  color: rgba(231, 240, 254, 0.85);
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
-  text-align: center;
+  color: rgba(231,240,254,.80);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-
-.sp-badge:last-child { border-right: none; }
 
 .sp-badge-icon {
   font-size: 13px;
@@ -163,24 +133,31 @@
   white-space: nowrap;
 }
 
-/* ==========================================================
-   MOBILE PEQUENO (≤ 480px)
-   ========================================================== */
+/* ── BODY / CONTENT ── */
+.sp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sp-content {
+  padding: 16px;
+}
+
+/* ── MOBILE ── */
 @media (max-width: 480px) {
-  .sp-head   { padding: 8px 14px 7px; min-height: 40px; }
-  .sp-eyebrow { font-size: 9px; }
-  .sp-body   { padding: 10px 14px 8px; gap: 8px; }
-  .sp-title  { font-size: clamp(15px, 4.5vw, 20px); }
-  .sp-foot   { min-height: 36px; max-height: 40px; }
-  .sp-badge  { font-size: 9px; gap: 3px; padding: 4px 2px; }
-  .sp-badge-icon { font-size: 11px; }
+  .sp-inner  { padding: 16px 14px 48px; gap: 14px; }
+  .sp-title  { font-size: clamp(22px, 6vw, 28px); }
+  .sp-subtitle { font-size: 12px; }
+  .sp-badge  { font-size: 10px; padding: 4px 10px; }
 }
 
 /* ==========================================================
    LEGADO — classes usadas por módulos ainda não migrados
    ========================================================== */
-.panel-head  { display: none; }          /* oculta header antigo se aparecer */
-.panel-badges { display: none; }         /* oculta footer antigo se aparecer */
+.sp-foot   { display: none; }
+.panel-head  { display: none; }
+.panel-badges { display: none; }
 
 .eyebrow {
   font-size: 10px;
@@ -191,10 +168,10 @@
 }
 
 .section-h {
-  font-size: clamp(18px, 3.2vw, 28px);
+  font-size: clamp(26px, 4.5vw, 42px);
   font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 1.1;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
   color: #fff;
   margin: 0 0 2px;
 }

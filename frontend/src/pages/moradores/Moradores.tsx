@@ -187,8 +187,9 @@ export const Moradores = () => {
       label: 'Censo de Moradores',
       content: (
         <SlidePanel
-          title="Censo de Moradores"
-          eyebrow={`Lista de condôminos cadastrados no condomínio Itaúna`}
+          eyebrow="Gestão de Pessoas"
+          title={<>Censo de <span className="grad-text">Moradores</span></>}
+          subtitle="Cadastro de condôminos, proprietários e inquilinos das 360 chácaras."
         >
           <div className="space-y-5 h-full flex flex-col justify-between relative">
             <div className="space-y-4">

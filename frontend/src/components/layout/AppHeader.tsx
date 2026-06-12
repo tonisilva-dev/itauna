@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, NavLink } from 'react-router-dom';
 import { ArrowLeft, LogOut, TreePine } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,31 +6,55 @@ import { Avatar } from '../ui/Avatar';
 import { PushButton } from '../PushButton';
 
 const ROUTE_LABELS: Record<string, string> = {
-  '/financeiro':       'Financeiro',
-  '/portaria':         'Portaria',
-  '/comunicados':      'Comunicados',
-  '/agendamentos':     'Agendamentos',
-  '/ocorrencias':      'Ocorrências',
-  '/galeria':          'Galeria',
-  '/documentos':       'Documentos',
-  '/classificados':    'Classificados',
-  '/achados-perdidos': 'Achados & Perdidos',
-  '/parceiros':        'Parceiros',
-  '/eventos':          'Eventos',
-  '/unidades':         'Chácaras',
-  '/moradores':        'Moradores',
-  '/acessos':          'Gestão de Acessos',
-  '/perfil':           'Perfil',
+  '/dashboard':             'Menu',
+  '/financeiro':            'Financeiro',
+  '/gestao-financeira':     'Gestão Financeira',
+  '/portaria':              'Portaria',
+  '/comunicados':           'Comunicados',
+  '/agendamentos':          'Reservas',
+  '/ocorrencias':           'Chamados',
+  '/galeria':               'Galeria',
+  '/documentos':            'Documentos',
+  '/classificados':         'Classificados',
+  '/achados-perdidos':      'Achados & Perdidos',
+  '/parceiros':             'Parceiros',
+  '/eventos':               'Eventos',
+  '/reunioes':              'Reuniões',
+  '/unidades':              'Chácaras',
+  '/moradores':             'Moradores',
+  '/acessos':               'Gestão de Acessos',
+  '/acesso-visitas':        'Acessos',
+  '/analise-cenarios':      'Análise de Cenários',
+  '/analise-acesso':        'Análise de Acesso',
+  '/checklist-servicos':    'Checklist',
+  '/benfeitorias':          'Benfeitorias',
+  '/usuarios':              'Usuários',
+  '/lgpd':                  'Privacidade',
+  '/perfil':                'Perfil',
+  '/telefones-uteis':       'Contatos Úteis',
+  '/cobrancas':             'Cobranças',
 };
+
+function usePreviousLocation() {
+  const location = useLocation();
+  const pathRef  = useRef('/dashboard');
+  const [prev, setPrev] = useState('/dashboard');
+  useEffect(() => {
+    setPrev(pathRef.current);
+    pathRef.current = location.pathname;
+  }, [location.pathname]);
+  return prev;
+}
 
 export const AppHeader = () => {
   const { user, signOut } = useAuth();
-  const navigate  = useNavigate();
-  const location  = useLocation();
+  const navigate     = useNavigate();
+  const location     = useLocation();
+  const prevPath     = usePreviousLocation();
   const [confirm, setConfirm] = useState(false);
 
-  const isHome  = location.pathname === '/dashboard';
-  const label   = ROUTE_LABELS[location.pathname] ?? '';
+  const isHome    = location.pathname === '/dashboard';
+  const backLabel = ROUTE_LABELS[prevPath] ?? 'Voltar';
 
   return (
     <>
@@ -63,14 +87,14 @@ export const AppHeader = () => {
           </div>
         ) : (
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate(-1)}
             style={{
               display: 'flex', alignItems: 'center', gap: 8,
               background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px',
             }}
           >
             <ArrowLeft size={20} style={{ color: '#57d8ff' }} />
-            <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>{label}</span>
+            <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>{backLabel}</span>
           </button>
         )}
 

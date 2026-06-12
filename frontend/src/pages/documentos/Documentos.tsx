@@ -209,6 +209,7 @@ export const Documentos = () => {
       <SlidePanel
         eyebrow="Biblioteca Digital Itaúna"
         title={<>Documentos & <span className="grad-text">Arquivos</span></>}
+        subtitle="Regimento interno, atas de reuniões, contratos e documentos oficiais."
         badges={[
           { icon: '📁', label: loading ? 'Carregando...' : `${documents.length} documentos` },
           { icon: '🔒', label: 'Acesso Seguro' },

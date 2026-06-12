@@ -10,7 +10,6 @@ const CORS = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
-  // Asaas envia o token no header 'access_token'
   const token = req.headers.get('access_token')
   if (token !== Deno.env.get('ASAAS_WEBHOOK_TOKEN')) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
@@ -29,7 +28,6 @@ serve(async (req) => {
 
   const { event, payment } = body
 
-  // Só processamos eventos de pagamento efetivado
   if (!['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED'].includes(event)) {
     return new Response(JSON.stringify({ received: true, action: 'ignored' }), {
       status: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
@@ -41,7 +39,7 @@ serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   )
 
-  // Busca e atualiza a cobrança pelo ID do Asaas
+  // Atualiza a cobrança pelo ID Asaas — idempotente (mesma operação repetida = mesmo resultado)
   const { data: cobranca, error: updErr } = await supabase
     .from('cobrancas')
     .update({
@@ -55,27 +53,34 @@ serve(async (req) => {
 
   if (updErr || !cobranca) {
     console.warn('[asaas-webhook] cobrança não encontrada para', payment.id, updErr)
-    // Retorna 200 mesmo assim — o Asaas reenvia em caso de erro 5xx
     return new Response(JSON.stringify({ received: true, action: 'not_found' }), {
       status: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
     })
   }
 
-  // Registra como receita no financeiro (idempotente via ON CONFLICT)
-  await supabase.from('finances').insert({
-    type: 'receita',
-    category: 'Rateio Individual',
-    description: `Mensalidade ${cobranca.reference_month} — Chácara ${String(cobranca.unit_number).padStart(3, '0')}`,
-    amount: cobranca.amount,
-    due_date: cobranca.due_date,
-    payment_date: payment.paymentDate,
-    status: 'pago',
-    reference_month: cobranca.reference_month,
-    unit_id: cobranca.unit_id,
-    created_by: null,
-  })
+  // Upsert idempotente no financeiro: ON CONFLICT (cobranca_id) → atualiza sem duplicar
+  const { error: finErr } = await supabase.from('finances').upsert(
+    {
+      cobranca_id:     cobranca.id,
+      type:            'receita',
+      category:        'Rateio Individual',
+      description:     `Mensalidade ${cobranca.reference_month} — Chácara ${String(cobranca.unit_number).padStart(3, '0')}`,
+      amount:          cobranca.amount,
+      due_date:        cobranca.due_date,
+      payment_date:    payment.paymentDate,
+      status:          'pago',
+      reference_month: cobranca.reference_month,
+      unit_id:         cobranca.unit_id,
+      created_by:      null,
+    },
+    { onConflict: 'cobranca_id', ignoreDuplicates: false }
+  )
 
-  // Push notification ao morador
+  if (finErr) {
+    // Log mas não falha — cobrança já está paga, o lançamento pode ser inserido pelo cron
+    console.error('[asaas-webhook] erro ao inserir lancamento financeiro', finErr)
+  }
+
   if (cobranca.morador_id) {
     await supabase.functions.invoke('send-push', {
       body: {
@@ -87,7 +92,7 @@ serve(async (req) => {
     }).catch(() => { /* push é best-effort */ })
   }
 
-  return new Response(JSON.stringify({ received: true, cobrance_id: cobranca.id }), {
+  return new Response(JSON.stringify({ received: true, cobranca_id: cobranca.id }), {
     status: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
   })
 })

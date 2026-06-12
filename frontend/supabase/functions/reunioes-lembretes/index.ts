@@ -70,6 +70,43 @@ serve(async (req) => {
     results.push({ meeting_id: m.id, tipo })
   }
 
+  // ── Alerta de limite 60 min (conta Google gratuita) ──────────────
+  const { data: ativas } = await admin
+    .from('meetings')
+    .select('id, title, scheduled_at, duration_min')
+    .eq('status', 'scheduled')
+    .lt('scheduled_at', now.toISOString())
+
+  for (const m of ativas ?? []) {
+    const elapsed = (now.getTime() - new Date(m.scheduled_at).getTime()) / 60_000
+    if (elapsed < 50 || elapsed > 58) continue
+
+    const { count: nConf } = await admin.from('meeting_rsvp')
+      .select('*', { count: 'exact', head: true })
+      .eq('meeting_id', m.id).eq('response', 'confirmed')
+    if ((nConf ?? 0) < 2) continue
+
+    const { count: jaEnviou } = await admin.from('notification_log')
+      .select('*', { count: 'exact', head: true })
+      .eq('meeting_id', m.id).eq('channel', 'push')
+      .contains('metadata', { tipo: 'meet-expirando' })
+    if ((jaEnviou ?? 0) > 0) continue
+
+    await admin.functions.invoke('send-push', {
+      body: {
+        title: '⏱️ Reunião encerrando em ~5 min',
+        body: `${m.title} — conta gratuita: 60 min. Gere uma nova sala para continuar.`,
+        url: '/reunioes', broadcast: true,
+      },
+    }).catch(() => {})
+
+    await admin.from('notification_log').insert({
+      meeting_id: m.id, channel: 'push', status: 'sent',
+      metadata: { tipo: 'meet-expirando', elapsed_min: Math.round(elapsed) },
+    })
+    results.push({ meeting_id: m.id, tipo: 'meet-expirando' })
+  }
+
   // Encerra reuniões que já passaram do horário de término
   const { data: encerrar } = await admin
     .from('meetings')

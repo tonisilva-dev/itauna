@@ -1,12 +1,13 @@
 import { Outlet } from 'react-router-dom';
 import { AppHeader } from './AppHeader';
+import { PanicButton } from '@/components/ui/PanicButton';
 
 export const AppLayout = () => (
   <>
     {/* Ambient background */}
     <div
       className="fixed inset-0 z-0 bg-cover bg-center pointer-events-none"
-      style={{ backgroundImage: "url('/landing-bg-1.webp')", opacity: 0.22, filter: 'brightness(0.40) saturate(0.7)' }}
+      style={{ backgroundImage: "url('/login-bg-natureza.webp')", opacity: 1, filter: 'brightness(0.18) saturate(0.7)' }}
       aria-hidden="true"
     />
     <div className="bg-orbs" aria-hidden="true">
@@ -25,6 +26,7 @@ export const AppLayout = () => (
           <Outlet />
         </div>
       </main>
+      <PanicButton />
     </div>
   </>
 );

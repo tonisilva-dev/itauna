@@ -221,6 +221,7 @@ export const Eventos = () => {
         <SlidePanel
           eyebrow="Agenda Social do Condomínio"
           title={<>Próximos <span className="grad-text">Eventos</span></>}
+          subtitle="Festas, esportes, cultura e celebrações — inscreva-se e acompanhe a agenda."
           badges={[
             { icon: '🎉', label: `${proximos.length} próximos` },
             { icon: '👥', label: `${totalInscritos} inscritos` },

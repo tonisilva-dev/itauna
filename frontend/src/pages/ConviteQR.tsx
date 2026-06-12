@@ -2,21 +2,20 @@
  * ConviteQR — Página pública do convite gerado pelo morador.
  * URL: /convite/:id
  *
- * Fluxo no totem da portaria:
- *  1. Câmera lê o QR → abre esta página
- *  2. Exibe dados do convite (praticidade: nome/chácara já preenchidos)
- *  3. Convidado informa os CPFs de quem está entrando (segurança)
- *  4. Solicita entrada → porteiro recebe apito com badge "CONVITE"
- *  5. Porteiro aprova → entrada liberada na tela
+ * Dois modos:
+ *  A) Visitante (não autenticado): wizard CPF → aguarda aprovação porteiro
+ *  B) Porteiro (autenticado gestor/assistente): vê detalhes + libera entrada diretamente
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { TreePine, CheckCircle2, XCircle, Clock, CalendarDays, Home, Users, ChevronRight } from 'lucide-react';
+import { TreePine, CheckCircle2, XCircle, Clock, CalendarDays, Home, Users, ChevronRight, Car, MapPin, Loader2 } from 'lucide-react';
 import {
   fetchConviteById, insertSolicitacao, fetchSolicitacaoById, isPortariaBusy,
+  porteiroConcluirEntrada,
   type DbConvite,
 } from '../lib/supabase-queries';
 import { formatUnidade, maskCPF } from '../utils/format';
+import { useAuth } from '@/contexts/AuthContext';
 
 const CYAN  = '#57d8ff';
 const GREEN = '#10b981';
@@ -28,16 +27,30 @@ const TIPO_LABEL: Record<string, { emoji: string; label: string }> = {
   entrega:   { emoji: '📦', label: 'Entrega'             },
 };
 
+const PERIODO_LABEL: Record<string, string> = {
+  manha: '🌅 Manhã', tarde: '🌤 Tarde', noite: '🌙 Noite', dia_todo: '☀ Dia todo',
+};
+
 type Step = 'loading' | 'cpfs' | 'busy' | 'waiting' | 'approved' | 'denied' | 'not_found' | 'expired';
+type PorteiroStep = 'detalhe' | 'liberando' | 'liberado' | 'erro';
 
 export const ConviteQR = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const isPorteiro = user?.role === 'admin' || user?.role === 'sindico' || user?.role === 'assistente';
 
   const [step, setStep]       = useState<Step>('loading');
   const [convite, setConvite] = useState<DbConvite | null>(null);
   const [solId, setSolId]     = useState<string | null>(null);
   const [dots, setDots]       = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Porteiro mode state
+  const [pStep, setPStep]             = useState<PorteiroStep>('detalhe');
+  const [pPlaca, setPPlaca]           = useState('');
+  const [pOcupantes, setPOcupantes]   = useState(1);
+  const [pDocOk, setPDocOk]           = useState(false);
+  const [pObs, setPObs]               = useState('');
 
   // CPFs: sempre inclui o principal (do convite), mais campos p/ acompanhantes
   const [cpfs, setCpfs] = useState<string[]>(['']);
@@ -47,10 +60,16 @@ export const ConviteQR = () => {
     if (!id) { setStep('not_found'); return; }
     fetchConviteById(id).then(c => {
       if (!c) { setStep('not_found'); return; }
-      if (c.status === 'cancelado' || c.status === 'expirado') { setConvite(c); setStep('expired'); return; }
-      const today = new Date().toISOString().slice(0, 10);
-      if (c.data_visita < today) { setConvite(c); setStep('expired'); return; }
       setConvite(c);
+      if (isPorteiro) {
+        // Porteiro vê detalhes do convite diretamente
+        setPPlaca(c.veiculo_placa ?? '');
+        setPOcupantes(c.ocupantes_declarados ?? c.num_pessoas);
+        return; // pStep = 'detalhe' — handled separately
+      }
+      if (c.status === 'cancelado' || c.status === 'expirado') { setStep('expired'); return; }
+      const today = new Date().toISOString().slice(0, 10);
+      if (c.data_visita < today) { setStep('expired'); return; }
       // Pré-preenche CPF principal se disponível no convite
       const initial = Array.from({ length: c.num_pessoas }, (_, i) =>
         i === 0 && c.visitante_cpf ? maskCPF(c.visitante_cpf) : ''
@@ -58,7 +77,7 @@ export const ConviteQR = () => {
       setCpfs(initial);
       setStep('cpfs');
     }).catch(() => setStep('not_found'));
-  }, [id]);
+  }, [id, isPorteiro]);
 
   useEffect(() => {
     if (step !== 'waiting' && step !== 'busy') return;
@@ -132,6 +151,25 @@ export const ConviteQR = () => {
   const setCpf = (idx: number, val: string) =>
     setCpfs(prev => prev.map((c, i) => i === idx ? maskCPF(val) : c));
 
+  const handlePorteiroLiberar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!convite || !user) return;
+    setPStep('liberando');
+    try {
+      await porteiroConcluirEntrada({
+        convite,
+        placa_verificada: pPlaca.trim().toUpperCase() || null,
+        ocupantes_verificados: pOcupantes,
+        documento_conferido: pDocOk,
+        obs: pObs.trim() || null,
+        registrado_por: user.id,
+      });
+      setPStep('liberado');
+    } catch {
+      setPStep('erro');
+    }
+  };
+
   const fmtData = (d: string) =>
     new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
@@ -174,8 +212,121 @@ export const ConviteQR = () => {
         boxShadow: '0 32px 80px rgba(0,0,0,0.45)',
       }}>
 
-        {/* ── Carregando ── */}
-        {step === 'loading' && (
+        {/* ── MODO PORTEIRO ── */}
+        {isPorteiro && convite && pStep === 'detalhe' && (
+          <div style={{ animation: 'slideIn 0.3s ease both' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: CYAN, letterSpacing: '0.06em', marginBottom: 6 }}>MODO PORTEIRO · LIBERAÇÃO DIRETA</p>
+            {/* Convite info */}
+            <div style={{ borderRadius: 14, padding: '14px 16px', marginBottom: 18, background: 'rgba(87,216,255,0.07)', border: '1px solid rgba(87,216,255,0.2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 22 }}>{TIPO_LABEL[convite.tipo]?.emoji}</span>
+                <div>
+                  <p style={{ fontWeight: 900, fontSize: 16, color: '#fff', lineHeight: 1 }}>{convite.visitante_nome}</p>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{TIPO_LABEL[convite.tipo]?.label}</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Home size={12} style={{ color: CYAN }} />
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Unidade <strong style={{ color: '#fff' }}>{formatUnidade(convite.chacara_bloco, Number(convite.chacara_numero))}</strong></span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <CalendarDays size={12} style={{ color: CYAN }} />
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', textTransform: 'capitalize' }}>
+                    {new Date(convite.data_visita + 'T12:00:00').toLocaleDateString('pt-BR')} · {PERIODO_LABEL[convite.periodo ?? 'dia_todo']}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Users size={12} style={{ color: CYAN }} />
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{convite.ocupantes_declarados ?? convite.num_pessoas} pessoa{(convite.ocupantes_declarados ?? convite.num_pessoas) > 1 ? 's' : ''} declarada{(convite.ocupantes_declarados ?? convite.num_pessoas) > 1 ? 's' : ''}</span>
+                </div>
+                {convite.veiculo_placa && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Car size={12} style={{ color: CYAN }} />
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{convite.veiculo_placa} · {convite.veiculo_tipo ?? '—'}</span>
+                  </div>
+                )}
+                {convite.lote_lat && convite.lote_lng && (
+                  <a href={`https://maps.google.com/?q=${convite.lote_lat},${convite.lote_lng}`} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none' }}>
+                    <MapPin size={12} style={{ color: '#f59e0b' }} />
+                    <span style={{ fontSize: 12, color: '#f59e0b' }}>{convite.lote_referencia ?? 'Ver no mapa'}</span>
+                  </a>
+                )}
+              </div>
+            </div>
+            {/* Verificação porteiro */}
+            <form onSubmit={handlePorteiroLiberar} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Placa verificada</label>
+                  <input type="text" placeholder={convite.veiculo_placa ?? 'Sem veículo'} value={pPlaca}
+                    onChange={e => setPPlaca(e.target.value.toUpperCase())} maxLength={8}
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: 10, color: '#fff', padding: '10px 12px', fontSize: 14, outline: 'none', letterSpacing: '0.1em' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Ocupantes verificados</label>
+                  <input type="number" min={1} max={20} value={pOcupantes} onChange={e => setPOcupantes(Math.max(1, parseInt(e.target.value) || 1))}
+                    style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: 10, color: '#fff', padding: '10px 12px', fontSize: 14, outline: 'none' }} />
+                </div>
+              </div>
+              <button type="button" onClick={() => setPDocOk(v => !v)} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, border: `1.5px solid ${pDocOk ? GREEN : 'rgba(255,255,255,0.15)'}`,
+                background: pDocOk ? `${GREEN}14` : 'rgba(255,255,255,0.04)', cursor: 'pointer', textAlign: 'left',
+              }}>
+                <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${pDocOk ? GREEN : 'rgba(255,255,255,0.3)'}`, background: pDocOk ? GREEN : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {pDocOk && <CheckCircle2 size={12} color="#07101c" />}
+                </div>
+                <span style={{ fontSize: 13, color: pDocOk ? '#fff' : 'rgba(255,255,255,0.55)' }}>Documento conferido</span>
+              </button>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Observação (opcional)</label>
+                <input type="text" placeholder="Ex: 2 caixas no porta-malas..." value={pObs} onChange={e => setPObs(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: 10, color: '#fff', padding: '10px 12px', fontSize: 13, outline: 'none' }} />
+              </div>
+              <button type="submit" style={{
+                width: '100%', padding: '15px', borderRadius: 14, border: 'none',
+                background: 'linear-gradient(135deg,#72e3ff,#669dff)', color: '#07101c',
+                fontWeight: 900, fontSize: 15, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+                <CheckCircle2 size={18} /> Registrar Entrada
+              </button>
+            </form>
+          </div>
+        )}
+
+        {isPorteiro && pStep === 'liberando' && (
+          <div style={{ textAlign: 'center', padding: '32px 0' }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', margin: '0 auto 16px', border: `3px solid ${CYAN}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Registrando entrada...</p>
+          </div>
+        )}
+
+        {isPorteiro && pStep === 'liberado' && convite && (
+          <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <div style={{ width: 72, height: 72, borderRadius: '50%', margin: '0 auto 20px', background: `${GREEN}14`, border: `2px solid ${GREEN}`, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) both' }}>
+              <CheckCircle2 size={36} style={{ color: GREEN }} />
+            </div>
+            <h2 style={{ fontSize: 24, fontWeight: 900, color: GREEN, marginBottom: 10 }}>Entrada registrada!</h2>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', lineHeight: 1.7 }}>
+              <strong style={{ color: '#fff' }}>{convite.visitante_nome}</strong><br />
+              Chácara {convite.chacara_numero} · {pOcupantes} pessoa{pOcupantes > 1 ? 's' : ''}
+            </p>
+          </div>
+        )}
+
+        {isPorteiro && pStep === 'erro' && (
+          <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <XCircle size={48} style={{ color: RED, margin: '0 auto 16px', display: 'block' }} />
+            <h2 style={{ fontSize: 20, fontWeight: 900, color: RED, marginBottom: 8 }}>Erro ao registrar</h2>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>Tente novamente ou registre manualmente na portaria.</p>
+            <button onClick={() => setPStep('detalhe')} style={{ marginTop: 16, padding: '10px 20px', borderRadius: 10, border: `1px solid ${RED}`, background: `${RED}14`, color: RED, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Tentar novamente</button>
+          </div>
+        )}
+
+        {/* ── Carregando (modo visitante) ── */}
+        {!isPorteiro && step === 'loading' && (
           <div style={{ textAlign: 'center', padding: '24px 0' }}>
             <div style={{
               width: 48, height: 48, borderRadius: '50%', margin: '0 auto 16px',
@@ -187,7 +338,7 @@ export const ConviteQR = () => {
         )}
 
         {/* ── Não encontrado ── */}
-        {step === 'not_found' && (
+        {!isPorteiro && step === 'not_found' && (
           <div style={{ textAlign: 'center', padding: '8px 0' }}>
             <XCircle size={48} style={{ color: RED, margin: '0 auto 16px', display: 'block' }} />
             <h2 style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 8 }}>Convite não encontrado</h2>
@@ -198,7 +349,7 @@ export const ConviteQR = () => {
         )}
 
         {/* ── Expirado ── */}
-        {step === 'expired' && convite && (
+        {!isPorteiro && step === 'expired' && convite && (
           <div style={{ textAlign: 'center', padding: '8px 0' }}>
             <Clock size={48} style={{ color: '#f59e0b', margin: '0 auto 16px', display: 'block' }} />
             <h2 style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 8 }}>Convite expirado</h2>
@@ -210,7 +361,7 @@ export const ConviteQR = () => {
         )}
 
         {/* ── Formulário de CPFs ── */}
-        {step === 'cpfs' && convite && tipoInfo && (
+        {!isPorteiro && step === 'cpfs' && convite && tipoInfo && (
           <div style={{ animation: 'slideIn 0.3s ease both' }}>
             {/* Header convite */}
             <div style={{
@@ -238,6 +389,19 @@ export const ConviteQR = () => {
                   <Users size={12} style={{ color: CYAN }} />
                   <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>{convite.num_pessoas} pessoa{convite.num_pessoas > 1 ? 's' : ''}</span>
                 </div>
+                {convite.veiculo_placa && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Car size={12} style={{ color: CYAN }} />
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>Veículo: {convite.veiculo_placa}</span>
+                  </div>
+                )}
+                {convite.lote_lat && convite.lote_lng && (
+                  <a href={`https://maps.google.com/?q=${convite.lote_lat},${convite.lote_lng}`} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none' }}>
+                    <MapPin size={12} style={{ color: '#f59e0b' }} />
+                    <span style={{ fontSize: 12, color: '#f59e0b' }}>{convite.lote_referencia ?? 'Ver localização no mapa'}</span>
+                  </a>
+                )}
               </div>
             </div>
 
@@ -322,7 +486,7 @@ export const ConviteQR = () => {
         )}
 
         {/* ── Portaria ocupada ── */}
-        {step === 'busy' && (
+        {!isPorteiro && step === 'busy' && (
           <div style={{ textAlign: 'center', padding: '8px 0' }}>
             <div style={{
               width: 64, height: 64, borderRadius: '50%', margin: '0 auto 20px',
@@ -341,7 +505,7 @@ export const ConviteQR = () => {
         )}
 
         {/* ── Aguardando ── */}
-        {step === 'waiting' && (
+        {!isPorteiro && step === 'waiting' && (
           <div style={{ textAlign: 'center', padding: '8px 0' }}>
             <div style={{
               width: 64, height: 64, borderRadius: '50%', margin: '0 auto 20px',
@@ -370,7 +534,7 @@ export const ConviteQR = () => {
         )}
 
         {/* ── Aprovado ── */}
-        {step === 'approved' && (
+        {!isPorteiro && step === 'approved' && (
           <div style={{ textAlign: 'center', padding: '8px 0' }}>
             <div style={{
               width: 72, height: 72, borderRadius: '50%', margin: '0 auto 20px',
@@ -395,7 +559,7 @@ export const ConviteQR = () => {
         )}
 
         {/* ── Negado ── */}
-        {step === 'denied' && (
+        {!isPorteiro && step === 'denied' && (
           <div style={{ textAlign: 'center', padding: '8px 0' }}>
             <div style={{
               width: 72, height: 72, borderRadius: '50%', margin: '0 auto 20px',

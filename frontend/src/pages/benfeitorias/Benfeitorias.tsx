@@ -276,8 +276,9 @@ export const Benfeitorias = () => {
       label: 'Acompanhamento',
       content: (
         <SlidePanel
-          eyebrow="Obras & Benfeitorias"
+          eyebrow="Financeiro · Obras"
           title={<>Acompanhe as <span className="grad-text">Obras</span></>}
+          subtitle="Reformas e melhorias com progresso, orçamento e registro fotográfico antes/depois."
           badges={[
             { icon: '🏗️', label: `${emAndamento} em andamento` },
             { icon: '✅', label: `${concluidas} concluídas` },

@@ -142,8 +142,9 @@ export const Classificados = () => {
 
   const slideVitrine = (
     <SlidePanel
-      eyebrow="Mural Comercial"
+      eyebrow="Social · Mercado"
       title={<>Classificados <span className="grad-text">Internos</span></>}
+      subtitle="Compra, venda e serviços entre condôminos — sem taxas adicionais."
       badges={[
         { icon: '🛒', label: 'Mural Livre' },
         { icon: '🤝', label: 'Compra & Venda' },

@@ -456,6 +456,19 @@ export async function insertFinance(payload: {
   return data as DbFinance;
 }
 
+export async function bulkInsertFinances(
+  rows: Array<{
+    description: string; category: string; amount: number;
+    type: 'receita' | 'despesa'; status: 'pago' | 'pendente' | 'vencido';
+    due_date: string; reference_month: string;
+    created_by: string; notes?: string | null;
+  }>
+): Promise<number> {
+  const { data, error } = await db.from('finances').insert(rows).select('id');
+  if (error) throw error;
+  return data?.length ?? 0;
+}
+
 export async function updateFinanceStatus(
   id: string,
   status: 'pago' | 'pendente' | 'cancelado'
@@ -739,6 +752,7 @@ export interface DbAchadoPerdido {
   date: string; status: 'aberto' | 'resolvido';
   resolved_at: string | null; user_id: string | null; created_at: string;
   nome_contato: string | null; telefone_contato: string | null;
+  foto_url: string | null; local_portaria: string | null;
 }
 
 export async function fetchAchadosPerdidos(): Promise<DbAchadoPerdido[]> {
@@ -754,6 +768,7 @@ export async function insertAchadoPerdido(payload: {
   type: 'perdido' | 'achado'; title: string; local: string;
   descricao: string; date: string; user_id: string;
   nome_contato?: string | null; telefone_contato?: string | null;
+  foto_url?: string | null; local_portaria?: string | null;
 }): Promise<DbAchadoPerdido> {
   const { data, error } = await db
     .from('achados_perdidos')
@@ -880,6 +895,7 @@ export async function fetchPortariaAutorizadosByChacara(chacara: string): Promis
 export async function insertPortariaEntrada(payload: {
   nome: string; veiculo: string | null; tipo: DbPortariaRegistro['tipo'];
   destino: string; registrado_por: string;
+  convite_id?: string | null; placa_registrada?: string | null; ocupantes_verificados?: number;
 }): Promise<DbPortariaRegistro> {
   const { data, error } = await db
     .from('portaria_registros')
@@ -890,12 +906,84 @@ export async function insertPortariaEntrada(payload: {
   return data as DbPortariaRegistro;
 }
 
-export async function registerPortariaSaida(id: string): Promise<void> {
-  const { error } = await db
+export async function registerPortariaSaida(id: string): Promise<DbPortariaRegistro | null> {
+  const { data, error } = await db
     .from('portaria_registros')
     .update({ status: 'saiu', saida_at: new Date().toISOString() })
-    .eq('id', id);
+    .eq('id', id)
+    .select()
+    .single();
   if (error) throw error;
+  return data as DbPortariaRegistro | null;
+}
+
+/** Porteiro itinerante: libera entrada via QR do convite (sem totem). */
+export async function porteiroConcluirEntrada(payload: {
+  convite: DbConvite;
+  placa_verificada: string | null;
+  ocupantes_verificados: number;
+  documento_conferido: boolean;
+  obs: string | null;
+  registrado_por: string;
+}): Promise<{ registro: DbPortariaRegistro; preauth: { id: string } }> {
+  const { convite, placa_verificada, ocupantes_verificados, documento_conferido, obs, registrado_por } = payload;
+
+  const veiculo = placa_verificada
+    ? `${placa_verificada}${convite.veiculo_tipo ? ` (${convite.veiculo_tipo})` : ''}`
+    : null;
+
+  const { data: reg, error: regErr } = await db
+    .from('portaria_registros')
+    .insert({
+      nome: convite.visitante_nome,
+      veiculo,
+      tipo: convite.tipo as DbPortariaRegistro['tipo'],
+      destino: `Chácara ${convite.chacara_numero}`,
+      registrado_por,
+      status: 'dentro',
+      convite_id: convite.id,
+      placa_registrada: placa_verificada,
+      ocupantes_verificados,
+    })
+    .select()
+    .single();
+  if (regErr) throw regErr;
+
+  const { data: preauth, error: paErr } = await db
+    .from('preautorizacoes')
+    .insert({
+      convite_id: convite.id,
+      porteiro_id: registrado_por,
+      registro_id: (reg as DbPortariaRegistro).id,
+      placa_verificada,
+      ocupantes_verificados,
+      documento_conferido,
+      obs,
+    })
+    .select('id')
+    .single();
+  if (paErr) throw paErr;
+
+  await db
+    .from('portaria_convites')
+    .update({ status: 'usado' })
+    .eq('id', convite.id);
+
+  return { registro: reg as DbPortariaRegistro, preauth: preauth as { id: string } };
+}
+
+/** Busca o morador_id pelo número da chácara (para push de saída). */
+export async function fetchMoradorIdByChacara(chacaraNumero: string): Promise<string | null> {
+  const num = parseInt(chacaraNumero.replace(/\D/g, ''), 10);
+  if (isNaN(num)) return null;
+  const { data } = await db
+    .from('profiles')
+    .select('id')
+    .eq('unit_number', num)
+    .eq('role', 'condominino')
+    .limit(1)
+    .single();
+  return data?.id ?? null;
 }
 
 export async function fetchPortariaAutorizados(): Promise<DbPortariaAutorizado[]> {
@@ -1312,6 +1400,15 @@ export interface DbConvite {
   observacao: string | null;
   status: 'ativo' | 'usado' | 'expirado' | 'cancelado';
   portaria_id: number | null;
+  // migration 041
+  veiculo_placa?: string | null;
+  veiculo_tipo?: 'carro' | 'moto' | 'van' | 'caminhao' | 'outro' | null;
+  periodo?: 'manha' | 'tarde' | 'noite' | 'dia_todo';
+  ocupantes_declarados?: number;
+  // lote (join com units)
+  lote_lat?: number | null;
+  lote_lng?: number | null;
+  lote_referencia?: string | null;
   created_at: string;
   updated_at: string;
   // join
@@ -1331,6 +1428,8 @@ export interface DbRecorrente {
   vigencia_fim: string | null;
   ativo: boolean;
   observacao: string | null;
+  horario_inicio: string | null;
+  horario_fim: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1363,10 +1462,19 @@ export async function fetchConvitesHoje(): Promise<DbConvite[]> {
 export async function fetchConviteById(id: string): Promise<DbConvite | null> {
   const { data } = await db
     .from('portaria_convites')
-    .select('*, morador:profiles!morador_id(full_name, unit_number, phone)')
+    .select('*, morador:profiles!morador_id(full_name, unit_number, phone, unit:units!unit_id(lote_lat,lote_lng,lote_referencia))')
     .eq('id', id)
     .maybeSingle();
-  return data as DbConvite | null;
+  if (!data) return null;
+  // Flatten lote coords from nested join
+  const row = data as any;
+  const unit = row.morador?.unit;
+  return {
+    ...row,
+    lote_lat: unit?.lote_lat ?? null,
+    lote_lng: unit?.lote_lng ?? null,
+    lote_referencia: unit?.lote_referencia ?? null,
+  } as DbConvite;
 }
 
 export async function fetchConvitesProgramados(): Promise<DbConvite[]> {
@@ -1597,9 +1705,13 @@ export interface DbEncomenda {
   descricao: string;
   tipo: 'correios' | 'motoboy' | 'app_delivery' | 'outro';
   remetente: string | null;
+  rastreio_codigo: string | null;
+  foto_url: string | null;
   status: 'aguardando' | 'retirada';
   registrado_por: string | null;
   retirada_at: string | null;
+  retirada_por_nome: string | null;
+  retirada_por_doc: string | null;
   created_at: string;
 }
 
@@ -1625,7 +1737,7 @@ export async function fetchMinhasEncomendas(chacaraNumero: string): Promise<DbEn
 }
 
 export async function insertEncomenda(
-  payload: Pick<DbEncomenda, 'chacara_numero' | 'descricao' | 'tipo' | 'remetente'> & { registrado_por: string }
+  payload: Pick<DbEncomenda, 'chacara_numero' | 'descricao' | 'tipo' | 'remetente' | 'rastreio_codigo' | 'foto_url'> & { registrado_por: string }
 ): Promise<DbEncomenda> {
   const { data, error } = await db
     .from('portaria_encomendas').insert(payload).select().single();
@@ -1643,10 +1755,116 @@ export async function countEncomendasPendentes(chacaraNumero: string): Promise<n
   return count ?? 0;
 }
 
-export async function marcarEncomendaRetirada(id: string): Promise<void> {
+export async function marcarEncomendaRetirada(
+  id: string,
+  retirada_por?: { nome: string; doc: string }
+): Promise<void> {
   const { error } = await db
     .from('portaria_encomendas')
-    .update({ status: 'retirada', retirada_at: new Date().toISOString() })
+    .update({
+      status: 'retirada',
+      retirada_at: new Date().toISOString(),
+      retirada_por_nome: retirada_por?.nome ?? null,
+      retirada_por_doc:  retirada_por?.doc  ?? null,
+    })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+/* ─── Pânico ────────────────────────────────────────────────── */
+export interface DbPanicEvent {
+  id: string;
+  user_id: string;
+  chacara_numero: string | null;
+  lat: number | null;
+  lng: number | null;
+  nota: string | null;
+  resolved: boolean;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+}
+
+export async function insertPanicEvent(payload: {
+  user_id: string; chacara_numero: string | null;
+  lat: number | null; lng: number | null; nota: string | null;
+}): Promise<DbPanicEvent> {
+  const { data, error } = await db
+    .from('panic_events').insert(payload).select().single();
+  if (error) throw error;
+  return data as DbPanicEvent;
+}
+
+export async function resolvePanicEvent(id: string, resolved_by: string): Promise<void> {
+  const { error } = await db
+    .from('panic_events')
+    .update({ resolved: true, resolved_by, resolved_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function fetchOpenPanicEvents(): Promise<DbPanicEvent[]> {
+  const { data, error } = await db
+    .from('panic_events')
+    .select('*, profile:profiles!user_id(full_name, unit_number, phone)')
+    .eq('resolved', false)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as DbPanicEvent[];
+}
+
+/* ─── Estadias prolongadas ──────────────────────────────────── */
+export interface DbEstadia {
+  id: string;
+  morador_id: string;
+  chacara_numero: string;
+  hospede_nome: string;
+  hospede_cpf: string | null;
+  hospede_tel: string | null;
+  check_in: string;
+  check_out_previsto: string;
+  motivo: 'familiar' | 'aluguel_temporada' | 'obra' | 'outro';
+  veiculo_placa: string | null;
+  num_pessoas: number;
+  status: 'ativa' | 'encerrada';
+  check_out_real: string | null;
+  observacao: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchMinhasEstadias(moradorId: string): Promise<DbEstadia[]> {
+  const { data, error } = await db
+    .from('portaria_estadias')
+    .select('*')
+    .eq('morador_id', moradorId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (error) throw error;
+  return (data ?? []) as DbEstadia[];
+}
+
+export async function insertEstadia(
+  payload: Omit<DbEstadia, 'id' | 'status' | 'check_out_real' | 'created_at' | 'updated_at'> & { registrado_por?: string }
+): Promise<DbEstadia> {
+  const { data, error } = await db
+    .from('portaria_estadias').insert({ ...payload, status: 'ativa' }).select().single();
+  if (error) throw error;
+  return data as DbEstadia;
+}
+
+export async function encerrarEstadia(id: string): Promise<void> {
+  const { error } = await db
+    .from('portaria_estadias')
+    .update({ status: 'encerrada', check_out_real: new Date().toISOString().slice(0, 10) })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function renovarEstadia(id: string, novo_checkout: string): Promise<void> {
+  const { error } = await db
+    .from('portaria_estadias')
+    .update({ check_out_previsto: novo_checkout })
     .eq('id', id);
   if (error) throw error;
 }
@@ -2014,5 +2232,97 @@ export async function marcarCobrancaPaga(id: string, payment_method = 'manual'):
     .from('cobrancas')
     .update({ status: 'pago', payment_date: new Date().toISOString().slice(0, 10), payment_method })
     .eq('id', id);
+  if (error) throw error;
+}
+
+/* ─── Veículos ──────────────────────────────────────────────── */
+export interface DbVeiculo {
+  id: string;
+  unit_id: string;
+  morador_id: string;
+  categoria: 'carro' | 'moto' | 'caminhonete' | 'caminhao' | 'bicicleta' | 'trator' | 'quadriciclo' | 'tracao_animal' | 'outro_rural';
+  marca: string | null;
+  modelo: string | null;
+  ano: number | null;
+  cor: string | null;
+  placa: string | null;
+  renavam: string | null;
+  foto_url: string | null;
+  eh_rural: boolean;
+  observacao: string | null;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchMeusVeiculos(moradorId: string): Promise<DbVeiculo[]> {
+  const { data, error } = await db
+    .from('veiculos').select('*').eq('morador_id', moradorId).eq('ativo', true).order('created_at');
+  if (error) throw error;
+  return (data ?? []) as DbVeiculo[];
+}
+
+export async function insertVeiculo(
+  payload: Omit<DbVeiculo, 'id' | 'ativo' | 'created_at' | 'updated_at'>
+): Promise<DbVeiculo> {
+  const { data, error } = await db.from('veiculos').insert({ ...payload, ativo: true }).select().single();
+  if (error) throw error;
+  return data as DbVeiculo;
+}
+
+export async function deleteVeiculo(id: string): Promise<void> {
+  const { error } = await db.from('veiculos').update({ ativo: false }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function fetchVeiculoByPlaca(placa: string): Promise<(DbVeiculo & { morador?: { full_name: string; unit_number: number | null; phone: string | null } }) | null> {
+  const { data } = await db
+    .from('veiculos')
+    .select('*, morador:profiles!morador_id(full_name, unit_number, phone)')
+    .ilike('placa', placa.replace(/[^a-zA-Z0-9]/g, ''))
+    .eq('ativo', true)
+    .maybeSingle();
+  return data as any;
+}
+
+/* ─── Pets ──────────────────────────────────────────────────── */
+export interface DbPet {
+  id: string;
+  unit_id: string;
+  morador_id: string;
+  nome: string;
+  especie: string;
+  raca: string | null;
+  cor_pelagem: string | null;
+  porte: 'mini' | 'pequeno' | 'medio' | 'grande' | 'gigante' | null;
+  microchip_codigo: string | null;
+  foto_url: string | null;
+  raca_restrita: boolean;
+  exige_focinheira: boolean;
+  vacinacao_ok: boolean;
+  vacinacao_vence_em: string | null;
+  observacao: string | null;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchMeusPets(moradorId: string): Promise<DbPet[]> {
+  const { data, error } = await db
+    .from('pets').select('*').eq('morador_id', moradorId).eq('ativo', true).order('nome');
+  if (error) throw error;
+  return (data ?? []) as DbPet[];
+}
+
+export async function insertPet(
+  payload: Omit<DbPet, 'id' | 'ativo' | 'created_at' | 'updated_at'>
+): Promise<DbPet> {
+  const { data, error } = await db.from('pets').insert({ ...payload, ativo: true }).select().single();
+  if (error) throw error;
+  return data as DbPet;
+}
+
+export async function deletePet(id: string): Promise<void> {
+  const { error } = await db.from('pets').update({ ativo: false }).eq('id', id);
   if (error) throw error;
 }

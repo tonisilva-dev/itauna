@@ -125,8 +125,9 @@ export const Parceiros = () => {
     label: 'Vitrine de Parceiros',
     content: (
       <SlidePanel
-        eyebrow="Convênios & Parceiros Oficiais"
+        eyebrow="Gestão · Fornecedores"
         title={<>Parceiros <span className="grad-text">& Convênios</span></>}
+        subtitle="Fornecedores, prestadores de serviço e convênios com desconto para condôminos."
         badges={[
           { icon: '⭐', label: `${totalPatrocinadores} patrocinadores` },
           { icon: '🤝', label: `${parceiros.length} no total` },

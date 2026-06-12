@@ -1,11 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="8" fill="#0a0f1e"/>
+  <rect width="32" height="32" rx="6" fill="#ffffff"/>
   <!-- tronco -->
-  <rect x="14" y="22" width="4" height="7" rx="1" fill="#00c8c8"/>
-  <!-- copa inferior -->
-  <polygon points="16,6 6,22 26,22" fill="#00c8c8"/>
-  <!-- copa média -->
-  <polygon points="16,3 8,17 24,17" fill="#00e5e5"/>
-  <!-- copa superior -->
-  <polygon points="16,1 10,13 22,13" fill="#ffffff" opacity="0.9"/>
+  <rect x="14.5" y="17" width="3" height="7" rx="1" fill="#6b3a2a"/>
+  <!-- copa esquerda -->
+  <ellipse cx="11" cy="13" rx="5" ry="5" fill="#4a8f3f"/>
+  <!-- copa direita -->
+  <ellipse cx="21" cy="13" rx="5" ry="5" fill="#4a8f3f"/>
+  <!-- copa topo -->
+  <ellipse cx="16" cy="9" rx="5.5" ry="5.5" fill="#5aac48"/>
+  <!-- onda água -->
+  <path d="M6 22 Q10 20 14 22 Q18 24 22 22 Q26 20 27 22" stroke="#2563a8" stroke-width="1.5" fill="none" stroke-linecap="round"/>
 </svg>

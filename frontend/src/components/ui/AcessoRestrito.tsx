@@ -156,11 +156,11 @@ export const AcessoRestrito = () => {
 
           {/* ── CTA ── */}
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate(-1)}
             className="btn-primary flex items-center gap-2 px-5 py-2.5 text-xs font-bold"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Voltar ao Dashboard
+            Voltar
           </button>
         </div>
       </SlidePanel>

@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { format, isPast, isFuture, addMinutes, differenceInHours } from 'date-fns';
+import { format, isPast, isFuture, addMinutes, differenceInHours, differenceInMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   Video, Calendar, Users, CheckCircle2, XCircle, Clock, Plus, Trash2,
   ExternalLink, Loader2, AlertTriangle, Link2, Settings, ChevronDown, ChevronUp,
-  RefreshCw, Bell, FileText, Send,
+  RefreshCw, Bell, FileText, Send, TimerReset, Pencil, Save, X,
 } from 'lucide-react';
 import { supabase, db } from '../../lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
+import { SlidePanel } from '../../components/ui/SlidePanel';
 import toast from 'react-hot-toast';
 
 const CYAN  = '#57d8ff';
@@ -24,6 +25,7 @@ interface Meeting {
   google_event_id: string | null; meet_link: string | null;
   status: 'scheduled' | 'cancelled' | 'done';
   agenda_locked: boolean; created_by: string | null; created_at: string;
+  ata_texto: string | null;
 }
 interface AgendaItem {
   id: string; meeting_id: string; position: number;
@@ -55,19 +57,138 @@ const STATUS_BADGE: Record<string, { label: string; color: string }> = {
   done:      { label: 'Encerrada', color: '#6b7280' },
 };
 
+const ITEM_STATUS_OPTS = [
+  { value: 'pending',  label: 'Pendente',  color: '#6b7280' },
+  { value: 'approved', label: 'Aprovado',  color: '#10b981' },
+  { value: 'rejected', label: 'Rejeitado', color: '#ef4444' },
+  { value: 'deferred', label: 'Adiado',    color: '#f59e0b' },
+] as const;
+
 /* ─── MeetingCard (compartilhado) ────────────────────────────── */
 const MeetingCard = ({
-  m, rsvps, expanded, onToggle, onRsvp, isGestor, onCancel,
+  m, rsvps, agendaItems = [], expanded, onToggle, onRsvp, isGestor, onCancel, onUpdate,
 }: {
-  m: Meeting; rsvps: Rsvp[]; expanded: boolean;
+  m: Meeting; rsvps: Rsvp[]; agendaItems?: AgendaItem[]; expanded: boolean;
   onToggle: () => void;
   onRsvp?: (resp: 'confirmed' | 'declined') => void;
   isGestor?: boolean;
   onCancel?: () => void;
+  onUpdate?: () => void;
 }) => {
   const { user } = useAuth();
   const myRsvp   = rsvps.find(r => r.user_id === user?.id);
-  const confirmed = rsvps.filter(r => r.response === 'confirmed').length;
+  const [gerandoAta, setGerandoAta] = useState(false);
+  const [ataTexto,   setAtaTexto]   = useState<string | null>(m.ata_texto ?? null);
+  const [ataEditando, setAtaEditando] = useState(false);
+  const [ataSalvando, setAtaSalvando] = useState(false);
+
+  // ── Edição inline ──────────────────────────────────────────────
+  const [editMode,   setEditMode]   = useState(false);
+  const [saving,     setSaving]     = useState(false);
+  // Campos editáveis da reunião
+  const scheduledDate = m.scheduled_at.slice(0, 10);
+  const scheduledTime = m.scheduled_at.slice(11, 16);
+  const [editDate, setEditDate] = useState(scheduledDate);
+  const [editTime, setEditTime] = useState(scheduledTime);
+  const [editDesc, setEditDesc] = useState(m.description ?? '');
+  // Cópia local dos itens de pauta para edição
+  const [editItems, setEditItems] = useState<AgendaItem[]>(agendaItems);
+
+  // Sincroniza itens quando o pai atualiza
+  useEffect(() => { setEditItems(agendaItems); }, [agendaItems]);
+
+  const openEdit = () => {
+    setEditDate(m.scheduled_at.slice(0, 10));
+    setEditTime(m.scheduled_at.slice(11, 16));
+    setEditDesc(m.description ?? '');
+    setEditItems(agendaItems);
+    setEditMode(true);
+  };
+
+  const handleSalvarEdicao = async () => {
+    setSaving(true);
+    try {
+      const scheduled_at = new Date(`${editDate}T${editTime}:00`).toISOString();
+      const { error: errM } = await (supabase as any)
+        .from('meetings')
+        .update({ scheduled_at, description: editDesc || null })
+        .eq('id', m.id);
+      if (errM) throw errM;
+
+      for (const item of editItems) {
+        const { error: errI } = await (supabase as any)
+          .from('agenda_items')
+          .update({ title: item.title, notes: item.notes || null, status: item.status })
+          .eq('id', item.id);
+        if (errI) throw errI;
+      }
+
+      setEditMode(false);
+      toast.success('Reunião atualizada.');
+      onUpdate?.();
+    } catch (err: any) {
+      toast.error('Erro ao salvar: ' + (err.message ?? String(err)));
+    } finally {
+      setSaving(false);
+    }
+  };
+  const [elapsedMin, setElapsedMin] = useState<number | null>(null);
+
+  // Timer ao vivo para reuniões em andamento
+  useEffect(() => {
+    if (m.status !== 'scheduled') return;
+    const start = new Date(m.scheduled_at);
+    const end   = addMinutes(start, m.duration_min);
+    const tick  = () => {
+      const now = new Date();
+      if (now >= start && now <= end) {
+        setElapsedMin(differenceInMinutes(now, start));
+      } else {
+        setElapsedMin(null);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 15_000);
+    return () => clearInterval(id);
+  }, [m.scheduled_at, m.duration_min, m.status]);
+
+  const isActive       = elapsedMin !== null;
+  const confirmed      = rsvps.filter(r => r.response === 'confirmed').length;
+  // Limite de 60 min aplica-se a grupos (3+ pessoas). Aqui: total confirmados + gestor ≈ confirmed+1
+  const isGroup        = confirmed >= 2;
+  const approachingLim = isActive && isGroup && elapsedMin! >= 50;
+  const overLimit      = isActive && isGroup && elapsedMin! >= 60;
+
+  const handleGerarAta = async () => {
+    setGerandoAta(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('gerar-ata', {
+        body: { meeting_id: m.id },
+      });
+      if (error) throw error;
+      setAtaTexto(data.ata);
+      setAtaEditando(true);
+    } catch (err: any) {
+      toast.error('Erro ao gerar ata: ' + (err.message ?? String(err)));
+    } finally {
+      setGerandoAta(false);
+    }
+  };
+
+  const handleSalvarAta = async () => {
+    if (!ataTexto) return;
+    setAtaSalvando(true);
+    try {
+      const { error } = await (supabase as any).from('meetings').update({ ata_texto: ataTexto }).eq('id', m.id);
+      if (error) throw error;
+      setAtaEditando(false);
+      toast.success('Ata salva com sucesso!');
+    } catch (err: any) {
+      toast.error('Erro ao salvar ata: ' + (err.message ?? String(err)));
+    } finally {
+      setAtaSalvando(false);
+    }
+  };
   const pending   = rsvps.filter(r => r.response === 'pending').length;
   const isFut    = isFuture(new Date(m.scheduled_at));
   const badge    = STATUS_BADGE[m.status] ?? STATUS_BADGE.scheduled;
@@ -118,6 +239,54 @@ const MeetingCard = ({
             <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>{m.description}</p>
           )}
 
+          {/* Timer ao vivo — reunião em andamento */}
+          {isActive && (
+            <div className="rounded-xl px-3 py-2 flex items-center gap-2"
+              style={{
+                background: overLimit ? 'rgba(239,68,68,0.10)' : approachingLim ? 'rgba(245,158,11,0.10)' : 'rgba(87,216,255,0.06)',
+                border: `1px solid ${overLimit ? 'rgba(239,68,68,0.3)' : approachingLim ? 'rgba(245,158,11,0.3)' : 'rgba(87,216,255,0.2)'}`,
+              }}>
+              <TimerReset size={13} style={{ color: overLimit ? RED : approachingLim ? YELL : CYAN, flexShrink: 0 }} />
+              <div className="flex-1">
+                <p style={{ fontSize: '0.65rem', fontWeight: 700, color: overLimit ? RED : approachingLim ? YELL : CYAN }}>
+                  {overLimit
+                    ? `Limite de 60 min atingido (${elapsedMin} min) — sala pode encerrar a qualquer momento`
+                    : approachingLim
+                    ? `${elapsedMin} min — Google Meet encerrará em ${60 - elapsedMin!} min (conta gratuita)`
+                    : `Em andamento · ${elapsedMin} min`}
+                </p>
+              </div>
+              {/* Barra de progresso */}
+              <div className="w-12 h-1.5 rounded-full overflow-hidden flex-shrink-0" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                <div className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, (elapsedMin! / 60) * 100)}%`,
+                    background: overLimit ? RED : approachingLim ? YELL : CYAN,
+                  }} />
+              </div>
+            </div>
+          )}
+
+          {/* Alerta + Gerar nova sala — apenas gestor */}
+          {isGestor && (approachingLim || overLimit) && (
+            <div className="rounded-xl p-3 flex flex-col gap-2"
+              style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.25)' }}>
+              <p style={{ fontSize: '0.68rem', color: RED, fontWeight: 700 }}>
+                <AlertTriangle size={11} className="inline mr-1" />
+                Conta gratuita: limite de 60 min para grupos
+              </p>
+              <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>
+                Crie uma nova sala Meet e compartilhe o link com os participantes para continuar a reunião.
+              </p>
+              <a href="https://meet.new" target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold self-start"
+                style={{ background: `${RED}18`, border: `1px solid ${RED}33`, color: RED }}>
+                <Video size={12} />Abrir nova sala Meet
+                <ExternalLink size={10} className="ml-1 opacity-60" />
+              </a>
+            </div>
+          )}
+
           {/* Meet link */}
           {m.meet_link ? (
             <a href={m.meet_link} target="_blank" rel="noopener noreferrer"
@@ -159,13 +328,201 @@ const MeetingCard = ({
             </div>
           )}
 
+          {/* Gestor: edição inline */}
+          {isGestor && m.status !== 'cancelled' && (
+            editMode ? (
+              <div className="flex flex-col gap-3 rounded-2xl p-3"
+                style={{ background: 'rgba(87,216,255,0.04)', border: '1px solid rgba(87,216,255,0.18)' }}>
+                <p style={{ fontSize: '0.6rem', color: CYAN, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Editar reunião
+                </p>
+
+                {/* Data e hora */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.35)', fontWeight: 700, textTransform: 'uppercase' }}>Data</label>
+                    <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
+                      className="px-2 py-1.5 rounded-xl text-xs text-white/80 outline-none"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }} />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.35)', fontWeight: 700, textTransform: 'uppercase' }}>Hora</label>
+                    <input type="time" value={editTime} onChange={e => setEditTime(e.target.value)}
+                      className="px-2 py-1.5 rounded-xl text-xs text-white/80 outline-none"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', colorScheme: 'dark' }} />
+                  </div>
+                </div>
+
+                {/* Descrição / Observação */}
+                <div className="flex flex-col gap-1">
+                  <label style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.35)', fontWeight: 700, textTransform: 'uppercase' }}>Observação</label>
+                  <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} rows={2}
+                    placeholder="Contexto ou observações..."
+                    className="px-2 py-1.5 rounded-xl text-xs text-white/80 outline-none resize-none"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }} />
+                </div>
+
+                {/* Itens de pauta */}
+                {editItems.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <label style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.35)', fontWeight: 700, textTransform: 'uppercase' }}>Pauta</label>
+                    {editItems.map((item, i) => (
+                      <div key={item.id} className="rounded-xl p-2.5 flex flex-col gap-2"
+                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                        <div className="flex items-center gap-2">
+                          <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.3)', minWidth: 14 }}>{i + 1}.</span>
+                          <input
+                            value={item.title}
+                            onChange={e => setEditItems(its => its.map((x, j) => j === i ? { ...x, title: e.target.value } : x))}
+                            className="flex-1 bg-transparent outline-none text-xs text-white/80"
+                          />
+                        </div>
+                        {/* Status */}
+                        <div className="flex gap-1.5 flex-wrap">
+                          {ITEM_STATUS_OPTS.map(opt => (
+                            <button key={opt.value}
+                              onClick={() => setEditItems(its => its.map((x, j) => j === i ? { ...x, status: opt.value } : x))}
+                              className="px-2 py-0.5 rounded-lg text-[0.58rem] font-bold transition-all"
+                              style={{
+                                background: item.status === opt.value ? `${opt.color}22` : 'rgba(255,255,255,0.03)',
+                                border: `1px solid ${item.status === opt.value ? `${opt.color}55` : 'rgba(255,255,255,0.06)'}`,
+                                color: item.status === opt.value ? opt.color : 'rgba(255,255,255,0.3)',
+                              }}>{opt.label}</button>
+                          ))}
+                        </div>
+                        {/* Notas */}
+                        <input
+                          value={item.notes ?? ''}
+                          onChange={e => setEditItems(its => its.map((x, j) => j === i ? { ...x, notes: e.target.value } : x))}
+                          placeholder="Notas / decisão..."
+                          className="bg-transparent outline-none text-[0.68rem] text-white/60 placeholder:text-white/20"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Ações */}
+                <div className="flex gap-2">
+                  <button onClick={handleSalvarEdicao} disabled={saving}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                    style={{ background: `${GREEN}20`, border: `1px solid ${GREEN}44`, color: GREEN }}>
+                    {saving ? <><Loader2 size={11} className="animate-spin" />Salvando...</> : <><Save size={11} />Salvar alterações</>}
+                  </button>
+                  <button onClick={() => setEditMode(false)} disabled={saving}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
+                    <X size={11} />Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={openEdit}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold self-start"
+                style={{ background: 'rgba(87,216,255,0.08)', border: '1px solid rgba(87,216,255,0.2)', color: CYAN }}>
+                <Pencil size={11} />Editar reunião
+              </button>
+            )
+          )}
+
           {/* Gestor: cancelar */}
-          {isGestor && m.status === 'scheduled' && onCancel && (
+          {isGestor && m.status === 'scheduled' && onCancel && !editMode && (
             <button onClick={onCancel}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold self-start"
               style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: RED }}>
               <XCircle size={12} />Cancelar reunião
             </button>
+          )}
+
+          {/* Gestor: gerar/editar/salvar ata (só para reuniões encerradas) */}
+          {isGestor && m.status === 'done' && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={handleGerarAta}
+                  disabled={gerandoAta || ataSalvando}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold self-start transition-all"
+                  style={{ background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.3)', color: PURP }}>
+                  {gerandoAta
+                    ? <><Loader2 size={12} className="animate-spin" />Gerando ata...</>
+                    : <><FileText size={12} />{ataTexto ? 'Regerar com IA' : 'Gerar ata com IA'}</>}
+                </button>
+                {ataTexto && !ataEditando && (
+                  <button
+                    onClick={() => setAtaEditando(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                    style={{ background: 'rgba(87,216,255,0.10)', border: '1px solid rgba(87,216,255,0.25)', color: CYAN }}>
+                    Editar
+                  </button>
+                )}
+              </div>
+
+              {ataTexto && (
+                <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${ataEditando ? 'rgba(87,216,255,0.3)' : 'rgba(168,85,247,0.2)'}` }}>
+                  <div className="flex items-center justify-between px-3 py-2"
+                    style={{ background: ataEditando ? 'rgba(87,216,255,0.06)' : 'rgba(168,85,247,0.08)' }}>
+                    <span className="text-[0.65rem] font-bold" style={{ color: ataEditando ? CYAN : PURP }}>
+                      {ataEditando ? 'Editando ata — confirme para salvar' : m.ata_texto ? 'Ata salva' : 'Ata gerada (não salva)'}
+                    </span>
+                    {!ataEditando && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(ataTexto); toast.success('Ata copiada!'); }}
+                          className="text-[0.6rem] px-2 py-1 rounded-lg font-bold"
+                          style={{ background: 'rgba(168,85,247,0.15)', color: PURP }}>
+                          Copiar
+                        </button>
+                        <button
+                          onClick={() => {
+                            const blob = new Blob([ataTexto], { type: 'text/plain' });
+                            const a = document.createElement('a');
+                            a.href = URL.createObjectURL(blob);
+                            a.download = `ata-${m.title.replace(/\s+/g, '-').toLowerCase()}.md`;
+                            a.click();
+                          }}
+                          className="text-[0.6rem] px-2 py-1 rounded-lg font-bold"
+                          style={{ background: 'rgba(168,85,247,0.15)', color: PURP }}>
+                          Baixar .md
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {ataEditando ? (
+                    <>
+                      <textarea
+                        value={ataTexto}
+                        onChange={e => setAtaTexto(e.target.value)}
+                        rows={14}
+                        className="w-full bg-transparent outline-none resize-none p-3"
+                        style={{ fontSize: '0.65rem', lineHeight: 1.6, color: 'rgba(255,255,255,0.8)', background: 'rgba(0,0,0,0.25)' }}
+                      />
+                      <div className="flex gap-2 px-3 pb-3">
+                        <button
+                          onClick={handleSalvarAta}
+                          disabled={ataSalvando}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                          style={{ background: `${GREEN}20`, border: `1px solid ${GREEN}44`, color: GREEN }}>
+                          {ataSalvando ? <><Loader2 size={11} className="animate-spin" />Salvando...</> : <><CheckCircle2 size={11} />Confirmar e salvar</>}
+                        </button>
+                        <button
+                          onClick={() => { setAtaTexto(m.ata_texto ?? ataTexto); setAtaEditando(false); }}
+                          disabled={ataSalvando}
+                          className="px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
+                          Cancelar
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <pre className="p-3 text-[0.65rem] leading-relaxed overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap"
+                      style={{ color: 'rgba(255,255,255,0.7)', background: 'rgba(0,0,0,0.2)' }}>
+                      {ataTexto}
+                    </pre>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {/* RSVP list (gestor) */}
@@ -207,8 +564,9 @@ const MeetingCard = ({
 ═══════════════════════════════════════════════════════════════ */
 const ReunioeGestor = () => {
   const { user } = useAuth();
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [rsvpMap,  setRsvpMap]  = useState<Record<string, Rsvp[]>>({});
+  const [meetings,   setMeetings]   = useState<Meeting[]>([]);
+  const [rsvpMap,    setRsvpMap]    = useState<Record<string, Rsvp[]>>({});
+  const [agendaMap,  setAgendaMap]  = useState<Record<string, AgendaItem[]>>({});
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -230,14 +588,23 @@ const ReunioeGestor = () => {
       const { data: ms } = await db.from('meetings').select('*').order('scheduled_at', { ascending: false }).limit(30);
       setMeetings((ms ?? []) as Meeting[]);
 
-      // Carrega RSVPs de todas as reuniões
-      const { data: rs } = await db.from('meeting_rsvp').select('*, profiles!user_id(full_name, unit_number)');
+      // Carrega RSVPs e agenda items de todas as reuniões em paralelo
+      const [{ data: rs }, { data: ai }] = await Promise.all([
+        db.from('meeting_rsvp').select('*, profiles!user_id(full_name, unit_number)'),
+        db.from('agenda_items').select('*').order('position'),
+      ]);
       const map: Record<string, Rsvp[]> = {};
       for (const r of (rs ?? []) as Rsvp[]) {
         if (!map[r.meeting_id]) map[r.meeting_id] = [];
         map[r.meeting_id].push(r);
       }
       setRsvpMap(map);
+      const amap: Record<string, AgendaItem[]> = {};
+      for (const a of (ai ?? []) as AgendaItem[]) {
+        if (!amap[a.meeting_id]) amap[a.meeting_id] = [];
+        amap[a.meeting_id].push(a);
+      }
+      setAgendaMap(amap);
 
       // Verifica se Google está conectado
       const { count } = await db.from('google_tokens').select('*', { count: 'exact', head: true }).eq('account', 'itauna');
@@ -316,11 +683,12 @@ const ReunioeGestor = () => {
           </p>
         </div>
       ) : meetings.map(m => (
-        <MeetingCard key={m.id} m={m} rsvps={rsvpMap[m.id] ?? []}
+        <MeetingCard key={m.id} m={m} rsvps={rsvpMap[m.id] ?? []} agendaItems={agendaMap[m.id] ?? []}
           expanded={expanded === m.id}
           onToggle={() => setExpanded(e => e === m.id ? null : m.id)}
           isGestor
           onCancel={() => handleCancel(m.id)}
+          onUpdate={load}
         />
       ))}
     </div>
@@ -396,6 +764,16 @@ const ReunioeGestor = () => {
               }}>{d}min</button>
           ))}
         </div>
+        {duration >= 60 && (
+          <div className="flex items-start gap-2 px-3 py-2 rounded-xl mt-1"
+            style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
+            <AlertTriangle size={12} style={{ color: YELL, flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: '0.63rem', color: YELL, lineHeight: 1.4 }}>
+              Conta Google gratuita: reuniões em grupo são limitadas a 60 min.
+              Para sessões mais longas, planeje uma pausa e gere um novo link Meet ao retomar.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Itens de pauta */}
@@ -497,9 +875,24 @@ const ReunioeGestor = () => {
   );
 
   const slides: SlideItem[] = [
-    { key: 'r-lista',  label: 'Reuniões', content: slideListagem },
-    { key: 'r-criar',  label: 'Criar',    content: slideCriar    },
-    { key: 'r-config', label: 'Google',   content: slideConfig   },
+    {
+      key: 'r-lista', label: 'Reuniões',
+      content: (
+        <SlidePanel eyebrow="Assembleias · Condominiais" title="Reuniões" subtitle="Histórico e próximas assembleias do condomínio." actions={
+          <button onClick={load} style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(87,216,255,0.08)', border: '1px solid rgba(87,216,255,0.2)', color: CYAN, cursor: 'pointer' }}>
+            <RefreshCw size={13} />
+          </button>
+        }>{slideListagem}</SlidePanel>
+      ),
+    },
+    {
+      key: 'r-criar', label: 'Criar',
+      content: <SlidePanel eyebrow="Nova Assembleia" title="Criar Reunião" subtitle="Agende uma assembleia e gere link Google Meet automaticamente.">{slideCriar}</SlidePanel>,
+    },
+    {
+      key: 'r-config', label: 'Google',
+      content: <SlidePanel eyebrow="Integração · Google" title="Google Calendar" subtitle="Configure a integração para gerar links Meet e lembretes automáticos.">{slideConfig}</SlidePanel>,
+    },
   ];
 
   return <PageCarousel3D slides={slides} />;
@@ -573,11 +966,19 @@ const ReunioesMorador = () => {
   const slides: SlideItem[] = [
     {
       key: 'rm-proximas', label: 'Próximas',
-      content: <div className="flex flex-col gap-3 pb-8">{renderList(upcoming, 'Nenhuma reunião agendada no momento.')}</div>,
+      content: (
+        <SlidePanel eyebrow="Assembleias · Condominiais" title="Próximas Reuniões" subtitle="Confirme sua presença e acompanhe a pauta das assembleias.">
+          <div className="flex flex-col gap-3 pb-8">{renderList(upcoming, 'Nenhuma reunião agendada no momento.')}</div>
+        </SlidePanel>
+      ),
     },
     {
       key: 'rm-historico', label: 'Histórico',
-      content: <div className="flex flex-col gap-3 pb-8">{renderList(past, 'Nenhuma reunião passada.')}</div>,
+      content: (
+        <SlidePanel eyebrow="Assembleias · Histórico" title="Reuniões Passadas" subtitle="Registro de todas as assembleias realizadas.">
+          <div className="flex flex-col gap-3 pb-8">{renderList(past, 'Nenhuma reunião passada.')}</div>
+        </SlidePanel>
+      ),
     },
   ];
 

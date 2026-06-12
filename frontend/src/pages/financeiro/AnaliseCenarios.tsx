@@ -72,6 +72,24 @@ const inp: React.CSSProperties = {
   color: '#fff', padding: '8px 12px', fontSize: 13, outline: 'none',
   boxSizing: 'border-box',
 };
+const sel: React.CSSProperties = {
+  ...inp,
+  cursor: 'pointer',
+  appearance: 'none' as React.CSSProperties['appearance'],
+  WebkitAppearance: 'none' as React.CSSProperties['WebkitAppearance'],
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2300e5e5' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 10px center',
+  paddingRight: 32,
+};
+
+function formatBRL(cents: number): string {
+  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+function parseBRL(display: string): number {
+  const digits = display.replace(/\D/g, '');
+  return parseInt(digits || '0', 10) / 100;
+}
 const lbl: React.CSSProperties = {
   fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.45)',
   textTransform: 'uppercase', letterSpacing: '0.08em',
@@ -96,6 +114,8 @@ const CenarioForm = ({
 }) => {
   const [form, setForm] = useState({ ...EMPTY, ...initial });
   const [saving, setSaving] = useState(false);
+  const [displayMensal, setDisplayMensal] = useState(formatBRL(Math.round((initial.custo_mensal ?? 0) * 100)));
+  const [displayUnico, setDisplayUnico] = useState(formatBRL(Math.round((initial.custo_unico ?? 0) * 100)));
   const f = (k: string, v: unknown) => setForm(p => ({ ...p, [k]: v }));
 
   const total = (form.custo_mensal ?? 0) +
@@ -122,38 +142,46 @@ const CenarioForm = ({
         </div>
         <div>
           <span style={lbl}>Tipo *</span>
-          <select style={{ ...inp, cursor: 'pointer' }} value={form.tipo ?? 'outro'}
+          <select style={sel} value={form.tipo ?? 'outro'}
             onChange={e => f('tipo', e.target.value)}>
             {TODOS_TIPOS.map(([k, v]) => (
-              <option key={k} value={k}>{v.emoji} {v.label}</option>
+              <option key={k} value={k} style={{ background: '#0d1b2a', color: '#fff' }}>{v.emoji} {v.label}</option>
             ))}
           </select>
         </div>
         <div>
           <span style={lbl}>Status</span>
-          <select style={{ ...inp, cursor: 'pointer' }} value={form.status ?? 'rascunho'}
+          <select style={sel} value={form.status ?? 'rascunho'}
             onChange={e => f('status', e.target.value)}>
             {TODOS_STATUS.map(s => (
-              <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
+              <option key={s} value={s} style={{ background: '#0d1b2a', color: '#fff' }}>{STATUS_CONFIG[s].label}</option>
             ))}
           </select>
         </div>
         <div>
           <span style={lbl}>Custo mensal recorrente (R$)</span>
-          <input style={inp} type="number" min={0} step={0.01}
-            value={form.custo_mensal ?? 0}
-            onChange={e => f('custo_mensal', parseFloat(e.target.value) || 0)}
-            placeholder="0,00" />
+          <input style={inp} type="text" inputMode="numeric"
+            value={displayMensal}
+            onChange={e => {
+              const fmt = formatBRL(parseInt(e.target.value.replace(/\D/g, '') || '0', 10));
+              setDisplayMensal(fmt);
+              f('custo_mensal', parseBRL(fmt));
+            }}
+            placeholder="R$ 0,00" />
           <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 3 }}>
             Salário, contrato recorrente, prestação...
           </p>
         </div>
         <div>
           <span style={lbl}>Custo único / obra (R$)</span>
-          <input style={inp} type="number" min={0} step={0.01}
-            value={form.custo_unico ?? 0}
-            onChange={e => f('custo_unico', parseFloat(e.target.value) || 0)}
-            placeholder="0,00" />
+          <input style={inp} type="text" inputMode="numeric"
+            value={displayUnico}
+            onChange={e => {
+              const fmt = formatBRL(parseInt(e.target.value.replace(/\D/g, '') || '0', 10));
+              setDisplayUnico(fmt);
+              f('custo_unico', parseBRL(fmt));
+            }}
+            placeholder="R$ 0,00" />
           <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 3 }}>
             Equipamento, obra, compra pontual...
           </p>

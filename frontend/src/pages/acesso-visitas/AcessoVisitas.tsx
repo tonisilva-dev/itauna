@@ -4,7 +4,7 @@ import {
   Shield, User, Clock, Loader2, Trash2, Package,
   CalendarPlus, RefreshCw, QrCode, Download, X,
   Copy, ClipboardCheck, CheckCircle2, CalendarDays,
-  Bell, AlertCircle,
+  Bell, AlertCircle, Home, UserCheck, Car, PawPrint, Plus,
 } from 'lucide-react';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
@@ -17,14 +17,19 @@ import {
   fetchMeusConvites, insertConvite, cancelarConvite,
   fetchMeusRecorrentes, insertRecorrente, deleteRecorrente,
   fetchMinhasEncomendas, fetchUnitByNumber,
+  fetchMinhasEstadias, insertEstadia, encerrarEstadia, renovarEstadia,
+  fetchMeusVeiculos, insertVeiculo, deleteVeiculo,
+  fetchMeusPets, insertPet, deletePet,
   type DbConvite, type DbRecorrente, type DbEncomenda, type DbPortariaRegistro,
+  type DbEstadia, type DbVeiculo, type DbPet,
 } from '@/lib/supabase-queries';
 import { gotoSlide, formatUnidade, maskPhone, maskCPF, TODAY } from '../../utils/format';
 
-const GREEN  = '#10b981';
-const CYAN   = '#57d8ff';
-const BLUE   = '#5a84ff';
-const YELLOW = '#f59e0b';
+const GREEN   = '#10b981';
+const CYAN    = '#57d8ff';
+const BLUE    = '#5a84ff';
+const YELLOW  = '#f59e0b';
+const ORANGE  = '#fb923c';
 
 const VISITA_TIPO = {
   convidado: { emoji: '👤', label: 'Convidado' },
@@ -67,16 +72,58 @@ export const AcessoVisitas = () => {
   const [cvData, setCvData]       = useState(TODAY);
   const [cvPessoas, setCvPessoas] = useState(1);
   const [cvObs, setCvObs]         = useState('');
+  const [cvPlaca, setCvPlaca]     = useState('');
+  const [cvVeicTipo, setCvVeicTipo] = useState<'carro' | 'moto' | 'van' | 'caminhao' | 'outro'>('carro');
+  const [cvPeriodo, setCvPeriodo] = useState<'manha' | 'tarde' | 'noite' | 'dia_todo'>('dia_todo');
   const [cvSaving, setCvSaving]   = useState(false);
 
   // Form recorrente
-  const [rcNome, setRcNome]   = useState('');
-  const [rcCpf, setRcCpf]     = useState('');
-  const [rcTel, setRcTel]     = useState('');
-  const [rcTipo, setRcTipo]   = useState<'convidado' | 'prestador' | 'entrega'>('prestador');
-  const [rcDias, setRcDias]   = useState<string[]>([]);
-  const [rcFim, setRcFim]     = useState('');
-  const [rcSaving, setRcSaving] = useState(false);
+  const [rcNome, setRcNome]         = useState('');
+  const [rcCpf, setRcCpf]           = useState('');
+  const [rcTel, setRcTel]           = useState('');
+  const [rcTipo, setRcTipo]         = useState<'convidado' | 'prestador' | 'entrega'>('prestador');
+  const [rcDias, setRcDias]         = useState<string[]>([]);
+  const [rcFim, setRcFim]           = useState('');
+  const [rcHorIni, setRcHorIni]     = useState('');
+  const [rcHorFim, setRcHorFim]     = useState('');
+  const [rcSaving, setRcSaving]     = useState(false);
+
+  // Estadias
+  const [estadias, setEstadias]             = useState<DbEstadia[]>([]);
+  const [stNome, setStNome]                 = useState('');
+  const [stCpf, setStCpf]                   = useState('');
+  const [stTel, setStTel]                   = useState('');
+  const [stCheckIn, setStCheckIn]           = useState(TODAY);
+  const [stCheckOut, setStCheckOut]         = useState('');
+  const [stMotivo, setStMotivo]             = useState<DbEstadia['motivo']>('familiar');
+  const [stPlaca, setStPlaca]               = useState('');
+  const [stPessoas, setStPessoas]           = useState(1);
+  const [stSaving, setStSaving]             = useState(false);
+
+  // Veículos
+  const [meuUnitId, setMeuUnitId]           = useState<string | null>(null);
+  const [veiculos, setVeiculos]             = useState<DbVeiculo[]>([]);
+  const [vcCategoria, setVcCategoria]       = useState<DbVeiculo['categoria']>('carro');
+  const [vcMarca, setVcMarca]               = useState('');
+  const [vcModelo, setVcModelo]             = useState('');
+  const [vcAno, setVcAno]                   = useState('');
+  const [vcCor, setVcCor]                   = useState('');
+  const [vcPlaca, setVcPlaca]               = useState('');
+  const [vcEhRural, setVcEhRural]           = useState(false);
+  const [vcObs, setVcObs]                   = useState('');
+  const [vcSaving, setVcSaving]             = useState(false);
+
+  // Pets
+  const [pets, setPets]                     = useState<DbPet[]>([]);
+  const [ptNome, setPtNome]                 = useState('');
+  const [ptEspecie, setPtEspecie]           = useState('cão');
+  const [ptRaca, setPtRaca]                 = useState('');
+  const [ptCor, setPtCor]                   = useState('');
+  const [ptPorte, setPtPorte]               = useState<DbPet['porte']>('medio');
+  const [ptRestrita, setPtRestrita]         = useState(false);
+  const [ptFocinheira, setPtFocinheira]     = useState(false);
+  const [ptObs, setPtObs]                   = useState('');
+  const [ptSaving, setPtSaving]             = useState(false);
 
   // Modal QR do convite
   const [qrConviteModal, setQrConviteModal] = useState<DbConvite | null>(null);
@@ -92,10 +139,16 @@ export const AcessoVisitas = () => {
       fetchMeusConvites(user.id),
       fetchMeusRecorrentes(user.id),
       chacaraNum ? fetchMinhasEncomendas(chacaraNum) : Promise.resolve([]),
-    ]).then(([cvs, rcs, encs]) => {
+      fetchMinhasEstadias(user.id),
+      fetchMeusVeiculos(user.id),
+      fetchMeusPets(user.id),
+    ]).then(([cvs, rcs, encs, ests, vcs, pts]) => {
       setConvites(cvs as DbConvite[]);
       setRecorrentes(rcs as DbRecorrente[]);
       setEncomendas(encs as DbEncomenda[]);
+      setEstadias(ests as DbEstadia[]);
+      setVeiculos(vcs as DbVeiculo[]);
+      setPets(pts as DbPet[]);
     }).catch(() => toast.error('Erro ao carregar dados.'))
       .finally(() => setLoading(false));
   }, [user, chacaraNum]);
@@ -103,7 +156,7 @@ export const AcessoVisitas = () => {
   // Carrega a quadra/bloco da unidade do morador (para identificação no QR)
   useEffect(() => {
     if (!user?.unit_number) return;
-    fetchUnitByNumber(user.unit_number).then(u => setMeuBloco(u?.block ?? null)).catch(() => {});
+    fetchUnitByNumber(user.unit_number).then(u => { setMeuBloco(u?.block ?? null); setMeuUnitId(u?.id ?? null); }).catch(() => {});
   }, [user]);
 
   /* ── Realtime: notificações do morador ── */
@@ -180,15 +233,18 @@ export const AcessoVisitas = () => {
     if (cvTipo !== 'entrega' && cvCpf.replace(/\D/g, '').length !== 11) { toast.error('Informe o CPF do visitante (11 dígitos).'); return; }
     setCvSaving(true);
     try {
+      const placaFmt = cvPlaca.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || null;
       const novo = await insertConvite({
         morador_id: user.id, chacara_numero: chacaraNum, chacara_bloco: meuBloco,
         visitante_nome: cvNome.trim(), visitante_cpf: cvCpf.replace(/\D/g, '') || null,
         visitante_tel: cvTel.trim() || null, tipo: cvTipo,
         data_visita: cvData, num_pessoas: cvPessoas,
         observacao: cvObs.trim() || null, status: 'ativo', portaria_id: null,
+        veiculo_placa: placaFmt, veiculo_tipo: placaFmt ? cvVeicTipo : null,
+        periodo: cvPeriodo, ocupantes_declarados: cvPessoas,
       } as any);
       setConvites(prev => [novo, ...prev]);
-      setCvNome(''); setCvCpf(''); setCvTel(''); setCvObs(''); setCvPessoas(1);
+      setCvNome(''); setCvCpf(''); setCvTel(''); setCvObs(''); setCvPessoas(1); setCvPlaca(''); setCvPeriodo('dia_todo');
       toast.success('Visita agendada! Compartilhe o QR Code com seu convidado.');
       abrirQrConvite(novo);
       gotoSlide(1);
@@ -232,6 +288,135 @@ export const AcessoVisitas = () => {
     a.click();
   }, [qrConviteUrl, qrConviteModal]);
 
+  const gerarPassaporteBlob = useCallback(async (convite: DbConvite): Promise<File | null> => {
+    try {
+      const W = 420, H = 560;
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+
+      // Fundo degradê escuro
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, '#07101c');
+      grad.addColorStop(1, '#0d1a2e');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Faixa superior
+      const topGrad = ctx.createLinearGradient(0, 0, W, 0);
+      topGrad.addColorStop(0, '#1d4ed8');
+      topGrad.addColorStop(1, '#57d8ff');
+      ctx.fillStyle = topGrad;
+      ctx.fillRect(0, 0, W, 6);
+
+      // Título
+      ctx.fillStyle = '#57d8ff';
+      ctx.font = 'bold 11px system-ui, sans-serif';
+      ctx.letterSpacing = '0.15em';
+      ctx.fillText('CHÁCARAS ITAÚNA', 24, 38);
+      ctx.letterSpacing = '0';
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.font = '10px system-ui, sans-serif';
+      ctx.fillText('Passaporte de Acesso · Portaria', 24, 55);
+
+      // Linha separadora
+      ctx.strokeStyle = 'rgba(87,216,255,0.2)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(24, 68); ctx.lineTo(W - 24, 68); ctx.stroke();
+
+      // QR Code
+      const qrC = document.createElement('canvas');
+      const url = `${window.location.origin}/convite/${convite.id}`;
+      await QRCode.toCanvas(qrC, url, { width: 240, margin: 1, color: { dark: '#ffffff', light: '#07101c' } });
+      const qrX = (W - 240) / 2;
+      ctx.drawImage(qrC, qrX, 82);
+
+      // Caixa de info
+      const boxY = 82 + 240 + 18;
+      const boxH = 160;
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      ctx.beginPath();
+      ctx.roundRect(24, boxY, W - 48, boxH, 12);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(87,216,255,0.18)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(24, boxY, W - 48, boxH, 12);
+      ctx.stroke();
+
+      const tipo = VISITA_TIPO[convite.tipo];
+      const dataVisita = new Date(convite.data_visita + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+      const unidade = formatUnidade(convite.chacara_bloco, Number(convite.chacara_numero));
+
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = '9px system-ui, sans-serif';
+      ctx.letterSpacing = '0.1em';
+      ctx.fillText('VISITANTE', 40, boxY + 22);
+      ctx.letterSpacing = '0';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 15px system-ui, sans-serif';
+      ctx.fillText(convite.visitante_nome, 40, boxY + 42);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = '9px system-ui, sans-serif';
+      ctx.letterSpacing = '0.1em';
+      ctx.fillText('DESTINO', 40, boxY + 65);
+      ctx.letterSpacing = '0';
+      ctx.fillStyle = '#57d8ff';
+      ctx.font = 'bold 13px system-ui, sans-serif';
+      ctx.fillText(`${tipo.emoji} Chácara ${unidade}`, 40, boxY + 82);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = '9px system-ui, sans-serif';
+      ctx.letterSpacing = '0.1em';
+      ctx.fillText('DATA DE ACESSO', 40, boxY + 105);
+      ctx.letterSpacing = '0';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '12px system-ui, sans-serif';
+      ctx.fillText(dataVisita, 40, boxY + 122);
+
+      if (convite.num_pessoas > 1) {
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.font = '10px system-ui, sans-serif';
+        ctx.fillText(`${convite.num_pessoas} pessoas · Apresentar documento na portaria`, 40, boxY + 142);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.font = '10px system-ui, sans-serif';
+        ctx.fillText('Apresentar documento na portaria', 40, boxY + 142);
+      }
+
+      // Rodapé
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.font = '9px system-ui, sans-serif';
+      ctx.fillText('itauna.org · QR válido para a data indicada', 24, H - 18);
+
+      return new Promise(resolve => {
+        canvas.toBlob(blob => {
+          if (!blob) { resolve(null); return; }
+          resolve(new File([blob], `passaporte-${convite.visitante_nome.replace(/\s+/g, '-')}.png`, { type: 'image/png' }));
+        }, 'image/png');
+      });
+    } catch { return null; }
+  }, []);
+
+  const compartilharPassaporte = useCallback(async () => {
+    if (!qrConviteModal) return;
+    const file = await gerarPassaporteBlob(qrConviteModal);
+    if (!file) { toast.error('Erro ao gerar passaporte.'); return; }
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: 'Passaporte de Acesso — Chácaras Itaúna' });
+        return;
+      } catch { /* cancelado pelo usuário */ return; }
+    }
+    // Fallback: download direto
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url; a.download = file.name; a.click();
+    URL.revokeObjectURL(url);
+  }, [qrConviteModal, gerarPassaporteBlob]);
+
   /* ── Criar recorrente ── */
   const handleCreateRecorrente = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,9 +432,11 @@ export const AcessoVisitas = () => {
         dias_semana: rcDias, vigencia_inicio: TODAY,
         vigencia_fim: rcFim || null, ativo: true,
         observacao: null, created_by: user.id,
+        horario_inicio: rcHorIni || null,
+        horario_fim: rcHorFim || null,
       } as any);
       setRecorrentes(prev => [...prev, novo].sort((a, b) => a.nome.localeCompare(b.nome)));
-      setRcNome(''); setRcCpf(''); setRcTel(''); setRcDias([]); setRcFim('');
+      setRcNome(''); setRcCpf(''); setRcTel(''); setRcDias([]); setRcFim(''); setRcHorIni(''); setRcHorFim('');
       toast.success('Acesso recorrente cadastrado!');
       gotoSlide(0);
     } catch { toast.error('Erro ao cadastrar recorrente.'); }
@@ -262,6 +449,93 @@ export const AcessoVisitas = () => {
       setRecorrentes(prev => prev.filter(r => r.id !== id));
       toast.success('Acesso recorrente removido.');
     } catch { toast.error('Erro ao remover.'); }
+  };
+
+  /* ── Estadias ── */
+  const handleCreateEstadia = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !chacaraNum) { toast.error('Chácara não vinculada.'); return; }
+    if (!stNome.trim()) { toast.error('Informe o nome do hóspede.'); return; }
+    if (!stCheckOut) { toast.error('Informe a data de saída prevista.'); return; }
+    if (stCheckOut <= stCheckIn) { toast.error('Check-out deve ser após check-in.'); return; }
+    setStSaving(true);
+    try {
+      const nova = await insertEstadia({
+        morador_id: user.id, chacara_numero: chacaraNum,
+        hospede_nome: stNome.trim(), hospede_cpf: stCpf.replace(/\D/g, '') || null,
+        hospede_tel: stTel.trim() || null,
+        check_in: stCheckIn, check_out_previsto: stCheckOut,
+        motivo: stMotivo, veiculo_placa: stPlaca.trim() || null,
+        num_pessoas: stPessoas, observacao: null,
+      });
+      setEstadias(prev => [nova, ...prev]);
+      setStNome(''); setStCpf(''); setStTel(''); setStCheckOut(''); setStPlaca(''); setStPessoas(1);
+      toast.success('Estadia registrada!');
+    } catch { toast.error('Erro ao registrar estadia.'); }
+    finally { setStSaving(false); }
+  };
+
+  const handleEncerrarEstadia = async (id: string) => {
+    try {
+      await encerrarEstadia(id);
+      setEstadias(prev => prev.map(e => e.id === id ? { ...e, status: 'encerrada' } : e));
+      toast.success('Estadia encerrada.');
+    } catch { toast.error('Erro ao encerrar.'); }
+  };
+
+  /* ── Veículos ── */
+  const handleCreateVeiculo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !meuUnitId) { toast.error('Chácara não vinculada.'); return; }
+    setVcSaving(true);
+    try {
+      const novo = await insertVeiculo({
+        unit_id: meuUnitId, morador_id: user.id,
+        categoria: vcCategoria, marca: vcMarca.trim() || null,
+        modelo: vcModelo.trim() || null, ano: vcAno ? parseInt(vcAno) as unknown as number : null,
+        cor: vcCor.trim() || null,
+        placa: vcPlaca.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || null,
+        renavam: null, foto_url: null,
+        eh_rural: vcEhRural, observacao: vcObs.trim() || null,
+      } as any);
+      setVeiculos(prev => [...prev, novo]);
+      setVcMarca(''); setVcModelo(''); setVcAno(''); setVcCor(''); setVcPlaca(''); setVcObs(''); setVcEhRural(false);
+      toast.success('Veículo cadastrado!');
+    } catch { toast.error('Erro ao cadastrar veículo.'); }
+    finally { setVcSaving(false); }
+  };
+
+  const handleDeleteVeiculo = async (id: string) => {
+    try { await deleteVeiculo(id); setVeiculos(prev => prev.filter(v => v.id !== id)); toast.success('Veículo removido.'); }
+    catch { toast.error('Erro ao remover.'); }
+  };
+
+  /* ── Pets ── */
+  const handleCreatePet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !meuUnitId) { toast.error('Chácara não vinculada.'); return; }
+    if (!ptNome.trim()) { toast.error('Informe o nome do pet.'); return; }
+    setPtSaving(true);
+    try {
+      const novo = await insertPet({
+        unit_id: meuUnitId, morador_id: user.id,
+        nome: ptNome.trim(), especie: ptEspecie,
+        raca: ptRaca.trim() || null, cor_pelagem: ptCor.trim() || null,
+        porte: ptPorte ?? null, microchip_codigo: null, foto_url: null,
+        raca_restrita: ptRestrita, exige_focinheira: ptFocinheira,
+        vacinacao_ok: true, vacinacao_vence_em: null, carteira_url: null,
+        observacao: ptObs.trim() || null,
+      } as any);
+      setPets(prev => [...prev, novo]);
+      setPtNome(''); setPtEspecie('cão'); setPtRaca(''); setPtCor(''); setPtPorte('medio'); setPtRestrita(false); setPtFocinheira(false); setPtObs('');
+      toast.success('Pet cadastrado!');
+    } catch { toast.error('Erro ao cadastrar pet.'); }
+    finally { setPtSaving(false); }
+  };
+
+  const handleDeletePet = async (id: string) => {
+    try { await deletePet(id); setPets(prev => prev.filter(p => p.id !== id)); toast.success('Pet removido.'); }
+    catch { toast.error('Erro ao remover.'); }
   };
 
   /* ── Derivados ── */
@@ -438,9 +712,37 @@ export const AcessoVisitas = () => {
               <input type="number" className="input" min={1} value={cvPessoas} onChange={e => setCvPessoas(Math.max(1, parseInt(e.target.value) || 1))} />
             </div>
             <div>
-              <label className="input-label text-[11px]">Observação</label>
-              <input type="text" className="input" placeholder="Ex: aniversário..." value={cvObs} onChange={e => setCvObs(e.target.value)} />
+              <label className="input-label text-[11px]">Período</label>
+              <select className="input" value={cvPeriodo} onChange={e => setCvPeriodo(e.target.value as typeof cvPeriodo)}>
+                <option value="dia_todo">☀ Dia todo</option>
+                <option value="manha">🌅 Manhã</option>
+                <option value="tarde">🌤 Tarde</option>
+                <option value="noite">🌙 Noite</option>
+              </select>
             </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="input-label text-[11px]">Placa do veículo (opcional)</label>
+              <input type="text" className="input" placeholder="Ex: ABC1D23" maxLength={8}
+                value={cvPlaca} onChange={e => setCvPlaca(e.target.value.toUpperCase())} />
+            </div>
+            {cvPlaca.trim() && (
+              <div>
+                <label className="input-label text-[11px]">Tipo de veículo</label>
+                <select className="input" value={cvVeicTipo} onChange={e => setCvVeicTipo(e.target.value as typeof cvVeicTipo)}>
+                  <option value="carro">🚗 Carro</option>
+                  <option value="moto">🏍 Moto</option>
+                  <option value="van">🚐 Van</option>
+                  <option value="caminhao">🚛 Caminhão</option>
+                  <option value="outro">🚘 Outro</option>
+                </select>
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="input-label text-[11px]">Observação</label>
+            <input type="text" className="input" placeholder="Ex: aniversário..." value={cvObs} onChange={e => setCvObs(e.target.value)} />
           </div>
           <button type="submit" disabled={cvSaving || !chacaraNum} className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5 mt-1">
             {cvSaving ? <><Loader2 size={13} className="animate-spin" /> Agendando...</> : <><CalendarPlus size={13} /> Agendar Visita</>}
@@ -547,6 +849,16 @@ export const AcessoVisitas = () => {
               })}
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="input-label text-[11px]">Horário entrada</label>
+              <input type="time" className="input" value={rcHorIni} onChange={e => setRcHorIni(e.target.value)} />
+            </div>
+            <div>
+              <label className="input-label text-[11px]">Horário saída</label>
+              <input type="time" className="input" value={rcHorFim} onChange={e => setRcHorFim(e.target.value)} />
+            </div>
+          </div>
           <button type="submit" disabled={rcSaving || !chacaraNum} className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5 mt-1">
             {rcSaving ? <><Loader2 size={13} className="animate-spin" /> Cadastrando...</> : <><RefreshCw size={13} /> Cadastrar Recorrente</>}
           </button>
@@ -564,6 +876,9 @@ export const AcessoVisitas = () => {
                         <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.72rem' }} className="truncate">{r.nome}</p>
                         <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)' }}>
                           {r.dias_semana.map(d => DIAS.find(x => x.k === d)?.l).join(', ')}
+                          {(r.horario_inicio || r.horario_fim) && (
+                            <span style={{ color: 'rgba(87,216,255,0.6)' }}> · {r.horario_inicio ?? '?'} – {r.horario_fim ?? '?'}</span>
+                          )}
                         </p>
                       </div>
                       <button onClick={() => handleDeleteRecorrente(r.id)} className="w-6 h-6 rounded-lg flex items-center justify-center cursor-pointer flex-shrink-0" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
@@ -668,11 +983,337 @@ export const AcessoVisitas = () => {
     ),
   };
 
+  const MOTIVO_LABEL: Record<DbEstadia['motivo'], string> = {
+    familiar: '👨‍👩‍👧 Familiar', aluguel_temporada: '🏠 Temporada', obra: '🔨 Obra', outro: '📋 Outro',
+  };
+
+  /* ── Slide 4 — Estadias Prolongadas ── */
+  const slideEstadias: SlideItem = {
+    key: 'av-estadias',
+    label: 'Estadias',
+    content: (
+      <SlidePanel
+        eyebrow="Hóspedes e Estadias"
+        title={<>Estadias <span className="grad-text">Prolongadas</span></>}
+        badges={[
+          { icon: '🏡', label: 'Check-in / Check-out' },
+          { icon: '👥', label: 'Portaria informada' },
+          { icon: '📅', label: 'Aluguel e visitas longas' },
+        ]}
+      >
+        <form onSubmit={handleCreateEstadia} className="flex flex-col gap-3 py-1 text-xs">
+          <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.55 }}>
+            Registre hóspedes que ficarão por mais de um dia. A portaria terá acesso à informação sem que o visitante precise apresentar convite.
+          </p>
+          <div>
+            <label className="input-label text-[11px]">Nome do hóspede *</label>
+            <input type="text" className="input" placeholder="Ex: João Pereira" value={stNome} onChange={e => setStNome(e.target.value)} required />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="input-label text-[11px]">CPF (opcional)</label>
+              <input type="tel" inputMode="numeric" className="input" placeholder="000.000.000-00" value={stCpf} onChange={e => setStCpf(maskCPF(e.target.value))} />
+            </div>
+            <div>
+              <label className="input-label text-[11px]">Telefone</label>
+              <input type="tel" className="input" placeholder="(43) 9..." value={stTel} onChange={e => setStTel(maskPhone(e.target.value))} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="input-label text-[11px]">Check-in *</label>
+              <input type="date" className="input" min={TODAY} value={stCheckIn} onChange={e => setStCheckIn(e.target.value)} required />
+            </div>
+            <div>
+              <label className="input-label text-[11px]">Check-out previsto *</label>
+              <input type="date" className="input" min={stCheckIn || TODAY} value={stCheckOut} onChange={e => setStCheckOut(e.target.value)} required />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="input-label text-[11px]">Motivo</label>
+              <select className="input" value={stMotivo} onChange={e => setStMotivo(e.target.value as DbEstadia['motivo'])}>
+                <option value="familiar">👨‍👩‍👧 Familiar</option>
+                <option value="aluguel_temporada">🏠 Aluguel Temporada</option>
+                <option value="obra">🔨 Obra / Serviço</option>
+                <option value="outro">📋 Outro</option>
+              </select>
+            </div>
+            <div>
+              <label className="input-label text-[11px]">Nº pessoas</label>
+              <input type="number" className="input" min={1} value={stPessoas} onChange={e => setStPessoas(Math.max(1, parseInt(e.target.value) || 1))} />
+            </div>
+          </div>
+          <div>
+            <label className="input-label text-[11px]">Placa do veículo (opcional)</label>
+            <input type="text" className="input" placeholder="Ex: ABC1D23" maxLength={8}
+              value={stPlaca} onChange={e => setStPlaca(e.target.value.toUpperCase())} />
+          </div>
+          <button type="submit" disabled={stSaving || !chacaraNum} className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5 mt-1">
+            {stSaving ? <><Loader2 size={13} className="animate-spin" /> Registrando...</> : <><Home size={13} /> Registrar Estadia</>}
+          </button>
+
+          {/* Lista de estadias ativas */}
+          {estadias.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>Estadias registradas</p>
+              <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-0.5">
+                {estadias.map(est => {
+                  const ativa = est.status === 'ativa';
+                  const checkOut = new Date(est.check_out_previsto + 'T12:00:00').toLocaleDateString('pt-BR');
+                  const checkIn = new Date(est.check_in + 'T12:00:00').toLocaleDateString('pt-BR');
+                  return (
+                    <div key={est.id} className="rounded-2xl p-3" style={{
+                      background: ativa ? 'rgba(251,146,60,0.06)' : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${ativa ? 'rgba(251,146,60,0.25)' : 'rgba(255,255,255,0.06)'}`,
+                    }}>
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ background: ativa ? 'rgba(251,146,60,0.1)' : 'rgba(255,255,255,0.04)' }}>
+                          {ativa ? '🏡' : '✅'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p style={{ fontWeight: 700, color: ativa ? '#fff' : 'rgba(255,255,255,0.5)', fontSize: '0.8rem' }} className="truncate">{est.hospede_nome}</p>
+                            {ativa
+                              ? <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(251,146,60,0.15)', color: ORANGE, border: '1px solid rgba(251,146,60,0.3)' }}>ATIVA</span>
+                              : <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(16,185,129,0.12)', color: GREEN }}>ENCERRADA</span>
+                            }
+                          </div>
+                          <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
+                            {MOTIVO_LABEL[est.motivo]} · {checkIn} → {checkOut}
+                          </p>
+                          {est.num_pessoas > 1 && (
+                            <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.3)', marginTop: 1 }}>{est.num_pessoas} pessoas</p>
+                          )}
+                        </div>
+                        {ativa && (
+                          <button onClick={() => handleEncerrarEstadia(est.id)} title="Encerrar estadia"
+                            className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer flex-shrink-0"
+                            style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                            <UserCheck size={12} style={{ color: GREEN }} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </form>
+      </SlidePanel>
+    ),
+  };
+
+  const CAT_LABEL: Record<DbVeiculo['categoria'], string> = {
+    carro:'🚗 Carro', moto:'🏍 Moto', caminhonete:'🛻 Caminhonete', caminhao:'🚛 Caminhão',
+    bicicleta:'🚲 Bicicleta', trator:'🚜 Trator', quadriciclo:'🏎 Quadriciclo',
+    tracao_animal:'🐴 Tração Animal', outro_rural:'🚘 Outro Rural',
+  };
+
+  /* ── Slide 5 — Veículos ── */
+  const slideVeiculos: SlideItem = {
+    key: 'av-veiculos',
+    label: 'Veículos',
+    content: (
+      <SlidePanel
+        eyebrow="Minha Frota"
+        title={<>Meus <span className="grad-text">Veículos</span></>}
+        badges={[
+          { icon: '🔍', label: 'Portaria busca por placa' },
+          { icon: '🚜', label: 'Inclui rurais' },
+          { icon: '🔒', label: 'Só você vê' },
+        ]}
+      >
+        <form onSubmit={handleCreateVeiculo} className="flex flex-col gap-3 py-1 text-xs">
+          <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.55 }}>
+            Cadastre seus veículos para que a portaria possa identificá-los rapidamente ao consultar a placa.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="input-label text-[11px]">Categoria *</label>
+              <select className="input" value={vcCategoria} onChange={e => setVcCategoria(e.target.value as DbVeiculo['categoria'])}>
+                {Object.entries(CAT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="input-label text-[11px]">Placa</label>
+              <input type="text" className="input" placeholder="ABC1D23" maxLength={8}
+                value={vcPlaca} onChange={e => setVcPlaca(e.target.value.toUpperCase())} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="input-label text-[11px]">Marca</label>
+              <input type="text" className="input" placeholder="Ex: Toyota" value={vcMarca} onChange={e => setVcMarca(e.target.value)} />
+            </div>
+            <div>
+              <label className="input-label text-[11px]">Modelo</label>
+              <input type="text" className="input" placeholder="Ex: Hilux" value={vcModelo} onChange={e => setVcModelo(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="input-label text-[11px]">Ano</label>
+              <input type="number" className="input" placeholder="2020" min={1950} max={2030}
+                value={vcAno} onChange={e => setVcAno(e.target.value)} />
+            </div>
+            <div>
+              <label className="input-label text-[11px]">Cor</label>
+              <input type="text" className="input" placeholder="Ex: Prata" value={vcCor} onChange={e => setVcCor(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <div onClick={() => setVcEhRural(!vcEhRural)} className="w-9 h-5 rounded-full relative transition-all cursor-pointer" style={{ background: vcEhRural ? '#10b981' : 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)' }}>
+                <div style={{ position: 'absolute', top: 2, left: vcEhRural ? 18 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
+              </div>
+              <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)' }}>Veículo rural (trafega fora de estrada)</span>
+            </label>
+          </div>
+          <button type="submit" disabled={vcSaving || !meuUnitId} className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5 mt-1">
+            {vcSaving ? <><Loader2 size={13} className="animate-spin" /> Cadastrando...</> : <><Car size={13} /> Cadastrar Veículo</>}
+          </button>
+
+          {veiculos.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>Meus veículos cadastrados</p>
+              <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-0.5">
+                {veiculos.map(v => (
+                  <div key={v.id} className="flex items-center gap-2 p-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{CAT_LABEL[v.categoria]?.split(' ')[0]}</span>
+                    <div className="flex-1 min-w-0">
+                      <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.75rem' }} className="truncate">
+                        {[v.marca, v.modelo, v.ano].filter(Boolean).join(' ') || CAT_LABEL[v.categoria]}
+                      </p>
+                      <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.4)' }}>
+                        {v.placa ?? 'Sem placa'}{v.cor ? ` · ${v.cor}` : ''}{v.eh_rural ? ' · Rural' : ''}
+                      </p>
+                    </div>
+                    <button onClick={() => handleDeleteVeiculo(v.id)} className="w-6 h-6 rounded-lg flex items-center justify-center cursor-pointer flex-shrink-0" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                      <Trash2 size={10} style={{ color: '#fca5a5' }} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </form>
+      </SlidePanel>
+    ),
+  };
+
+  /* ── Slide 6 — Pets ── */
+  const slidePets: SlideItem = {
+    key: 'av-pets',
+    label: 'Pets',
+    content: (
+      <SlidePanel
+        eyebrow="Meus Animais"
+        title={<>Meus <span className="grad-text">Pets</span></>}
+        badges={[
+          { icon: '🐾', label: 'Identificação rápida' },
+          { icon: '💉', label: 'Vacinas em dia' },
+          { icon: '🔒', label: 'Privado' },
+        ]}
+      >
+        <form onSubmit={handleCreatePet} className="flex flex-col gap-3 py-1 text-xs">
+          <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.55 }}>
+            Mantenha o registro dos seus animais. Raças restritas e exigência de focinheira ficam visíveis para a portaria.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="input-label text-[11px]">Nome do pet *</label>
+              <input type="text" className="input" placeholder="Ex: Rex" value={ptNome} onChange={e => setPtNome(e.target.value)} required />
+            </div>
+            <div>
+              <label className="input-label text-[11px]">Espécie *</label>
+              <select className="input" value={ptEspecie} onChange={e => setPtEspecie(e.target.value)}>
+                <option value="cão">🐶 Cão</option>
+                <option value="gato">🐱 Gato</option>
+                <option value="ave">🐦 Ave</option>
+                <option value="réptil">🦎 Réptil</option>
+                <option value="outro">🐾 Outro</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="input-label text-[11px]">Raça</label>
+              <input type="text" className="input" placeholder="Ex: Labrador" value={ptRaca} onChange={e => setPtRaca(e.target.value)} />
+            </div>
+            <div>
+              <label className="input-label text-[11px]">Porte</label>
+              <select className="input" value={ptPorte ?? 'medio'} onChange={e => setPtPorte(e.target.value as DbPet['porte'])}>
+                <option value="mini">Mini</option>
+                <option value="pequeno">Pequeno</option>
+                <option value="medio">Médio</option>
+                <option value="grande">Grande</option>
+                <option value="gigante">Gigante</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="input-label text-[11px]">Cor / Pelagem</label>
+            <input type="text" className="input" placeholder="Ex: Amarelo com manchas brancas" value={ptCor} onChange={e => setPtCor(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-2">
+            {[
+              { val: ptRestrita, set: setPtRestrita, label: 'Raça potencialmente perigosa (lei 14.762/2023)' },
+              { val: ptFocinheira, set: setPtFocinheira, label: 'Exige focinheira em áreas comuns' },
+            ].map(({ val, set, label }) => (
+              <label key={label} className="flex items-center gap-2 cursor-pointer">
+                <div onClick={() => set(!val)} className="w-9 h-5 rounded-full relative transition-all cursor-pointer flex-shrink-0" style={{ background: val ? '#ef4444' : 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)' }}>
+                  <div style={{ position: 'absolute', top: 2, left: val ? 18 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
+                </div>
+                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.4 }}>{label}</span>
+              </label>
+            ))}
+          </div>
+          <button type="submit" disabled={ptSaving || !meuUnitId} className="btn-primary w-full justify-center py-2.5 text-xs font-bold gap-1.5 mt-1">
+            {ptSaving ? <><Loader2 size={13} className="animate-spin" /> Cadastrando...</> : <><PawPrint size={13} /> Cadastrar Pet</>}
+          </button>
+
+          {pets.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>Meus pets cadastrados</p>
+              <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-0.5">
+                {pets.map(p => (
+                  <div key={p.id} className="flex items-center gap-2 p-2.5 rounded-xl" style={{ background: p.raca_restrita ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${p.raca_restrita ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.06)'}` }}>
+                    <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>
+                      {p.especie === 'cão' ? '🐶' : p.especie === 'gato' ? '🐱' : p.especie === 'ave' ? '🐦' : p.especie === 'réptil' ? '🦎' : '🐾'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.75rem' }}>{p.nome}</p>
+                        {p.raca_restrita && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(239,68,68,0.12)', color: '#fca5a5' }}>⚠ RESTRITA</span>}
+                        {p.exige_focinheira && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(245,158,11,0.1)', color: '#fbbf24' }}>FOCINHEIRA</span>}
+                      </div>
+                      <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.4)' }}>
+                        {[p.raca, p.porte, p.cor_pelagem].filter(Boolean).join(' · ')}
+                      </p>
+                    </div>
+                    <button onClick={() => handleDeletePet(p.id)} className="w-6 h-6 rounded-lg flex items-center justify-center cursor-pointer flex-shrink-0" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                      <Trash2 size={10} style={{ color: '#fca5a5' }} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </form>
+      </SlidePanel>
+    ),
+  };
+
   const slides: SlideItem[] = [
     slideDashboard,
     slideAgendar,
     slideRecorrentes,
     slideEncomendas,
+    slideEstadias,
+    slideVeiculos,
+    slidePets,
   ];
 
   return (
@@ -723,13 +1364,19 @@ export const AcessoVisitas = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={baixarQrConvite} disabled={!qrConviteUrl} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold cursor-pointer" style={{ background: 'rgba(87,216,255,0.1)', color: CYAN, border: '1px solid rgba(87,216,255,0.25)' }}>
-                <Download size={13} /> Salvar PNG
+            <div className="flex flex-col gap-2">
+              <button onClick={compartilharPassaporte} disabled={!qrConviteUrl} className="flex items-center justify-center gap-2 py-3 rounded-xl text-[12px] font-bold cursor-pointer" style={{ background: 'linear-gradient(135deg,rgba(37,211,102,0.18),rgba(37,211,102,0.08))', color: '#25d366', border: '1px solid rgba(37,211,102,0.35)' }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Compartilhar Passaporte (WhatsApp)
               </button>
-              <button onClick={copiarLinkConvite} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold cursor-pointer" style={{ background: qrCopied ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.06)', color: qrCopied ? GREEN : 'rgba(255,255,255,0.6)', border: `1px solid ${qrCopied ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.1)'}` }}>
-                {qrCopied ? <><ClipboardCheck size={13} /> Copiado!</> : <><Copy size={13} /> Copiar link</>}
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={baixarQrConvite} disabled={!qrConviteUrl} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold cursor-pointer" style={{ background: 'rgba(87,216,255,0.1)', color: CYAN, border: '1px solid rgba(87,216,255,0.25)' }}>
+                  <Download size={13} /> Salvar PNG
+                </button>
+                <button onClick={copiarLinkConvite} className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold cursor-pointer" style={{ background: qrCopied ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.06)', color: qrCopied ? GREEN : 'rgba(255,255,255,0.6)', border: `1px solid ${qrCopied ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.1)'}` }}>
+                  {qrCopied ? <><ClipboardCheck size={13} /> Copiado!</> : <><Copy size={13} /> Copiar link</>}
+                </button>
+              </div>
             </div>
           </div>
         </div>

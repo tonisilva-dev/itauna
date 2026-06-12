@@ -212,6 +212,7 @@ export const Agendamentos = () => {
         <SlidePanel
           eyebrow="Espaços de Lazer do Condomínio"
           title={<>Áreas <span className="grad-text">Disponíveis</span></>}
+          subtitle="Reserve a piscina, salão de festas, quadra esportiva e demais espaços."
           badges={[
             { icon: '🏡', label: `${areas.length} áreas` },
             { icon: '📅', label: `${todayBookings.length} reservas hoje` },

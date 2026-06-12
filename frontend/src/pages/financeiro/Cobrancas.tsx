@@ -45,6 +45,7 @@ export const CobrancasSlide = () => {
   const [search, setSearch]       = useState('');
   const [expanded, setExpanded]   = useState<string | null>(null);
   const [cnabProcessing, setCnabProcessing] = useState(false);
+  const [reconciling, setReconciling]       = useState(false);
   const cnabInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -149,6 +150,25 @@ export const CobrancasSlide = () => {
     }
   };
 
+  /* Reconciliação manual com Asaas */
+  const handleReconciliar = async () => {
+    setReconciling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('asaas-reconciliacao');
+      if (error) throw error;
+      const { reconciled, vencidas, errors } = data as { reconciled: number; vencidas: number; errors: string[] };
+      if (reconciled > 0 || vencidas > 0) {
+        toast.success(`Reconciliação: ${reconciled} pago(s) confirmado(s), ${vencidas} vencido(s) marcado(s).`);
+        await load();
+      } else {
+        toast('Nenhuma divergência encontrada.', { icon: '✅' });
+      }
+      if (errors.length > 0) console.warn('[reconciliacao] erros parciais:', errors);
+    } catch (err) {
+      toast.error('Falha na reconciliação: ' + String(err));
+    } finally { setReconciling(false); }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => toast.success('Copiado!'));
   };
@@ -207,6 +227,14 @@ export const CobrancasSlide = () => {
         </button>
         <input ref={cnabInputRef} type="file" accept=".txt,.ret,.cnab,.rem"
           className="hidden" onChange={handleCnabImport} />
+
+        <button onClick={handleReconciliar} disabled={reconciling}
+          title="Verificar pagamentos pendentes junto à Asaas e corrigir divergências"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all"
+          style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#34d399' }}>
+          {reconciling ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+          Reconciliar
+        </button>
 
         <button onClick={load} className="p-2 rounded-xl transition-colors"
           style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -446,3 +474,12 @@ export const MinhasCobrancasSlide = () => {
     </div>
   );
 };
+
+import { useAuth } from '../../contexts/AuthContext';
+
+/* ─── Página standalone de Cobranças ─────────────────────────── */
+export const Cobrancas = () => {
+  const { isGestor } = useAuth();
+  return isGestor ? <CobrancasSlide /> : <MinhasCobrancasSlide />;
+};
+

@@ -31,9 +31,10 @@ export const AchadosPerdidos = () => {
   const [formLocal, setFormLocal] = useState('');
   const [formDate, setFormDate]   = useState(TODAY);
   const [formDesc, setFormDesc]   = useState('');
-  const [formNome, setFormNome]   = useState('');
-  const [formTel, setFormTel]     = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [formNome, setFormNome]         = useState('');
+  const [formTel, setFormTel]           = useState('');
+  const [formLocalPortaria, setFormLocalPortaria] = useState('');
+  const [submitting, setSubmitting]     = useState(false);
 
   // Modal de contato para item do mural
   const [contactItem, setContactItem] = useState<DbAchadoPerdido | null>(null);
@@ -73,10 +74,12 @@ export const AchadosPerdidos = () => {
         descricao: formDesc.trim(), date: formDate, user_id: user!.id,
         nome_contato: formNome.trim() || null,
         telefone_contato: formTel.trim() || null,
+        local_portaria: formLocalPortaria.trim() || null,
+        foto_url: null,
       });
       setItems(prev => [novo, ...prev]);
       setFormTitle(''); setFormLocal(''); setFormDesc('');
-      setFormNome(''); setFormTel('');
+      setFormNome(''); setFormTel(''); setFormLocalPortaria('');
       setFormDate(TODAY);
       toast.success('Item registrado no mural!');
       gotoSlide(0);
@@ -136,8 +139,9 @@ export const AchadosPerdidos = () => {
     label: 'Mural',
     content: (
       <SlidePanel
-        eyebrow="Mural de Achados & Perdidos"
+        eyebrow="Social · Comunidade"
         title={<>Achados & <span className="grad-text">Perdidos</span></>}
+        subtitle="Objetos encontrados ou perdidos no condomínio — informe o local e status."
         badges={[
           { icon: '🔍', label: `${perdidosAbertos} perdidos` },
           { icon: '✅', label: `${achadosAbertos} achados` },
@@ -259,7 +263,9 @@ export const AchadosPerdidos = () => {
                       ) : (
                         <div className="flex items-center gap-1 mt-1.5">
                           <MapPin size={8} style={{ color: CYAN, opacity: 0.6 }} />
-                          <span style={{ fontSize: '0.62rem', color: 'rgba(87,216,255,0.6)' }}>Item na portaria — ligue: (43) 99999-0001</span>
+                          <span style={{ fontSize: '0.62rem', color: 'rgba(87,216,255,0.6)' }}>
+                            {item.local_portaria ? `Na portaria: ${item.local_portaria}` : 'Item na portaria — ligue: (43) 99999-0001'}
+                          </span>
                         </div>
                       )
                     )}
@@ -398,6 +404,12 @@ export const AchadosPerdidos = () => {
             <p style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.4 }}>
               Se preenchido, outros moradores poderão entrar em contato diretamente via WhatsApp. Caso contrário, o item ficará registrado na portaria.
             </p>
+          </div>
+
+          <div>
+            <label className="input-label text-[11px]">Onde está guardado na portaria <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.35)' }}>(opcional — para itens entregues à portaria)</span></label>
+            <input type="text" className="input" placeholder="Ex: Gaveta recepção, Prateleira A..."
+              value={formLocalPortaria} onChange={e => setFormLocalPortaria(e.target.value)} />
           </div>
 
           <button type="submit" disabled={submitting}

@@ -520,6 +520,7 @@ export const Ocorrencias = () => {
         <SlidePanel
           eyebrow="Central de Chamados"
           title={<>Chamados & <span className="grad-text">Ocorrências</span></>}
+          subtitle="Registre e acompanhe manutenções, solicitações e incidentes do condomínio."
           badges={[
             { icon: '🛡️', label: 'Monitoramento' },
             { icon: urgentesAbertos.length > 0 ? '🚨' : '✅', label: urgentesAbertos.length > 0 ? `${urgentesAbertos.length} urgentes` : 'Sem urgências' },

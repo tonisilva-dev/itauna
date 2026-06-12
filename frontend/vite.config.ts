@@ -20,7 +20,7 @@ export default defineConfig(({ command }) => ({
       registerType: 'autoUpdate',
       injectManifest: {
         swDest: 'dist/sw.js',
-        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}', 'logo-itauna.png'],
+        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}', 'logo-itauna.png', 'logo-itauna-192.png', 'logo-itauna-512.png'],
         globIgnores: ['**/login-bg*.png', '**/bg-area-livre*.webp', '**/landing-bg*.webp', '**/galeria/**'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
@@ -39,8 +39,8 @@ export default defineConfig(({ command }) => ({
         scope: '/',
         lang: 'pt-BR',
         icons: [
-          { src: '/logo-itauna.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: '/logo-itauna.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: '/logo-itauna-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/logo-itauna-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
         categories: ['utilities', 'lifestyle'],
         screenshots: [],

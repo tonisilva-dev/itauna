@@ -1,14 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { DollarSign, Plus, TrendingDown, Wallet, Search, RefreshCw, TrendingUp, CheckCircle2, Loader2, Calendar, Home, AlertTriangle, Eye, LockKeyhole, FileDown, CreditCard } from 'lucide-react';
+import { DollarSign, Plus, TrendingDown, Wallet, Search, RefreshCw, TrendingUp, CheckCircle2, Loader2, Calendar, Home, AlertTriangle, Eye, LockKeyhole, FileDown, CreditCard, ChevronDown } from 'lucide-react';
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatCard } from '../../components/ui/StatCard';
 import { formatCurrency, formatDate, gotoSlide, TODAY } from '../../utils/format';
 import { format, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { fetchFinances, fetchFinanceSummary, fetchFinanceTrend, insertFinance, updateFinanceStatus, fetchUnitByNumber, type DbFinance, type DbUnit } from '../../lib/supabase-queries';
+import { fetchFinances, fetchFinanceSummary, fetchFinanceTrend, insertFinance, bulkInsertFinances, updateFinanceStatus, fetchUnitByNumber, type DbFinance, type DbUnit } from '../../lib/supabase-queries';
 import { CobrancasSlide, MinhasCobrancasSlide } from './Cobrancas';
+import { CATEGORIES } from './financeCategories';
+import { downloadTemplate, parseFinanceFile, type FinanceRow } from '../../utils/financeImport';
 import { useMemo } from 'react';
 import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
@@ -20,12 +22,14 @@ const RED    = '#ef4444';
 const YELLOW = '#f59e0b';
 const BLUE   = '#5a84ff';
 
-const CATEGORIES = [
-  'Despesas com Pessoal', 'Encargos Sociais', 'Despesas Administrativas',
-  'Manutenção', 'Consumo Faturado', 'Material de Consumo',
-  'Seguros Obrigatórios', 'Custas Advocatícias', 'Aquisição de Bens',
-  'Benfeitorias / Reformas', 'Reparos e Consertos', 'Serviços Terceirizados',
-  'Rateio Individual', 'Fundo de Reserva', 'Fundo de Férias / 13º', 'Despesas Bancárias',
+
+const DRE_GROUPS: { label: string; color: string; categories: readonly string[] }[] = [
+  { label: 'Pessoal',            color: '#a855f7', categories: ['Despesas com Pessoal', 'Encargos Sociais', 'Fundo de Férias / 13º'] },
+  { label: 'Administração',      color: BLUE,      categories: ['Despesas Administrativas', 'Despesas Bancárias', 'Custas Advocatícias', 'Seguros Obrigatórios'] },
+  { label: 'Manutenção',         color: YELLOW,    categories: ['Manutenção', 'Reparos e Consertos', 'Serviços Terceirizados'] },
+  { label: 'Consumo',            color: CYAN,      categories: ['Consumo Faturado', 'Material de Consumo'] },
+  { label: 'Investimentos',      color: '#f97316', categories: ['Aquisição de Bens', 'Benfeitorias / Reformas'] },
+  { label: 'Fundos & Provisões', color: '#6b7280', categories: ['Fundo de Reserva'] },
 ];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -56,20 +60,33 @@ const FinanceiroMorador = () => {
   const { user } = useAuth();
   const [unit, setUnit]       = useState<DbUnit | null>(null);
   const [rateios, setRateios] = useState<DbFinance[]>([]);
-  const [chartData, setChartData] = useState<{ mes: string; receitas: number; despesas: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       user?.unit_number ? fetchUnitByNumber(user.unit_number) : Promise.resolve(null),
-      fetchFinances({ limit: 200 }),
-      fetchFinanceTrend(),
-    ]).then(([u, fins, trend]) => {
+      fetchFinances({ limit: 1000 }),
+    ]).then(([u, fins]) => {
       setUnit(u);
       setRateios(fins);
-      setChartData(trend);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [user]);
+
+  const ML = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+  const chartData = useMemo(() => {
+    const map: Record<string, { receitas: number; despesas: number }> = {};
+    rateios.forEach(f => {
+      if (!map[f.reference_month]) map[f.reference_month] = { receitas: 0, despesas: 0 };
+      if (f.type === 'receita') map[f.reference_month].receitas += Number(f.amount);
+      else                      map[f.reference_month].despesas += Number(f.amount);
+    });
+    return Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([ym, v]) => {
+        const [yr, mo] = ym.split('-');
+        return { mes: `${ML[Number(mo) - 1]}/${yr.slice(2)}`, ...v };
+      });
+  }, [rateios]);
 
   const totalReceitas = useMemo(() => rateios.filter(f => f.type === 'receita').reduce((s, f) => s + Number(f.amount), 0), [rateios]);
   const totalDespesas = useMemo(() => rateios.filter(f => f.type === 'despesa').reduce((s, f) => s + Number(f.amount), 0), [rateios]);
@@ -384,7 +401,7 @@ const FinanceiroMorador = () => {
 
 /* ── Visão gestor ───────────────────────────────────────────────── */
 const FinanceiroGestor = () => {
-  const { user } = useAuth();
+  const { user, isGestor } = useAuth();
 
   // Filtros
   const [filter, setFilter] = useState<'todos' | 'receita' | 'despesa'>('todos');
@@ -403,13 +420,26 @@ const FinanceiroGestor = () => {
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const [chartData, setChartData] = useState<{ mes: string; receitas: number; despesas: number }[]>([]);
+  const [allRaw, setAllRaw] = useState<DbFinance[]>([]);
+  const [dreRaw, setDreRaw] = useState<DbFinance[]>([]);
+  const [dreExpanded, setDreExpanded] = useState<Set<string>>(new Set());
+  const toggleDRE = (label: string) => setDreExpanded(prev => {
+    const next = new Set(prev);
+    next.has(label) ? next.delete(label) : next.add(label);
+    return next;
+  });
+
+  // ── Import ──────────────────────────────────────────────────────────
+  const importInputRef                          = useRef<HTMLInputElement>(null);
+  const [importRows, setImportRows]             = useState<FinanceRow[]>([]);
+  const [importing, setImporting]               = useState(false);
+  const [importDone, setImportDone]             = useState<number | null>(null);
 
   // Estados do Formulário Inline
   const [formDesc, setFormDesc] = useState('');
   const [formType, setFormType] = useState<'receita' | 'despesa'>('despesa');
   const [formStatus, setFormStatus] = useState<'pago' | 'pendente'>('pendente');
-  const [formCategory, setFormCategory] = useState(CATEGORIES[3]);
+  const [formCategory, setFormCategory] = useState<typeof CATEGORIES[number]>(CATEGORIES[3]);
   const [formAmount, setFormAmount] = useState('');
   const [formDueDate, setFormDueDate] = useState(TODAY);
   const [submitting, setSubmitting] = useState(false);
@@ -428,12 +458,16 @@ const FinanceiroGestor = () => {
     setError(null);
     setOffset(0);
     try {
-      const [data, sum] = await Promise.all([
+      const [data, sum, dreAll, all] = await Promise.all([
         fetchFinances({ ...filterParams(), limit: PAGE_SIZE, offset: 0 }),
         fetchFinanceSummary(selectedMonth),
+        fetchFinances({ referenceMonth: selectedMonth, limit: 1000, offset: 0 }),
+        fetchFinances({ limit: 2000, offset: 0 }),
       ]);
       setLancamentos(data);
       setSummary(sum);
+      setDreRaw(dreAll);
+      setAllRaw(all);
       setHasMore(data.length === PAGE_SIZE);
     } catch (e: any) {
       setError(e?.message ?? 'Erro ao carregar dados financeiros.');
@@ -457,16 +491,41 @@ const FinanceiroGestor = () => {
     finally { setLoadingMore(false); }
   };
 
-  // Gráfico: carrega uma única vez (histórico real de receitas vs despesas por mês)
-  useEffect(() => {
-    fetchFinanceTrend().then(setChartData).catch(() => {});
-  }, []);
+  const MONTHS_LABEL = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+  const chartData = useMemo(() => {
+    const map: Record<string, { receitas: number; despesas: number }> = {};
+    allRaw.forEach(f => {
+      if (!map[f.reference_month]) map[f.reference_month] = { receitas: 0, despesas: 0 };
+      if (f.type === 'receita') map[f.reference_month].receitas += Number(f.amount);
+      else                      map[f.reference_month].despesas += Number(f.amount);
+    });
+    return Object.entries(map)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([ym, v]) => {
+        const [yr, mo] = ym.split('-');
+        return { mes: `${MONTHS_LABEL[Number(mo) - 1]}/${yr.slice(2)}`, ...v };
+      });
+  }, [allRaw]);
 
   // Filtragem já é server-side — "filtered" é apenas o estado atual
   const filtered = lancamentos;
 
   const totalReceitasGestor = useMemo(() => lancamentos.filter(f => f.type === 'receita').reduce((s, f) => s + Number(f.amount), 0), [lancamentos]);
   const totalDespesasGestor = useMemo(() => lancamentos.filter(f => f.type === 'despesa').reduce((s, f) => s + Number(f.amount), 0), [lancamentos]);
+
+  const dreData = useMemo(() => {
+    const receitas    = dreRaw.filter(f => f.type === 'receita').reduce((s, f) => s + Number(f.amount), 0);
+    const mappedCats  = new Set(DRE_GROUPS.flatMap(g => [...g.categories]));
+    const groups = DRE_GROUPS.map(g => {
+      const items = [...g.categories]
+        .map(cat => ({ label: cat, value: dreRaw.filter(f => f.type === 'despesa' && f.category === cat).reduce((s, f) => s + Number(f.amount), 0) }))
+        .filter(i => i.value > 0);
+      return { ...g, items, total: items.reduce((s, i) => s + i.value, 0) };
+    }).filter(g => g.total > 0);
+    const outros       = dreRaw.filter(f => f.type === 'despesa' && !mappedCats.has(f.category)).reduce((s, f) => s + Number(f.amount), 0);
+    const totalDespesas = groups.reduce((s, g) => s + g.total, 0) + outros;
+    return { receitas, groups, totalDespesas, resultado: receitas - totalDespesas, outros };
+  }, [dreRaw]);
 
   const byCategoryGestor = useMemo(() => {
     const map: Record<string, number> = {};
@@ -599,6 +658,98 @@ const FinanceiroGestor = () => {
       toast.error('Erro ao gerar o PDF.', { id: 'pdf-fin' });
     }
   };
+
+  const slideDRE = (
+    <SlidePanel
+      eyebrow="Demonstrativo de Resultado"
+      title={<>DRE <span className="grad-text">{selectedMonth ? format(new Date(selectedMonth + '-02T12:00:00'), 'MMM/yyyy', { locale: ptBR }) : 'Geral'}</span></>}
+      badges={[
+        { icon: '📋', label: 'Por grupo' },
+        { icon: '◈', label: selectedMonth || 'Todos os meses' },
+      ]}
+    >
+      {loading ? (
+        <div className="flex items-center justify-center h-full gap-2 text-white/40 text-xs">
+          <Loader2 size={16} className="animate-spin" /> Carregando...
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5 h-full overflow-y-auto pr-1">
+          {/* Receitas */}
+          <div className="rounded-xl px-3 py-2.5 flex items-center justify-between" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}>
+            <div className="flex items-center gap-2">
+              <TrendingUp size={13} style={{ color: GREEN }} />
+              <span style={{ fontSize: '0.68rem', fontWeight: 800, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Receitas Operacionais</span>
+            </div>
+            <span style={{ fontSize: '0.9rem', fontWeight: 900, color: GREEN }}>{formatCurrency(dreData.receitas)}</span>
+          </div>
+
+          <p style={{ fontSize: '0.58rem', fontWeight: 700, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.1em', paddingLeft: 4 }}>DESPESAS</p>
+
+          {/* Grupos */}
+          {dreData.groups.map(g => {
+            const pct      = dreData.totalDespesas > 0 ? (g.total / dreData.totalDespesas) * 100 : 0;
+            const expanded = dreExpanded.has(g.label);
+            return (
+              <div key={g.label}>
+                <button
+                  onClick={() => toggleDRE(g.label)}
+                  className="w-full rounded-xl px-3 py-2 text-left transition-all"
+                  style={{ background: `${g.color}0a`, border: `1px solid ${g.color}22` }}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <ChevronDown size={11} style={{ color: g.color, transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(255,255,255,0.65)' }}>{g.label}</span>
+                      <span style={{ fontSize: '0.56rem', color: 'rgba(255,255,255,0.28)', fontWeight: 600 }}>{pct.toFixed(1)}%</span>
+                    </div>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: g.color }}>{formatCurrency(g.total)}</span>
+                  </div>
+                  <div className="w-full h-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                    <div style={{ width: `${Math.min(pct, 100)}%`, height: '100%', background: g.color, opacity: 0.55, borderRadius: 9999 }} />
+                  </div>
+                </button>
+                {expanded && (
+                  <div className="ml-3 mt-0.5 space-y-0.5">
+                    {g.items.map(item => (
+                      <div key={item.label} className="flex justify-between items-center px-3 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <span style={{ fontSize: '0.61rem', color: 'rgba(255,255,255,0.4)' }}>{item.label}</span>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 700, color: g.color }}>{formatCurrency(item.value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {dreData.outros > 0 && (
+            <div className="rounded-xl px-3 py-2 flex justify-between items-center" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)' }}>Outras Despesas</span>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(255,255,255,0.45)' }}>{formatCurrency(dreData.outros)}</span>
+            </div>
+          )}
+
+          {dreData.groups.length === 0 && dreData.outros === 0 && dreData.receitas === 0 && (
+            <p className="text-center text-white/25 text-xs py-8">Nenhum lançamento no período.</p>
+          )}
+
+          {/* Resultado */}
+          <div className="rounded-xl px-3 py-3 flex items-center justify-between mt-auto" style={{
+            background: dreData.resultado >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+            border: `1px solid ${dreData.resultado >= 0 ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+          }}>
+            <div>
+              <p style={{ fontSize: '0.58rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Resultado do Período</p>
+              <p style={{ fontSize: '0.56rem', color: 'rgba(255,255,255,0.22)' }}>Receitas − Despesas</p>
+            </div>
+            <p style={{ fontSize: '1.15rem', fontWeight: 900, color: dreData.resultado >= 0 ? GREEN : RED }}>
+              {dreData.resultado >= 0 ? '+' : ''}{formatCurrency(dreData.resultado)}
+            </p>
+          </div>
+        </div>
+      )}
+    </SlidePanel>
+  );
 
   const slideResumo = (
     <SlidePanel
@@ -910,7 +1061,7 @@ const FinanceiroGestor = () => {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="input-label text-[11px]">Categoria</label>
-            <select className="input" value={formCategory} onChange={e => setFormCategory(e.target.value)}>
+            <select className="input" value={formCategory} onChange={e => setFormCategory(e.target.value as typeof CATEGORIES[number])}>
               {CATEGORIES.map(c => (
                 <option key={c} value={c}>{c}</option>
               ))}
@@ -946,12 +1097,156 @@ const FinanceiroGestor = () => {
     </div>
   );
 
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setImportDone(null);
+    const rows = await parseFinanceFile(file);
+    setImportRows(rows);
+  };
+
+  const handleConfirmImport = async () => {
+    const validas = importRows.filter(r => !r._erro || r._erro.startsWith('Categoria'));
+    if (!validas.length) return;
+    setImporting(true);
+    try {
+      const payload = validas.map(r => ({
+        description:     r.descricao,
+        category:        r.categoria,
+        amount:          r.valor,
+        type:            r.tipo,
+        status:          r.status as 'pago' | 'pendente' | 'vencido',
+        due_date:        r.vencimento,
+        reference_month: r.vencimento.slice(0, 7),
+        created_by:      user!.id,
+        notes:           r.observacao || null,
+      }));
+      const n = await bulkInsertFinances(payload);
+      setImportDone(n);
+      setImportRows([]);
+      toast.success(`${n} lançamento(s) importado(s) com sucesso!`);
+      await loadLancamentos();
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Erro ao importar lançamentos.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const GREEN_IMP  = '#10b981';
+  const RED_IMP    = '#ef4444';
+  const YELL_IMP   = '#f59e0b';
+
+  const validasCount  = importRows.filter(r => !r._erro || r._erro.startsWith('Categoria')).length;
+  const errosCount    = importRows.filter(r => r._erro && !r._erro.startsWith('Categoria')).length;
+  const alertasCount  = importRows.filter(r => r._erro?.startsWith('Categoria')).length;
+
+  const slideImportar = (
+    <SlidePanel
+      eyebrow="Importação em Lote"
+      title={<>Importar <span className="grad-text">Lançamentos</span></>}
+      badges={[
+        { icon: '📥', label: 'CSV ou JSON' },
+        { icon: '⚡', label: 'Revisão antes de salvar' },
+      ]}
+    >
+      <div className="flex flex-col gap-3 h-full overflow-y-auto pr-1">
+
+        {/* Download de templates */}
+        <div className="rounded-xl p-3" style={{ background: 'rgba(87,216,255,0.05)', border: '1px solid rgba(87,216,255,0.15)' }}>
+          <p style={{ fontSize: '0.62rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>1. Baixe o modelo e preencha</p>
+          <div className="flex gap-2">
+            {(['csv', 'json'] as const).map(fmt => (
+              <button key={fmt} onClick={() => downloadTemplate(fmt)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                style={{ background: 'rgba(87,216,255,0.1)', border: '1px solid rgba(87,216,255,0.25)', color: CYAN }}>
+                <FileDown size={12} /> Template .{fmt.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Upload */}
+        <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <p style={{ fontSize: '0.62rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>2. Faça o upload do arquivo preenchido</p>
+          <input ref={importInputRef} type="file" accept=".csv,.json" className="hidden" onChange={handleImportFile} />
+          <button onClick={() => importInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all w-full justify-center"
+            style={{ background: 'rgba(90,132,255,0.1)', border: '1px solid rgba(90,132,255,0.3)', color: BLUE }}>
+            <Plus size={13} /> Selecionar arquivo .CSV ou .JSON
+          </button>
+        </div>
+
+        {/* Sucesso anterior */}
+        {importDone !== null && importRows.length === 0 && (
+          <div className="rounded-xl px-3 py-2.5 flex items-center gap-2" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}>
+            <CheckCircle2 size={14} style={{ color: GREEN_IMP }} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: GREEN_IMP }}>{importDone} lançamento(s) importado(s) com sucesso.</span>
+          </div>
+        )}
+
+        {/* Pré-visualização */}
+        {importRows.length > 0 && (
+          <>
+            <div className="flex items-center justify-between">
+              <p style={{ fontSize: '0.62rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>3. Revise e confirme</p>
+              <div className="flex gap-2 text-[10px] font-bold">
+                <span style={{ color: GREEN_IMP }}>{validasCount} válida{validasCount !== 1 ? 's' : ''}</span>
+                {alertasCount > 0 && <span style={{ color: YELL_IMP }}>{alertasCount} aviso{alertasCount !== 1 ? 's' : ''}</span>}
+                {errosCount   > 0 && <span style={{ color: RED_IMP }}>{errosCount} erro{errosCount !== 1 ? 's' : ''}</span>}
+              </div>
+            </div>
+
+            <div className="space-y-1 overflow-y-auto flex-1" style={{ maxHeight: 220 }}>
+              {importRows.map(r => {
+                const isErro   = r._erro && !r._erro.startsWith('Categoria');
+                const isAviso  = r._erro?.startsWith('Categoria');
+                const cor      = isErro ? RED_IMP : isAviso ? YELL_IMP : GREEN_IMP;
+                return (
+                  <div key={r._linha} className="rounded-lg px-2.5 py-1.5 flex items-start gap-2 text-[10px]"
+                    style={{ background: `${cor}08`, border: `1px solid ${cor}20` }}>
+                    <span style={{ color: cor, fontWeight: 800, flexShrink: 0, paddingTop: 1 }}>{isErro ? '✕' : isAviso ? '!' : '✓'}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold truncate" style={{ color: isErro ? 'rgba(255,255,255,0.4)' : '#fff' }}>{r.descricao || <em>sem descrição</em>}</p>
+                      {r._erro
+                        ? <p style={{ color: cor, fontSize: '0.58rem' }}>{r._erro}</p>
+                        : <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem' }}>{r.categoria} · {r.tipo} · {r.vencimento}</p>
+                      }
+                    </div>
+                    <span className="font-extrabold flex-shrink-0" style={{ color: r.tipo === 'receita' ? GREEN_IMP : RED_IMP }}>
+                      {r.tipo === 'receita' ? '+' : '-'}{r.valor > 0 ? formatCurrency(r.valor) : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-2 mt-auto">
+              <button onClick={() => setImportRows([])}
+                className="flex-1 py-2 rounded-xl text-[11px] font-bold transition-all"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>
+                Cancelar
+              </button>
+              <button onClick={handleConfirmImport} disabled={importing || validasCount === 0}
+                className="flex-1 btn-primary py-2 text-[11px] justify-center gap-1.5"
+                style={{ opacity: validasCount === 0 ? 0.4 : 1 }}>
+                {importing
+                  ? <><Loader2 size={12} className="animate-spin" /> Importando...</>
+                  : <><CheckCircle2 size={12} /> Confirmar {validasCount} lançamento{validasCount !== 1 ? 's' : ''}</>}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </SlidePanel>
+  );
+
   const slides3D: SlideItem[] = [
-    { key: 'financeiro-resumo',        label: 'Painel',       content: slideResumo },
-    { key: 'financeiro-analise',       label: 'Análise',      content: slideAnalise },
-    { key: 'financeiro-movimentacoes', label: 'Lançamentos',  content: slideMovimentacoes },
-    { key: 'financeiro-registrar',     label: 'Lançar',       content: slideRegistrar },
-    { key: 'financeiro-cobrancas',     label: 'Cobranças',    content: slideCobrancas },
+    { key: 'financeiro-dre',     label: 'DRE',     content: slideDRE },
+    { key: 'financeiro-resumo',  label: 'Painel',  content: slideResumo },
+    { key: 'financeiro-analise', label: 'Análise', content: slideAnalise },
+    ...(isGestor ? [{ key: 'financeiro-importar', label: 'Importar', content: slideImportar }] : []),
   ];
 
   return (

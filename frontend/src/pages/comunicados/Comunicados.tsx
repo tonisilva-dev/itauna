@@ -227,6 +227,7 @@ export const Comunicados = () => {
       <SlidePanel
         eyebrow="Mural Oficial do Condomínio"
         title={<>Comunicados & <span className="grad-text">Avisos</span></>}
+        subtitle="Anúncios, informativos e avisos oficiais da administração do condomínio."
         badges={[
           { icon: '📣', label: 'Avisos da Gestão' },
           { icon: '📌', label: 'Fixados no Topo' },

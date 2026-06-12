@@ -37,10 +37,12 @@ const ConviteQR              = lazy(() => import('./pages/ConviteQR').then(m => 
 const AnaliseCenarios        = lazy(() => import('./pages/financeiro/AnaliseCenarios').then(m => ({ default: m.AnaliseCenarios })));
 const ChecklistServicos      = lazy(() => import('./pages/servicos/ChecklistServicos').then(m => ({ default: m.ChecklistServicos })));
 const AnaliseAcesso          = lazy(() => import('./pages/admin/AnaliseAcesso').then(m => ({ default: m.AnaliseAcesso })));
+const LgpdAdmin              = lazy(() => import('./pages/admin/LgpdAdmin').then(m => ({ default: m.LgpdAdmin })));
 const Benfeitorias           = lazy(() => import('./pages/benfeitorias/Benfeitorias').then(m => ({ default: m.Benfeitorias })));
 const Privacidade     = lazy(() => import('./pages/Privacidade').then(m => ({ default: m.Privacidade })));
 const Preview         = lazy(() => import('./pages/Preview').then(m => ({ default: m.Preview })));
 const Reunioes        = lazy(() => import('./pages/reunioes/Reunioes').then(m => ({ default: m.Reunioes })));
+const Cobrancas       = lazy(() => import('./pages/financeiro/Cobrancas').then(m => ({ default: m.Cobrancas })));
 
 /* ── Guards ── */
 
@@ -58,6 +60,16 @@ const GestorRoute = ({ children }: { children: React.ReactNode }) => {
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
   if (!isGestor) return <AcessoRestrito />;
+  return <>{children}</>;
+};
+
+/** Rota para gestores OU assistentes (acesso configurável pelo admin). */
+const GestorOuAssistenteRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading, isGestor } = useAuth();
+  if (loading) return <PageLoader />;
+  if (!user) return <Navigate to="/login" replace />;
+  const isAssistente = user.role === 'assistente' || user.role === 'visualizador';
+  if (!isGestor && !isAssistente) return <AcessoRestrito />;
   return <>{children}</>;
 };
 
@@ -121,7 +133,7 @@ export default function App() {
 
             {/* ── Morador ── */}
             <Route path="/agendamentos"     element={<Agendamentos />} />
-            <Route path="/portaria"         element={<GestorRoute><Portaria /></GestorRoute>} />
+            <Route path="/portaria"         element={<GestorOuAssistenteRoute><Portaria /></GestorOuAssistenteRoute>} />
             <Route path="/acesso-visitas"   element={<AcessoVisitas />} />
             <Route path="/ocorrencias"      element={<Ocorrencias />} />
             <Route path="/benfeitorias"     element={<Benfeitorias />} />
@@ -131,17 +143,19 @@ export default function App() {
             <Route path="/achados-perdidos" element={<AchadosPerdidos />} />
             <Route path="/perfil"           element={<Perfil />} />
             <Route path="/financeiro"       element={<Financeiro />} />
+            <Route path="/cobrancas"        element={<Cobrancas />} />
             <Route path="/gestao-financeira" element={<GestorRoute><Financeiro /></GestorRoute>} />
             <Route path="/parceiros"        element={<Parceiros />} />
 
             {/* ── Gestor (admin + síndico) ── */}
-            <Route path="/unidades"          element={<GestorRoute><Unidades /></GestorRoute>} />
-            <Route path="/moradores"         element={<GestorRoute><Moradores /></GestorRoute>} />
+            <Route path="/unidades"          element={<GestorOuAssistenteRoute><Unidades /></GestorOuAssistenteRoute>} />
+            <Route path="/moradores"         element={<GestorOuAssistenteRoute><Moradores /></GestorOuAssistenteRoute>} />
             <Route path="/usuarios"          element={<GestorRoute><GerenciamentoUsuarios /></GestorRoute>} />
             <Route path="/acessos"           element={<GestorRoute><GestaoAcessos /></GestorRoute>} />
             <Route path="/analise-cenarios"  element={<GestorRoute><AnaliseCenarios /></GestorRoute>} />
             <Route path="/checklist-servicos" element={<GestorRoute><ChecklistServicos /></GestorRoute>} />
             <Route path="/analise-acesso"     element={<GestorRoute><AnaliseAcesso /></GestorRoute>} />
+            <Route path="/lgpd"               element={<GestorRoute><LgpdAdmin /></GestorRoute>} />
 
           </Route>
 

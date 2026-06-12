@@ -7,8 +7,9 @@ import {
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, ReferenceLine,
 } from 'recharts';
+import { projetarFluxo, calcularIndiceSaude, type ChartPoint, type IndiceSaude } from '../../lib/analytics';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { StatCard } from '../../components/ui/StatCard';
@@ -125,6 +126,21 @@ export const Dashboard = () => {
     { name: 'Suspenso',     value: suspCount,     color: YELLOW },
   ];
 
+  // Projeção de caixa: estende o histórico com 3 meses projetados
+  const chartData: ChartPoint[] = trendData.length >= 2 ? projetarFluxo(trendData, 3) : trendData;
+  const receitaMedia = trendData.length > 0
+    ? trendData.reduce((s, p) => s + p.receitas, 0) / trendData.length
+    : 0;
+
+  // Índice de Saúde Condominial
+  const indiceSaude: IndiceSaude | null = !loading ? calcularIndiceSaude({
+    adimplenciaPct:  adimplPct,
+    urgentesAbertos: incidentsSummary.urgentesAbertos,
+    totalOcorrencias: incidentsSummary.totalAberto + incidentsSummary.emAndamento,
+    saldoFinanceiro: saldo,
+    receitaMedia,
+  }) : null;
+
   const moradorUnit = units.find(u => u.unit_number === user?.unit_number);
   const moradorStatus = moradorUnit?.status === 'regular' ? 'Em dia' : moradorUnit?.status === 'inadimplente' ? 'Inadimplente' : moradorUnit?.status ?? '—';
   const moradorStatusColor = moradorUnit?.status === 'regular' ? GREEN : moradorUnit?.status === 'inadimplente' ? RED : YELLOW;
@@ -207,24 +223,25 @@ export const Dashboard = () => {
               />
             </div>
 
-            {/* Gráfico real: receitas vs despesas */}
+            {/* Gráfico: histórico + projeção 3 meses */}
             <div className="p-3.5 rounded-2xl bg-white/3 border border-white/5 flex-1 flex flex-col min-h-[130px]">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h3 className="text-white text-xs font-bold">Evolução Receitas × Despesas</h3>
-                  <p className="text-[10px] text-white/30">Histórico por mês de referência</p>
+                  <h3 className="text-white text-xs font-bold">Evolução & Projeção de Caixa</h3>
+                  <p className="text-[10px] text-white/30">Histórico + 3 meses projetados (regressão linear)</p>
                 </div>
                 <div className="flex items-center gap-3 text-[9px] text-white/40">
                   <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full" style={{ background: GREEN }} /><span>Receitas</span></div>
                   <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full" style={{ background: RED }} /><span>Despesas</span></div>
+                  <div className="flex items-center gap-1"><div className="w-4 h-px border-t border-dashed" style={{ borderColor: 'rgba(255,255,255,0.3)' }} /><span>Proj.</span></div>
                 </div>
               </div>
               <div className="flex-1 w-full min-h-[100px]">
-                {loading ? <Spinner /> : trendData.length === 0 ? (
+                {loading ? <Spinner /> : chartData.length === 0 ? (
                   <p className="text-center text-white/20 text-[10px] py-4">Sem dados históricos ainda.</p>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData} margin={{ top: 2, right: 2, bottom: 0, left: -22 }}>
+                    <AreaChart data={chartData} margin={{ top: 2, right: 2, bottom: 0, left: -22 }}>
                       <defs>
                         <linearGradient id="gRec" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor={GREEN} stopOpacity={0.18} />
@@ -239,8 +256,16 @@ export const Dashboard = () => {
                       <XAxis dataKey="mes" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fill: 'rgba(255,255,255,0.22)', fontSize: 8 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Area type="monotone" dataKey="receitas" name="Receitas" stroke={GREEN} strokeWidth={1.5} fill="url(#gRec)" dot={false} />
-                      <Area type="monotone" dataKey="despesas" name="Despesas" stroke={RED} strokeWidth={1.5} fill="url(#gDesp)" dot={false} />
+                      {/* Histórico */}
+                      <Area type="monotone" dataKey="receitas" name="Receitas" stroke={GREEN} strokeWidth={1.5} fill="url(#gRec)" dot={false} connectNulls />
+                      <Area type="monotone" dataKey="despesas" name="Despesas" stroke={RED} strokeWidth={1.5} fill="url(#gDesp)" dot={false} connectNulls />
+                      {/* Projeção (tracejado, sem fill) */}
+                      <Area type="monotone" dataKey="receitas_proj" name="Rec. Proj." stroke={GREEN} strokeWidth={1} strokeDasharray="4 3" fill="none" dot={false} connectNulls />
+                      <Area type="monotone" dataKey="despesas_proj" name="Desp. Proj." stroke={RED} strokeWidth={1} strokeDasharray="4 3" fill="none" dot={false} connectNulls />
+                      {/* Linha divisória histórico/projeção */}
+                      {trendData.length > 0 && (
+                        <ReferenceLine x={trendData[trendData.length - 1].mes} stroke="rgba(255,255,255,0.12)" strokeDasharray="3 3" />
+                      )}
                     </AreaChart>
                   </ResponsiveContainer>
                 )}
@@ -249,6 +274,71 @@ export const Dashboard = () => {
           </div>
         </SlidePanel>
       )
+    },
+    {
+      key: 'gestor-saude',
+      label: 'Saúde',
+      content: (
+        <SlidePanel
+          eyebrow="Diagnóstico Automático"
+          title={<>Índice de <span className="grad-text">Saúde</span></>}
+          badges={[
+            { icon: '🔬', label: 'Algoritmo determinístico' },
+            { icon: '⚖️', label: '4 componentes' },
+            { icon: '🔄', label: 'Atualizado agora' },
+          ]}
+        >
+          {loading || !indiceSaude ? <div className="flex items-center justify-center gap-2 py-12 text-white/30 text-xs"><Loader2 size={14} className="animate-spin" /> Calculando...</div> : (
+            <div className="flex flex-col gap-4">
+
+              {/* Score principal */}
+              <div className="rounded-2xl p-5 flex items-center gap-5"
+                style={{ background: `${indiceSaude.cor}10`, border: `1px solid ${indiceSaude.cor}30` }}>
+                {/* Círculo */}
+                <div className="relative flex-shrink-0 w-20 h-20">
+                  <svg width="80" height="80" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
+                    <circle cx="40" cy="40" r="34" fill="none" stroke={indiceSaude.cor} strokeWidth="8"
+                      strokeDasharray={`${(indiceSaude.total / 100) * 213.6} 213.6`}
+                      strokeLinecap="round" transform="rotate(-90 40 40)"
+                      style={{ transition: 'stroke-dasharray 0.8s ease' }} />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-xl font-black" style={{ color: indiceSaude.cor, lineHeight: 1 }}>{indiceSaude.total}</span>
+                    <span className="text-[0.5rem] text-white/40 font-bold">/100</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white/50 uppercase tracking-wider">Nível</p>
+                  <p className="text-2xl font-black" style={{ color: indiceSaude.cor }}>{indiceSaude.nivel}</p>
+                  <p className="text-[0.65rem] text-white/40 mt-1">Calculado com base em adimplência, ocorrências e caixa</p>
+                </div>
+              </div>
+
+              {/* Componentes */}
+              <div className="space-y-2">
+                {indiceSaude.componentes.map(c => (
+                  <div key={c.label} className="rounded-xl p-3 flex items-center gap-3"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-white/80">{c.label}</span>
+                        <span className="text-xs font-black" style={{ color: c.score >= 70 ? GREEN : c.score >= 45 ? YELLOW : RED }}>{c.score}</span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-white/8 overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-700"
+                          style={{ width: `${c.score}%`, background: c.score >= 70 ? GREEN : c.score >= 45 ? YELLOW : RED }} />
+                      </div>
+                      <p className="text-[0.6rem] text-white/35 mt-1">{c.detalhe} · peso {(c.peso * 100).toFixed(0)}%</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          )}
+        </SlidePanel>
+      ),
     },
     {
       key: 'gestor-adimplencia',

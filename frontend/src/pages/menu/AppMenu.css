@@ -1,331 +1,472 @@
 /* ================================================================
-   APP MENU — State of the Art
-   Mobile: 4 colunas | Desktop: 8 colunas
+   APP MENU — iOS Dual Mode
    ================================================================ */
 
-/* ── Burst transition overlay ── */
+/* ── Burst overlay ── */
 .menu-burst {
   position: fixed;
   border-radius: 20px;
   z-index: 9999;
   pointer-events: none;
   transform-origin: center center;
-  animation: menu-burst 0.36s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: menu-burst 0.34s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
-
 @keyframes menu-burst {
   0%   { transform: translate(0,0) scale(1); opacity: 1; border-radius: 20px; }
   100% { transform: translate(var(--tx), var(--ty)) scale(var(--sx), var(--sy)); opacity: 1; border-radius: 0; }
 }
 
-/* ── Scroll container ── */
-.menu-scroll {
+/* ── Root ── */
+.ios-root {
   width: 100%;
   height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(87,216,255,0.2) transparent;
-}
-.menu-scroll::-webkit-scrollbar { width: 4px; }
-.menu-scroll::-webkit-scrollbar-track { background: transparent; }
-.menu-scroll::-webkit-scrollbar-thumb { background: rgba(87,216,255,0.2); border-radius: 2px; }
-
-/* ── Inner container — centralizado no desktop ── */
-.menu-inner {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 20px 16px 48px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-/* ── Seção ── */
-.menu-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* ── Cabeçalho de seção ── */
-.menu-section-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  overflow: hidden;
   position: relative;
 }
 
-.menu-section-dot {
+/* ── Controls row ── */
+.ios-controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 8px;
+  gap: 8px;
+  z-index: 10;
+}
+
+.ios-rswitch {
+  display: flex;
+  background: rgba(0,0,0,.5);
+  border-radius: 22px;
+  padding: 3px;
+  gap: 2px;
+  backdrop-filter: blur(20px);
+  border: .5px solid rgba(255,255,255,.1);
+}
+.ios-rb {
+  border: none;
+  border-radius: 19px;
+  padding: 5px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .2s;
+  background: transparent;
+  color: rgba(255,255,255,.45);
+}
+.ios-rb.on {
+  background: rgba(255,255,255,.16);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+
+/* ── Role pill (assistente / morador) ── */
+.ios-role-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 19px;
+  border: 1px solid;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(0,0,0,.4);
+  backdrop-filter: blur(16px);
+}
+.ios-role-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ios-vswitch {
+  display: flex;
+  background: rgba(0,0,0,.5);
+  border-radius: 22px;
+  padding: 3px;
+  gap: 2px;
+  backdrop-filter: blur(20px);
+  border: .5px solid rgba(255,255,255,.1);
+}
+.ios-vb {
+  border: none;
+  border-radius: 19px;
+  width: 36px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .2s;
+  background: transparent;
+  color: rgba(255,255,255,.45);
+}
+.ios-vb.on {
+  background: rgba(255,255,255,.16);
+  color: #fff;
+}
+
+/* ── Scroll area ── */
+.ios-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 16px 8px;
+  scrollbar-width: none;
+}
+.ios-scroll::-webkit-scrollbar { display: none; }
+
+/* ── Compact grid (folders) ── */
+.ios-grid-compact {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(14px, 3vw, 50px) clamp(6px, 2vw, 50px);
+  justify-items: center;
+}
+
+/* ── Expanded sections ── */
+.ios-exp-section {
+  margin-bottom: 20px;
+  animation: fadeSlide .3s ease both;
+}
+.ios-exp-hdr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 0 2px;
+}
+.ios-exp-hdr-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.ios-exp-hdr-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.ios-exp-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-
-.menu-section-text {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-}
-
-.menu-section-label {
+.ios-exp-name {
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.13em;
+  color: rgba(255,255,255,.55);
   text-transform: uppercase;
-  white-space: nowrap;
+  letter-spacing: .10em;
 }
-
-.menu-section-desc {
+.ios-exp-sub {
   font-size: 10px;
-  color: rgba(255,255,255,0.25);
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  display: none;
+  color: rgba(255,255,255,.28);
+  letter-spacing: .02em;
+  padding-left: 14px;
 }
-
-.menu-section-line {
+.ios-exp-notif {
+  background: rgba(255,59,48,.85);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.ios-exp-sep {
   flex: 1;
-  height: 1px;
-  display: none;
+  height: 0;
+  border-top: 1px solid;
+  min-width: 20px;
+  opacity: .7;
 }
-
-/* ── Grid de ícones — 4 cols mobile / 8 cols desktop ── */
-.menu-grid {
+.ios-grid-expanded {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: clamp(6px, 1.8vw, 14px);
+  grid-template-columns: repeat(4, minmax(0, 80px));
+  gap: clamp(18px, 3vw, 40px) clamp(14px, 2.5vw, 40px);
+  justify-content: center;
+  justify-items: center;
 }
 
-/* ── Botão de ícone ── */
-.menu-icon-btn {
+/* ── Icon unit ── */
+.ios-iu {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: none;
+  gap: 5px;
   cursor: pointer;
-  padding: 4px 2px;
-  border-radius: 12px;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1);
-  outline: none;
-  position: relative;
+  animation: fadeSlide .3s ease both;
 }
-
-.menu-icon-btn.pressed {
-  transform: scale(0.87);
-  transition: transform 0.08s ease;
+.ios-iu:active .ios-ib,
+.ios-iu:active .ios-fb {
+  transform: scale(.85);
+  filter: brightness(.8);
 }
+.ios-iu-dock { gap: 0; }
 
-/* ── Frame do ícone (o quadrado colorido) ── */
-.menu-icon-frame {
-  width: min(100%, 72px);
-  aspect-ratio: 1 / 1;
-  border-radius: clamp(12px, 3.5vw, 18px);
+/* ── Plain icon box ── */
+.ios-ib {
+  border-radius: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow:
-    0 6px 20px rgba(0,0,0,0.45),
-    inset 0 1px 0 rgba(255,255,255,0.18);
-  overflow: hidden;
   position: relative;
+  overflow: hidden;
+  transition: transform .14s cubic-bezier(.34,1.56,.64,1), filter .14s;
   flex-shrink: 0;
-  transition:
-    box-shadow 0.2s ease,
-    transform   0.2s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow: 0 4px 16px rgba(0,0,0,.45);
 }
-
-/* ── Destaque hierárquico — ícones que resolvem as dores ── */
-.menu-icon-frame.featured {
-  box-shadow:
-    0 6px 20px rgba(0,0,0,0.45),
-    0 0 0 1.5px rgba(255,255,255,0.22),
-    0 0 16px rgba(87,216,255,0.28),
-    inset 0 1px 0 rgba(255,255,255,0.25);
-}
-
-.menu-icon-frame.featured::after {
+.ios-ib::after {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(120% 120% at 50% 0%, rgba(255,255,255,0.12) 0%, transparent 55%);
+  background: linear-gradient(145deg, rgba(255,255,255,.22) 0%, transparent 55%);
   pointer-events: none;
-  z-index: 1;
+  border-radius: inherit;
 }
+.ios-ib-lg  { width: 62px; height: 62px; border-radius: 15px; }
+.ios-ib-dock{ width: 52px; height: 52px; border-radius: 13px; }
 
-/* ── Gloss interno (reflexo iOS) ── */
-.menu-icon-gloss {
+/* ── Folder box ── */
+.ios-fb {
+  border-radius: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+  padding: 10px;
+  width: 93px;
+  height: 93px;
+  position: relative;
+  overflow: hidden;
+  transition: transform .14s cubic-bezier(.34,1.56,.64,1), filter .14s;
+  flex-shrink: 0;
+  backdrop-filter: blur(8px);
+}
+.ios-fb::after {
+  content: '';
   position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 46%;
-  background: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 100%);
-  border-radius: inherit;
+  inset: 0;
+  background: linear-gradient(145deg, rgba(255,255,255,.22) 0%, transparent 55%);
   pointer-events: none;
-  z-index: 1;
+  border-radius: 15px;
+}
+.ios-fm {
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-/* ── Wrapper do ícone SVG ── */
-.menu-icon-inner {
-  width: 55%;
-  height: 55%;
+/* ── Badge ── */
+.ios-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ff3b30;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 1.5px solid rgba(13,17,35,.9);
+  z-index: 2;
+}
+
+/* ── Label ── */
+.ios-lbl {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255,255,255,.82);
+  text-align: center;
+  text-shadow: 0 1px 4px rgba(0,0,0,.7);
+  line-height: 1.25;
+  max-width: 68px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+/* ── Dock — sempre visível acima de qualquer overlay ── */
+.ios-dock {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px 12px;
+  position: relative;
+  z-index: 100;
+}
+.ios-dock-bg {
+  display: flex;
+  gap: 14px;
+  background: rgba(255,255,255,.11);
+  backdrop-filter: blur(30px);
+  border-radius: 28px;
+  padding: 10px 18px;
+  border: .5px solid rgba(255,255,255,.12);
+}
+
+/* ── Folder overlay — terço superior, dock sempre visível ── */
+.ios-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 80;
+  background: rgba(0,0,0,.62);
+  backdrop-filter: blur(24px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: clamp(8px, 5vh, 32px);
+  animation: oin .2s ease both;
+  border-radius: inherit;
+}
+@keyframes oin { from { opacity: 0 } to { opacity: 1 } }
+
+.ios-overlay-inner {
+  display: flex;
+  flex-direction: column;
+}
+.ios-ov-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px 20px 6px;
+}
+.ios-ov-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+}
+.ios-ov-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,.35);
+  margin-top: 2px;
+}
+.ios-ov-close {
+  background: rgba(255,255,255,.14);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255,255,255,.7);
+  font-size: 22px;
+  font-family: inherit;
+  line-height: 1;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.ios-ov-close:hover { background: rgba(255,255,255,.22); }
+
+.ios-fpop {
+  margin: 12px 16px 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 16px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(18px, 4vw, 56px) clamp(14px, 3vw, 48px);
+}
+.ios-fp-ico {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.ios-fp-ico:active .ios-fib { transform: scale(.85); }
+.ios-fib {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  z-index: 2;
+  overflow: hidden;
+  transition: transform .14s cubic-bezier(.34,1.56,.64,1);
+  box-shadow: 0 4px 14px rgba(0,0,0,.4);
 }
-
-.menu-icon-svg {
-  width: 100%;
-  height: 100%;
-  color: #fff;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+.ios-fib::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(145deg, rgba(255,255,255,.2) 0%, transparent 55%);
+  pointer-events: none;
+  border-radius: 14px;
 }
-
-/* ── Label ── */
-.menu-icon-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.82);
+.ios-fib-lbl {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255,255,255,.82);
   text-align: center;
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
   line-height: 1.2;
-  letter-spacing: -0.01em;
-  width: 100%;
+  max-width: 64px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: color 0.2s ease;
 }
 
-/* ================================================================
-   DESKTOP (≥ 768px)
-   ================================================================ */
+/* ── Animations ── */
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.anim-in { animation: fadeSlide .25s ease both; }
+
+/* ── Pulse on hover ── */
+@keyframes ico-pulse {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.11); }
+  100% { transform: scale(1.06); }
+}
+.ios-folder-item:hover .ios-fb {
+  animation: ico-pulse .38s cubic-bezier(.34,1.56,.64,1) both;
+}
+.ios-app-item:hover .ios-ib,
+.ios-app-item:hover .ios-fib {
+  animation: ico-pulse .34s cubic-bezier(.34,1.56,.64,1) both;
+}
+
+/* ── Desktop ── */
 @media (min-width: 768px) {
-  .menu-inner {
-    padding: 28px 32px 60px;
-    gap: 12px;
+  .ios-grid-compact {
+    grid-template-columns: repeat(5, minmax(0, 110px));
+    gap: clamp(12px, 1.6vw, 24px);
+    justify-content: center;
   }
-
-  .menu-section {
-    gap: 16px;
+  .ios-grid-expanded {
+    grid-template-columns: repeat(8, minmax(0, 82px));
+    gap: clamp(18px, 2vw, 32px) clamp(10px, 1.2vw, 22px);
+    justify-content: start;
   }
-
-  .menu-section-head {
-    padding-bottom: 12px;
-  }
-
-  .menu-section-desc {
-    display: block;
-  }
-
-  .menu-section-line {
-    display: block;
-  }
-
-  .menu-grid {
-    grid-template-columns: repeat(8, 1fr);
-    gap: clamp(10px, 1.4vw, 18px);
-  }
-
-  /* Hover no desktop */
-  .menu-icon-btn:not(.pressed):hover {
-    transform: translateY(-3px);
-  }
-
-  .menu-icon-btn:not(.pressed):hover .menu-icon-frame {
-    box-shadow:
-      0 14px 36px rgba(0,0,0,0.55),
-      0 0 0 1px rgba(255,255,255,0.10),
-      inset 0 1px 0 rgba(255,255,255,0.25);
-    transform: scale(1.06);
-  }
-
-  .menu-icon-btn:not(.pressed):hover .menu-icon-frame.featured {
-    box-shadow:
-      0 14px 36px rgba(0,0,0,0.55),
-      0 0 0 1.5px rgba(255,255,255,0.28),
-      0 0 22px rgba(87,216,255,0.4),
-      inset 0 1px 0 rgba(255,255,255,0.3);
-    transform: scale(1.06);
-  }
-
-  .menu-icon-btn:not(.pressed):hover .menu-icon-label {
-    color: rgba(255,255,255,0.98);
-  }
-
-  /* Active press no desktop */
-  .menu-icon-btn:active .menu-icon-frame {
-    transform: scale(0.93);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-  }
-
-  .menu-icon-frame {
-    width: min(100%, 76px);
-    border-radius: 18px;
-  }
-
-  .menu-icon-label {
-    font-size: 11.5px;
-  }
-
-  .menu-section-label {
-    font-size: 11.5px;
-  }
-}
-
-/* ================================================================
-   DESKTOP LARGO (≥ 1280px)
-   ================================================================ */
-@media (min-width: 1280px) {
-  .menu-inner {
-    padding: 36px 48px 72px;
-  }
-
-  .menu-grid {
-    gap: 20px;
-  }
-
-  .menu-icon-frame {
-    width: min(100%, 80px);
-    border-radius: 20px;
-  }
-
-  .menu-section-label {
-    font-size: 12px;
-  }
-
-  .menu-icon-label {
-    font-size: 12px;
-  }
-}
-
-/* ================================================================
-   MOBILE PEQUENO (≤ 380px)
-   ================================================================ */
-@media (max-width: 380px) {
-  .menu-inner {
-    padding: 14px 10px 40px;
-  }
-
-  .menu-grid {
-    gap: 6px;
-  }
-
-  .menu-icon-frame {
-    width: min(100%, 64px);
-    border-radius: 14px;
-  }
-
-  .menu-icon-label {
-    font-size: 10px;
-  }
+  .ios-exp-section { margin-bottom: 28px; }
+  .ios-exp-name { font-size: 12px; }
+  .ios-exp-sub  { font-size: 11px; }
+  .ios-scroll { padding: 8px 24px 12px; }
+  .ios-controls { padding: 12px 24px 10px; }
+  .ios-ib-lg   { width: 68px; height: 68px; border-radius: 17px; }
 }

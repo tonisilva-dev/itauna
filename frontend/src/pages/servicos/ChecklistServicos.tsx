@@ -29,13 +29,13 @@ const STATUS_CFG: Record<string, { label: string; color: string }> = {
 };
 
 const card: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.07)',
+  border: '1px solid rgba(255,255,255,0.18)',
   borderRadius: 14,
 };
 const inp: React.CSSProperties = {
-  width: '100%', background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10,
+  width: '100%', background: 'rgba(255,255,255,0.12)',
+  border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10,
   color: '#fff', padding: '8px 12px', fontSize: 13, outline: 'none',
   boxSizing: 'border-box',
 };
@@ -225,13 +225,13 @@ const ChecklistCard = ({
           )}
         </div>
         <div style={{ display: 'flex', gap: 5, flexShrink: 0, alignItems: 'center' }}>
-          <button onClick={onEdit} style={{ width: 28, height: 28, borderRadius: 7, cursor: 'pointer', display: 'grid', placeItems: 'center', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)' }}>
+          <button onClick={onEdit} style={{ width: 28, height: 28, borderRadius: 7, cursor: 'pointer', display: 'grid', placeItems: 'center', border: '1px solid rgba(255,255,255,0.20)', background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)' }}>
             <Pencil size={11} />
           </button>
           <button onClick={onDelete} style={{ width: 28, height: 28, borderRadius: 7, cursor: 'pointer', display: 'grid', placeItems: 'center', border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.06)', color: RED }}>
             <Trash2 size={11} />
           </button>
-          <button onClick={() => setExpanded(o => !o)} style={{ width: 28, height: 28, borderRadius: 7, cursor: 'pointer', display: 'grid', placeItems: 'center', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.4)' }}>
+          <button onClick={() => setExpanded(o => !o)} style={{ width: 28, height: 28, borderRadius: 7, cursor: 'pointer', display: 'grid', placeItems: 'center', border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.55)' }}>
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </button>
         </div>
@@ -249,8 +249,8 @@ const ChecklistCard = ({
             <div key={item.id} style={{
               display: 'flex', alignItems: 'center', gap: 10,
               padding: '7px 10px', borderRadius: 9,
-              background: item.concluido ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)',
-              border: `1px solid ${item.concluido ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)'}`,
+              background: item.concluido ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${item.concluido ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.13)'}`,
             }}>
               <button onClick={() => handleToggle(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', flexShrink: 0 }}>
                 {item.concluido
@@ -369,9 +369,10 @@ export const ChecklistServicos = () => {
         {[{ v: '', l: 'Todos' }, ...Object.entries(STATUS_CFG).map(([k, v]) => ({ v: k, l: v.label }))].map(f => (
           <button key={f.v} onClick={() => setFiltro(f.v)} style={{
             padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-            cursor: 'pointer', border: 'none',
+            cursor: 'pointer',
+            border: filtro === f.v ? 'none' : '1px solid rgba(255,255,255,0.16)',
             background: filtro === f.v ? AMBER : 'rgba(255,255,255,0.07)',
-            color: filtro === f.v ? '#07101c' : 'rgba(255,255,255,0.55)',
+            color: filtro === f.v ? '#07101c' : 'rgba(255,255,255,0.65)',
           }}>{f.l}</button>
         ))}
       </div>

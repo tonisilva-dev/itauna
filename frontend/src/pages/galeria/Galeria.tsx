@@ -14,7 +14,7 @@ const CYAN  = '#57d8ff';
 const GREEN = '#10b981';
 const RED   = '#ef4444';
 
-const CATEGORIES = ['Todas', 'Natureza', 'Infraestrutura', 'Lazer', 'Esportes'];
+const CATEGORIES = ['Todas', 'Natureza', 'Infraestrutura', 'Lazer', 'Esportes', 'Eventos'];
 
 const toCarousel = (fotos: DbGaleriaFoto[]): CarouselPhoto[] =>
   fotos.map((f, idx) => ({ id: idx, src: f.src, caption: f.caption, category: f.category }));
@@ -158,6 +158,7 @@ export const Galeria = () => {
       <SlidePanel
         eyebrow="Galeria Fotográfica Itaúna"
         title={<>Álbuns de <span className="grad-text">Fotos</span></>}
+        subtitle="Natureza, infraestrutura, eventos e momentos da comunidade Itaúna."
         badges={[
           { icon: '🌅', label: 'Lagos & Matas' },
           { icon: '🏡', label: 'Infraestrutura' },

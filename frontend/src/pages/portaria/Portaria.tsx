@@ -22,11 +22,14 @@ import {
   updateConvite,
   fetchConvitesProgramados,
   fetchEncomendasPendentes, insertEncomenda, marcarEncomendaRetirada,
+  fetchMoradorIdByChacara, fetchVeiculoByPlaca,
   type DbPortariaRegistro, type DbPortariaAutorizado, type DbSolicitacao,
-  type DbConvite, type DbEncomenda,
+  type DbConvite, type DbEncomenda, type DbVeiculo,
 } from '@/lib/supabase-queries';
 import { gotoSlide, formatUnidade, TODAY, formatCPF } from '../../utils/format';
 import { sendPushNotification } from '@/lib/push';
+import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import { enqueue, saveCache, loadCache } from '../../lib/portariaQueue';
 
 /* ── Apito (Web Audio API) ── */
 function tocarApito() {
@@ -75,6 +78,7 @@ const isVencido = (validade: string | null) => {
 
 export const Portaria = () => {
   const { user } = useAuth();
+  const { isOnline, queueSize, syncing, lastResult } = useOnlineStatus();
 
   /* ── Estado ── */
   const [visitas, setVisitas]         = useState<DbPortariaRegistro[]>([]);
@@ -128,22 +132,52 @@ export const Portaria = () => {
   const [encRemetente, setEncRemetente] = useState('');
   const [encSaving, setEncSaving]       = useState(false);
 
-  /* ── Carga inicial ── */
+  // Consulta por placa
+  const [placaBusca, setPlacaBusca]     = useState('');
+  const [placaResult, setPlacaResult]   = useState<(DbVeiculo & { morador?: { full_name: string; unit_number: number | null; phone: string | null } }) | null | 'not_found'>('not_found');
+  const [placaLoading, setPlacaLoading] = useState(false);
+
+  /* ── Carga inicial — com fallback para cache offline ── */
   useEffect(() => {
     if (!user) return;
     let mounted = true;
-    Promise.all([
-      fetchPortariaHoje(),
-      fetchPortariaAutorizados(),
-      fetchEncomendasPendentes(),
-    ]).then(([vis, aut, encs]) => {
-      if (!mounted) return;
-      setVisitas(vis as DbPortariaRegistro[]);
-      setHistVisitas(vis as DbPortariaRegistro[]);
-      setAutorizados(aut as DbPortariaAutorizado[]);
-      setEncomendas(encs as DbEncomenda[]);
-    }).catch(() => { if (mounted) toast.error('Erro ao carregar dados da portaria.'); })
-      .finally(() => { if (mounted) setLoading(false); });
+
+    const load = async () => {
+      if (navigator.onLine) {
+        try {
+          const [vis, aut, encs] = await Promise.all([
+            fetchPortariaHoje(),
+            fetchPortariaAutorizados(),
+            fetchEncomendasPendentes(),
+          ]);
+          if (!mounted) return;
+          setVisitas(vis as DbPortariaRegistro[]);
+          setHistVisitas(vis as DbPortariaRegistro[]);
+          setAutorizados(aut as DbPortariaAutorizado[]);
+          setEncomendas(encs as DbEncomenda[]);
+          // Persiste para uso offline
+          saveCache({ visitas: vis as DbPortariaRegistro[], autorizados: aut as DbPortariaAutorizado[], encomendas: encs as DbEncomenda[], cached_at: Date.now() });
+        } catch {
+          if (mounted) toast.error('Erro ao carregar dados da portaria.');
+        }
+      } else {
+        // Sem rede — tenta cache IndexedDB
+        const cache = await loadCache();
+        if (cache && mounted) {
+          setVisitas(cache.visitas);
+          setHistVisitas(cache.visitas);
+          setAutorizados(cache.autorizados);
+          setEncomendas(cache.encomendas);
+          const mins = Math.round((Date.now() - cache.cached_at) / 60000);
+          toast(`📡 Modo offline — dados de ${mins} min atrás`, { duration: 5000 });
+        } else if (mounted) {
+          toast.error('Sem conexão e sem cache disponível.');
+        }
+      }
+      if (mounted) setLoading(false);
+    };
+
+    load();
     return () => { mounted = false; };
   }, [user]);
 
@@ -236,13 +270,21 @@ export const Portaria = () => {
       let registroId: string | undefined;
       if (acao === 'aprovado') {
         const pessoas = cardState[sol.id]?.pessoas ?? sol.num_pessoas ?? 1;
-        const entrada = await insertPortariaEntrada({
+        const entradaPayload = {
           nome:           sol.visitante_nome + (pessoas > 1 ? ` (+${pessoas - 1})` : ''),
           veiculo:        sol.visitante_veiculo ?? null,
-          tipo:           'visitante',
+          tipo:           'visitante' as const,
           destino:        sol.chacara_numero && sol.chacara_numero !== '—' ? `Chácara ${sol.chacara_numero}` : 'Portaria',
           registrado_por: user.id,
-        });
+        };
+        if (!navigator.onLine) {
+          await enqueue({ type: 'entrada', payload: entradaPayload });
+          await enqueue({ type: 'resolver', payload: [sol.id, acao, user.id, undefined, undefined] });
+          setSolicitacoes(prev => prev.filter(s => s.id !== sol.id));
+          toast('📡 Liberação salva na fila — será registrada quando a rede retornar', { icon: '⏳' });
+          return;
+        }
+        const entrada = await insertPortariaEntrada(entradaPayload);
         registroId = entrada.id;
         setVisitas(prev => [entrada, ...prev]);
         if (histDate === TODAY) setHistVisitas(prev => [entrada, ...prev]);
@@ -298,34 +340,70 @@ export const Portaria = () => {
     if (!nome.trim()) { toast.error('Informe o nome.'); return; }
     if (destino === 'chacara' && !chacara.trim()) { toast.error('Informe a chácara.'); return; }
     const destinoStr = destino === 'chacara' ? `Chácara ${chacara.padStart(3, '0')}` : destino === 'portaria' ? 'Portaria' : areaComum;
+    const entradaPayload = { nome: nome.trim(), veiculo: veiculo.trim() || null, tipo, destino: destinoStr, registrado_por: user!.id };
     setSubmitting(true);
     try {
-      const entry = await insertPortariaEntrada({
-        nome: nome.trim(), veiculo: veiculo.trim() || null,
-        tipo, destino: destinoStr, registrado_por: user!.id,
-      });
-      setVisitas(prev => [entry, ...prev]);
-      if (histDate === TODAY) setHistVisitas(prev => [entry, ...prev]);
+      if (!navigator.onLine) {
+        // Otimista: cria entrada local temporária com ID provisório
+        const tempEntry: DbPortariaRegistro = {
+          id: `offline_${Date.now()}`, ...entradaPayload,
+          status: 'dentro', entrada_at: new Date().toISOString(), saida_at: null, created_at: new Date().toISOString(),
+        };
+        setVisitas(prev => [tempEntry, ...prev]);
+        if (histDate === TODAY) setHistVisitas(prev => [tempEntry, ...prev]);
+        await enqueue({ type: 'entrada', payload: entradaPayload });
+        toast('📡 Offline — entrada salva na fila local', { icon: '⏳' });
+      } else {
+        const entry = await insertPortariaEntrada(entradaPayload);
+        setVisitas(prev => [entry, ...prev]);
+        if (histDate === TODAY) setHistVisitas(prev => [entry, ...prev]);
+        toast.success('Entrada registrada!');
+        const tipoLabel = tipo === 'visitante' ? '👤 Visitante' : tipo === 'servico' ? '🔧 Prestador' : '📦 Entrega';
+        sendPushNotification({ title: `${tipoLabel} na portaria`, body: `${entry.nome}${destinoStr ? ` → ${destinoStr}` : ''}`, url: '/dashboard' });
+      }
       setNome(''); setVeiculo(''); setChacara('');
-      toast.success('Entrada registrada!');
-      const tipoLabel = tipo === 'visitante' ? '👤 Visitante' : tipo === 'servico' ? '🔧 Prestador' : '📦 Entrega';
-      sendPushNotification({
-        title: `${tipoLabel} na portaria`,
-        body: `${entry.nome}${destinoStr ? ` → ${destinoStr}` : ''}`,
-        url: '/dashboard',
-      });
     } catch { toast.error('Erro ao registrar entrada.'); }
     finally { setSubmitting(false); }
   };
 
   const handleRegisterExit = async (id: string) => {
+    const registro = visitas.find(v => v.id === id) ?? histVisitas.find(v => v.id === id);
+    const patch = (v: DbPortariaRegistro) => v.id === id ? { ...v, status: 'saiu' as const, saida_at: new Date().toISOString() } : v;
+    setVisitas(prev => prev.map(patch));
+    setHistVisitas(prev => prev.map(patch));
     try {
-      await registerPortariaSaida(id);
-      const patch = (v: DbPortariaRegistro) => v.id === id ? { ...v, status: 'saiu' as const, saida_at: new Date().toISOString() } : v;
-      setVisitas(prev => prev.map(patch));
-      setHistVisitas(prev => prev.map(patch));
-      toast.success('Saída registrada.');
-    } catch { toast.error('Erro ao registrar saída.'); }
+      if (!navigator.onLine) {
+        await enqueue({ type: 'saida', payload: { id } });
+        toast('📡 Saída salva na fila local', { icon: '⏳' });
+      } else {
+        await registerPortariaSaida(id);
+        toast.success('Saída registrada.');
+        // Push de saída para o morador
+        if (registro?.destino) {
+          const chacaraNum = registro.destino.replace(/\D/g, '');
+          const moradorId = chacaraNum ? await fetchMoradorIdByChacara(chacaraNum).catch(() => null) : null;
+          if (moradorId) {
+            const durMin = registro.entrada_at
+              ? Math.round((Date.now() - new Date(registro.entrada_at).getTime()) / 60000)
+              : null;
+            const durTxt = durMin != null
+              ? durMin < 60 ? ` · ${durMin} min` : ` · ${Math.round(durMin / 60)}h`
+              : '';
+            sendPushNotification({
+              title: `🚪 ${registro.nome} saiu`,
+              body: `${registro.nome} deixou ${registro.destino}${durTxt}.`,
+              url: '/acesso-visitas',
+              targetUserIds: [moradorId],
+            });
+          }
+        }
+      }
+    } catch {
+      const revert = (v: DbPortariaRegistro) => v.id === id ? { ...v, status: 'dentro' as const, saida_at: null } : v;
+      setVisitas(prev => prev.map(revert));
+      setHistVisitas(prev => prev.map(revert));
+      toast.error('Erro ao registrar saída.');
+    }
   };
 
   const handleCreateAutorizado = async (e: React.FormEvent) => {
@@ -370,22 +448,35 @@ export const Portaria = () => {
     if (!encChacara.trim()) { toast.error('Informe o número da chácara.'); return; }
     if (!encDesc.trim()) { toast.error('Informe a descrição da encomenda.'); return; }
     setEncSaving(true);
+    const encPayload = {
+      chacara_numero: encChacara.trim().padStart(3, '0'),
+      descricao: encDesc.trim(),
+      tipo: encTipo,
+      remetente: encRemetente.trim() || null,
+      rastreio_codigo: null,
+      foto_url: null,
+      registrado_por: user.id,
+    };
     try {
-      const chNum = encChacara.trim().padStart(3, '0');
-      const nova = await insertEncomenda({
-        chacara_numero: chNum,
-        descricao: encDesc.trim(),
-        tipo: encTipo,
-        remetente: encRemetente.trim() || null,
-        registrado_por: user.id,
-      });
+      if (!navigator.onLine) {
+        const tempEnc: DbEncomenda = {
+          id: `offline_${Date.now()}`, ...encPayload,
+          status: 'aguardando', retirada_at: null, retirada_por_nome: null, retirada_por_doc: null, created_at: new Date().toISOString(),
+        };
+        setEncomendas(prev => [tempEnc, ...prev]);
+        await enqueue({ type: 'encomenda', payload: encPayload });
+        toast('📡 Encomenda salva na fila local', { icon: '⏳' });
+        setEncChacara(''); setEncDesc(''); setEncRemetente('');
+        return;
+      }
+      const nova = await insertEncomenda(encPayload);
       setEncomendas(prev => [nova, ...prev]);
       setEncChacara(''); setEncDesc(''); setEncRemetente(''); setEncTipo('outro');
-      toast.success(`Encomenda registrada para Chácara ${chNum}. Morador notificado!`);
+      toast.success(`Encomenda registrada para Chácara ${encPayload.chacara_numero}. Morador notificado!`);
       // Push para todos (o morador da chácara verá se estiver inscrito)
       sendPushNotification({
         title: '📦 Encomenda na portaria',
-        body: `Chácara ${chNum}: ${encDesc.trim()}${encRemetente.trim() ? ` · ${encRemetente.trim()}` : ''}`,
+        body: `Chácara ${encPayload.chacara_numero}: ${encDesc.trim()}${encRemetente.trim() ? ` · ${encRemetente.trim()}` : ''}`,
         url: '/dashboard',
       });
     } catch { toast.error('Erro ao registrar encomenda.'); }
@@ -425,6 +516,7 @@ export const Portaria = () => {
       <SlidePanel
         eyebrow="Central de Segurança"
         title={<>Ao <span className="grad-text">Vivo</span></>}
+        subtitle="Controle de visitantes, encomendas e monitoramento em tempo real."
         badges={[
           { icon: '🛡️', label: 'Monitoramento 24h' },
           { icon: dentroCount > 0 ? '🟡' : '🟢', label: `${dentroCount} dentro agora` },
@@ -1058,18 +1150,153 @@ export const Portaria = () => {
     ),
   };
 
+  /* ── Slide: Consulta Placa ── */
+  const handleBuscarPlaca = async () => {
+    const placa = placaBusca.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (placa.length < 3) { toast.error('Digite ao menos 3 caracteres da placa.'); return; }
+    setPlacaLoading(true);
+    setPlacaResult('not_found');
+    try {
+      const res = await fetchVeiculoByPlaca(placa);
+      setPlacaResult(res ?? 'not_found');
+    } catch { toast.error('Erro na consulta.'); }
+    finally { setPlacaLoading(false); }
+  };
+
+  const CAT_LABEL_P: Record<string, string> = {
+    carro:'🚗 Carro', moto:'🏍 Moto', caminhonete:'🛻 Caminhonete', caminhao:'🚛 Caminhão',
+    bicicleta:'🚲 Bicicleta', trator:'🚜 Trator', quadriciclo:'🏎 Quadriciclo',
+    tracao_animal:'🐴 Tração Animal', outro_rural:'🚘 Outro Rural',
+  };
+
+  const slidePlaca: SlideItem = {
+    key: 'portaria-placa',
+    label: 'Placa',
+    content: (
+      <SlidePanel
+        eyebrow="Identificação"
+        title={<>Consulta <span className="grad-text">por Placa</span></>}
+        badges={[{ icon: '🔍', label: 'Busca fuzzy' }, { icon: '🏡', label: 'Vincula ao morador' }]}
+      >
+        <div className="flex flex-col gap-4 py-1">
+          <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.55 }}>
+            Digite a placa completa ou parcial para identificar o veículo e o morador responsável.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text" className="input flex-1 uppercase" placeholder="Ex: ABC1D23 ou ABC"
+              maxLength={8} value={placaBusca}
+              onChange={e => setPlacaBusca(e.target.value.toUpperCase())}
+              onKeyDown={e => e.key === 'Enter' && handleBuscarPlaca()}
+            />
+            <button onClick={handleBuscarPlaca} disabled={placaLoading}
+              className="btn-primary px-4 py-2 text-xs font-bold gap-1.5 flex items-center"
+              style={{ flexShrink: 0 }}>
+              {placaLoading ? <Loader2 size={13} className="animate-spin" /> : <Car size={13} />}
+              Buscar
+            </button>
+          </div>
+
+          {placaResult !== 'not_found' && placaResult !== null && (
+            <div className="rounded-2xl p-4 space-y-3" style={{ background: 'rgba(87,216,255,0.06)', border: '1px solid rgba(87,216,255,0.22)' }}>
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: 'rgba(87,216,255,0.1)', border: '1px solid rgba(87,216,255,0.2)' }}>
+                  {CAT_LABEL_P[placaResult.categoria]?.split(' ')[0] ?? '🚗'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff' }}>
+                    {placaResult.placa ?? 'Sem placa'}
+                    {placaResult.eh_rural && <span className="ml-2 text-[8px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24' }}>RURAL</span>}
+                  </p>
+                  <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
+                    {[CAT_LABEL_P[placaResult.categoria], placaResult.marca, placaResult.modelo, placaResult.ano, placaResult.cor].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+              </div>
+              {placaResult.morador && (
+                <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <p style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Proprietário</p>
+                  <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.82rem' }}>{placaResult.morador.full_name}</p>
+                  {placaResult.morador.unit_number && (
+                    <p style={{ fontSize: '0.7rem', color: 'rgba(87,216,255,0.8)', marginTop: 2 }}>Chácara {String(placaResult.morador.unit_number).padStart(3, '0')}</p>
+                  )}
+                  {placaResult.morador.phone && (
+                    <a href={`https://wa.me/55${placaResult.morador.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer"
+                      style={{ background: 'rgba(37,211,102,0.1)', color: '#25d366', border: '1px solid rgba(37,211,102,0.25)', textDecoration: 'none' }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                      Contatar via WhatsApp
+                    </a>
+                  )}
+                </div>
+              )}
+              {placaResult.observacao && (
+                <p style={{ fontSize: '0.68rem', color: 'rgba(245,158,11,0.8)', lineHeight: 1.5 }}>⚠ {placaResult.observacao}</p>
+              )}
+            </div>
+          )}
+
+          {placaResult === 'not_found' && placaBusca.length >= 3 && !placaLoading && (
+            <div className="rounded-2xl p-4 text-center" style={{ background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.18)' }}>
+              <p style={{ fontSize: '0.78rem', fontWeight: 700, color: 'rgba(239,68,68,0.8)' }}>Veículo não encontrado</p>
+              <p style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', marginTop: 4, lineHeight: 1.5 }}>
+                Nenhum morador cadastrou este veículo.<br />Registre a entrada normalmente e informe o destino.
+              </p>
+            </div>
+          )}
+        </div>
+      </SlidePanel>
+    ),
+  };
+
   const slides: SlideItem[] = [
     slideAoVivo,
     slideAgenda,
     slideEncomendas,
     slideRegistrar,
     slideHistorico,
+    slidePlaca,
     slideFerramentas,
   ];
 
+  // Toast de resultado de sync (uma vez por reconexão)
+  useEffect(() => {
+    if (!lastResult) return;
+    if (lastResult.synced > 0)
+      toast.success(`✅ ${lastResult.synced} operação(ões) sincronizada(s) com o servidor.`);
+    if (lastResult.failed > 0)
+      toast.error(`⚠️ ${lastResult.failed} item(ns) na fila com erro — serão reprocessados.`);
+  }, [lastResult]);
+
   return (
-    <div className="w-full h-full">
-      <PageCarousel3D slides={slides} />
+    <div className="w-full h-full flex flex-col gap-0">
+      {/* Banner offline */}
+      {(!isOnline || queueSize > 0 || syncing) && (
+        <div
+          className="flex items-center justify-between gap-2 px-4 py-2 text-xs font-semibold flex-shrink-0"
+          style={{
+            background: syncing ? 'rgba(87,216,255,0.12)' : !isOnline ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.12)',
+            borderBottom: `1px solid ${syncing ? 'rgba(87,216,255,0.25)' : !isOnline ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.25)'}`,
+          }}
+        >
+          <span style={{ color: syncing ? '#57d8ff' : !isOnline ? '#fca5a5' : '#fcd34d' }}>
+            {syncing
+              ? '🔄 Sincronizando operações pendentes...'
+              : !isOnline
+              ? '📡 Sem conexão — registros salvos localmente'
+              : `⏳ ${queueSize} operação(ões) na fila — aguardando rede`}
+          </span>
+          {queueSize > 0 && !syncing && (
+            <span className="px-2 py-0.5 rounded-full text-[0.62rem]"
+              style={{ background: 'rgba(245,158,11,0.2)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.3)' }}>
+              {queueSize} pendente{queueSize > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
+      <div className="flex-1 min-h-0">
+        <PageCarousel3D slides={slides} />
+      </div>
     </div>
   );
 };

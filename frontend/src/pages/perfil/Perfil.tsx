@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Home, Lock, Camera, Shield, Bell, Eye, EyeOff, Check, Fingerprint, Loader2, TreePine } from 'lucide-react';
+import { Home, Lock, Camera, Shield, Bell, Eye, EyeOff, Check, Fingerprint, Loader2, TreePine, Download, Trash2, FileText, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar } from '../../components/ui/Avatar';
 import { unitLabel, formatDate, maskPhone } from '../../utils/format';
@@ -79,6 +79,73 @@ export const Perfil = () => {
     clearBiometric();
     setBioEnabled(false);
     toast.success('Acesso por digital desativado.');
+  };
+
+  // LGPD
+  const [lgpdSolicitacoes, setLgpdSolicitacoes] = useState<{ id: string; tipo: string; status: string; created_at: string }[]>([]);
+  const [exportingData, setExportingData] = useState(false);
+  const [requestingDeletion, setRequestingDeletion] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('lgpd_solicitacoes')
+      .select('id,tipo,status,created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setLgpdSolicitacoes(data ?? []));
+  }, [user]);
+
+  const handleExportarDados = async () => {
+    setExportingData(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/lgpd-exportar-dados`,
+        { headers: { Authorization: `Bearer ${session?.access_token}` } }
+      );
+      if (!res.ok) throw new Error('Falha ao exportar');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `meus-dados-itauna-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Dados exportados com sucesso.');
+    } catch {
+      toast.error('Erro ao exportar dados. Tente novamente.');
+    } finally {
+      setExportingData(false); }
+  };
+
+  const handleSolicitarExclusao = async () => {
+    const jaTemPendente = lgpdSolicitacoes.some(
+      s => s.tipo === 'exclusao' && ['pendente', 'em_analise'].includes(s.status)
+    );
+    if (jaTemPendente) {
+      toast('Você já tem uma solicitação de exclusão em andamento.', { icon: 'ℹ️' });
+      return;
+    }
+    if (!confirm('Confirmar solicitação de exclusão/anonimização dos seus dados? A administração será notificada e seus dados pessoais serão anonimizados em até 30 dias.')) return;
+    setRequestingDeletion(true);
+    try {
+      const { error } = await (supabase as any).from('lgpd_solicitacoes').insert({
+        user_id: user!.id,
+        tipo: 'exclusao',
+        descricao: 'Solicitação de anonimização enviada pelo próprio titular via perfil do aplicativo.',
+      });
+      if (error) throw error;
+      const { data } = await supabase
+        .from('lgpd_solicitacoes')
+        .select('id,tipo,status,created_at')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false });
+      setLgpdSolicitacoes(data ?? []);
+      toast.success('Solicitação registrada. A administração entrará em contato em até 30 dias.');
+    } catch {
+      toast.error('Erro ao registrar solicitação.');
+    } finally { setRequestingDeletion(false); }
   };
 
   // Preferências
@@ -473,7 +540,93 @@ export const Perfil = () => {
           </div>
         </SlidePanel>
       )
-    }
+    },
+    {
+      key: 'privacidade',
+      label: 'Privacidade',
+      content: (
+        <SlidePanel
+          eyebrow="LGPD — Lei 13.709/2018"
+          title={<>Seus <span className="grad-text">Dados</span></>}
+        >
+          <div className="space-y-4">
+
+            {/* Ações principais */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handleExportarDados}
+                disabled={exportingData}
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl text-center transition-all"
+                style={{ background: 'rgba(87,216,255,0.08)', border: '1px solid rgba(87,216,255,0.2)' }}
+              >
+                {exportingData ? <Loader2 size={20} className="animate-spin" style={{ color: '#57d8ff' }} /> : <Download size={20} style={{ color: '#57d8ff' }} />}
+                <div>
+                  <p className="text-xs font-bold" style={{ color: '#57d8ff' }}>Exportar dados</p>
+                  <p className="text-[0.65rem] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>Art. 18, V — Portabilidade</p>
+                </div>
+              </button>
+
+              <button
+                onClick={handleSolicitarExclusao}
+                disabled={requestingDeletion}
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl text-center transition-all"
+                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}
+              >
+                {requestingDeletion ? <Loader2 size={20} className="animate-spin" style={{ color: '#f87171' }} /> : <Trash2 size={20} style={{ color: '#f87171' }} />}
+                <div>
+                  <p className="text-xs font-bold" style={{ color: '#f87171' }}>Solicitar exclusão</p>
+                  <p className="text-[0.65rem] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>Art. 18, VI — Anonimização</p>
+                </div>
+              </button>
+            </div>
+
+            {/* Histórico de solicitações */}
+            <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="px-4 py-3 flex items-center gap-2" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                <FileText size={13} style={{ color: 'rgba(255,255,255,0.4)' }} />
+                <span className="text-xs font-bold" style={{ color: 'rgba(255,255,255,0.6)' }}>Minhas solicitações</span>
+              </div>
+              {lgpdSolicitacoes.length === 0 ? (
+                <p className="text-xs text-center py-5" style={{ color: 'rgba(255,255,255,0.25)' }}>Nenhuma solicitação enviada</p>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {lgpdSolicitacoes.map(s => {
+                    const cfg = {
+                      pendente:    { Icon: Clock,         color: '#f59e0b', label: 'Pendente'    },
+                      em_analise:  { Icon: Clock,         color: '#57d8ff', label: 'Em análise'  },
+                      aprovada:    { Icon: CheckCircle2,  color: '#10b981', label: 'Aprovada'    },
+                      concluida:   { Icon: CheckCircle2,  color: '#10b981', label: 'Concluída'   },
+                      rejeitada:   { Icon: XCircle,       color: '#ef4444', label: 'Rejeitada'   },
+                    }[s.status] ?? { Icon: Clock, color: '#6b7280', label: s.status };
+                    const tipoLabel = { exclusao: 'Exclusão', portabilidade: 'Portabilidade', correcao: 'Correção', oposicao: 'Oposição' }[s.tipo] ?? s.tipo;
+                    return (
+                      <div key={s.id} className="flex items-center justify-between px-4 py-2.5">
+                        <div>
+                          <p className="text-xs font-semibold text-white/80">{tipoLabel}</p>
+                          <p className="text-[0.65rem]" style={{ color: 'rgba(255,255,255,0.35)' }}>{new Date(s.created_at).toLocaleDateString('pt-BR')}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <cfg.Icon size={13} style={{ color: cfg.color }} />
+                          <span className="text-xs font-medium" style={{ color: cfg.color }}>{cfg.label}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Info */}
+            <div className="rounded-xl p-3 flex gap-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <Shield size={14} className="flex-shrink-0 mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }} />
+              <p className="text-[0.68rem]" style={{ color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
+                Seus dados são tratados conforme a LGPD (Lei 13.709/2018). Controlador: Condomínio de Chácaras Itaúna — Ibiporã, PR. Dúvidas: fale com a administração.
+              </p>
+            </div>
+          </div>
+        </SlidePanel>
+      ),
+    },
   ];
 
   return (

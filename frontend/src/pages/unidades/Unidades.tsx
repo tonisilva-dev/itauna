@@ -203,8 +203,9 @@ export const Unidades = () => {
       label: 'Censo e Chácaras',
       content: (
         <SlidePanel
-          title="Chácaras do Condomínio"
-          eyebrow={loading ? 'Carregando unidades...' : `Gerenciamento de ${total} unidades e censo cadastral`}
+          eyebrow="Gestão · Chácaras"
+          title={<>Chácaras do <span className="grad-text">Condomínio</span></>}
+          subtitle={loading ? 'Carregando unidades...' : `${total} unidades cadastradas — proprietários, status e cobranças.`}
         >
           <div className="space-y-5 h-full flex flex-col justify-between">
             <div className="space-y-5">
