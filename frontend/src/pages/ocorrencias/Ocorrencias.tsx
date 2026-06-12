@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   AlertCircle, Plus, Search, Clock, CheckCircle2, Loader2,
   PlayCircle, ArrowRight, ChevronRight, MapPin, User, Calendar,
@@ -17,6 +17,7 @@ import {
   fetchIncidentUpdates, markIncidentSeenByGestor,
   type DbIncident, type DbIncidentUpdate,
 } from '@/lib/supabase-queries';
+import { useBackHandler } from '@/hooks/useBackHandler';
 
 const CYAN   = '#57d8ff';
 const GREEN  = '#10b981';
@@ -167,6 +168,7 @@ export const Ocorrencias = () => {
   const [replyText, setReplyText]         = useState('');
   const [nextStatus, setNextStatus]       = useState<DbIncident['status'] | ''>('');
   const [sending, setSending]             = useState(false);
+  useBackHandler(selected ? () => setSelected(null) : null);
 
   // Form novo chamado
   const [formTitle, setFormTitle]         = useState('');

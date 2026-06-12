@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { Building2, Globe, Phone, Mail, Edit2, Trash2, Save, BadgePercent, Gift, ArrowRight, Loader2, Star, Handshake, Package, Users, Tag } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageCarousel3D } from '../../components/ui/PageCarousel3D';
@@ -10,6 +10,7 @@ import {
   fetchParceiros, insertParceiro, updateParceiro, deleteParceiro,
   type DbParceiro,
 } from '@/lib/supabase-queries';
+import { useBackHandler } from '@/hooks/useBackHandler';
 
 const CYAN   = '#57d8ff';
 const YELLOW = '#f59e0b';
@@ -42,6 +43,7 @@ export const Parceiros = () => {
   const [catFilter, setCatFilter] = useState('Todos');
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  useBackHandler(editingId !== null ? () => setEditingId(null) : null);
   const [nome, setNome]           = useState('');
   const [descricao, setDescricao] = useState('');
   const [categoria, setCategoria] = useState('Geral');

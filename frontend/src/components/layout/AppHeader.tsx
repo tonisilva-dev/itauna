@@ -4,6 +4,7 @@ import { ArrowLeft, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar } from '../ui/Avatar';
 import { PushButton } from '../PushButton';
+import { triggerBack } from '@/lib/backHandler';
 
 const ROUTE_LABELS: Record<string, string> = {
   '/dashboard':             'Menu',
@@ -84,7 +85,7 @@ export const AppHeader = () => {
           </div>
         ) : (
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => { if (!triggerBack()) navigate(-1); }}
             style={{
               display: 'flex', alignItems: 'center', gap: 8,
               background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px',

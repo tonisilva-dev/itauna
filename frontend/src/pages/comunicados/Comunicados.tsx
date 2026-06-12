@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import {
   Bell, Plus, Pin, AlertTriangle, Info, ChevronRight,
   Search, CheckCircle, Loader2, Megaphone, Calendar, User,
@@ -11,6 +11,7 @@ import { PageCarousel3D, type SlideItem } from '../../components/ui/PageCarousel
 import { SlidePanel } from '../../components/ui/SlidePanel';
 import toast from 'react-hot-toast';
 import { fetchAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement, type DbAnnouncement } from '@/lib/supabase-queries';
+import { useBackHandler } from '@/hooks/useBackHandler';
 
 const CYAN   = '#57d8ff';
 const GREEN  = '#10b981';
@@ -120,6 +121,7 @@ export const Comunicados = () => {
   const [formPinned, setFormPinned]     = useState(false);
   const [formContent, setFormContent]   = useState('');
   const [submitting, setSubmitting]     = useState(false);
+  useBackHandler(editingId !== null ? () => setEditingId(null) : selected ? () => setSelected(null) : null);
 
   const clearForm = () => {
     setFormTitle('');

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Users, Search, Plus, Phone, Mail, Home, ChevronRight,
   Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, ShieldCheck, Shield, Award, HelpCircle,
@@ -15,6 +15,7 @@ import { PageCarousel3D } from '../../components/ui/PageCarousel3D';
 import type { SlideItem } from '../../components/ui/PageCarousel3D';
 import { SlidePanel } from '../../components/ui/SlidePanel';
 import toast from 'react-hot-toast';
+import { useBackHandler } from '@/hooks/useBackHandler';
 
 /* ── Helpers ─────────────────────────────────────────────────────── */
 const ROLES = [
@@ -64,6 +65,7 @@ export const Moradores = () => {
   const [editingId, setEditingId]   = useState<string | null>(null);
   const [editForm, setEditForm]     = useState<Partial<DbResident>>({});
   const [savingEdit, setSavingEdit] = useState(false);
+  useBackHandler(editingId !== null ? () => setEditingId(null) : selected ? () => setSelected(null) : null);
 
   /* ── Carregar moradores ───────────────────────────────────────── */
   const load = useCallback(async () => {

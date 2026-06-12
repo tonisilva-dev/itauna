@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { gotoSlide, TODAY } from '../../utils/format';
 import { Plus, Calendar as CalendarIcon, ChevronRight, Loader2, Users, Clock, MapPin, Tag, CheckCircle2, Edit2, Save, X, AlertTriangle, Trash2 } from 'lucide-react';
 import { format, parseISO, isFuture, isPast, isToday } from 'date-fns';
@@ -13,6 +13,7 @@ import {
   insertInscricao,
   type DbEvent,
 } from '@/lib/supabase-queries';
+import { useBackHandler } from '@/hooks/useBackHandler';
 
 const CYAN   = '#57d8ff';
 const GREEN  = '#10b981';
@@ -35,6 +36,7 @@ export const Eventos = () => {
   const [loading, setLoading] = useState(true);
   const [counts, setCounts]   = useState<Record<string, number>>({});
   const [selectedEvent, setSelectedEvent] = useState<DbEvent | null>(null);
+  useBackHandler(selectedEvent ? () => setSelectedEvent(null) : null);
   const [inscricoes, setInscricoes] = useState<any[]>([]);
   const [loadingInsc, setLoadingInsc] = useState(false);
   const [submittingInsc, setSubmittingInsc] = useState(false);

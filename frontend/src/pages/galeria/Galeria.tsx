@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+﻿import { useState, useEffect, useRef, useMemo } from 'react';
 import { Upload, ZoomIn, Plus, Heart, Map, Loader2, Search, Trash2, Image as ImageIcon, TreePine, Edit2, Save, X, AlertTriangle } from 'lucide-react';
 import { gotoSlide } from '../../utils/format';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,6 +9,7 @@ import { StatCard } from '../../components/ui/StatCard';
 import toast from 'react-hot-toast';
 import { fetchGaleriaFotos, insertGaleriaFoto, updateGaleriaFoto, deleteGaleriaFoto, type DbGaleriaFoto } from '@/lib/supabase-queries';
 import { supabase } from '@/lib/supabase';
+import { useBackHandler } from '@/hooks/useBackHandler';
 
 const CYAN  = '#57d8ff';
 const GREEN = '#10b981';
@@ -28,6 +29,7 @@ export const Galeria = () => {
   const [catFilter, setCatFilter]     = useState('Todas');
   const [search, setSearch]           = useState('');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  useBackHandler(lightboxIndex !== null ? () => setLightboxIndex(null) : null);
   const [hoverIdx, setHoverIdx]       = useState<number | null>(null);
 
   const [formCaption, setFormCaption] = useState('');

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   HardHat, Loader2, Plus, X, Trash2, CheckCircle2,
   CalendarDays, Wallet, Hammer, ListChecks, CircleDashed, PlayCircle,
@@ -20,6 +20,7 @@ import {
   insertBenfeitoriaEtapa, updateBenfeitoriaEtapa, deleteBenfeitoriaEtapa,
   type DbBenfeitoria, type DbBenfeitoriaEtapa,
 } from '@/lib/supabase-queries';
+import { useBackHandler } from '@/hooks/useBackHandler';
 
 const CYAN   = '#57d8ff';
 const GREEN  = '#10b981';
@@ -73,6 +74,7 @@ export const Benfeitorias = () => {
   const [obras,        setObras]        = useState<DbBenfeitoria[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [selected,     setSelected]     = useState<DbBenfeitoria | null>(null);
+  useBackHandler(selected ? () => setSelected(null) : null);
   const [etapas,       setEtapas]       = useState<DbBenfeitoriaEtapa[]>([]);
   const [etapasLoading,setEtapasLoading]= useState(false);
   const [filtroStatus, setFiltroStatus] = useState<DbBenfeitoria['status'] | 'todos'>('todos');
