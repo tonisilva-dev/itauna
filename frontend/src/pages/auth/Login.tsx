@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
   isBiometricAvailable, getBiometricState, registerBiometric,
-  verifyBiometric, clearBiometric, hasShownOffer, markOfferShown,
+  verifyBiometric, clearBiometric, hasShownOffer, markOfferShown, storeSessionTokens,
 } from '@/lib/biometric';
 
 /* ─────────────────────────────────────────────────────────────
@@ -370,6 +370,14 @@ export const Login = () => {
           email: sanitize(email).trim(),
         };
         setBioVerifiedNeedsPass(false);
+
+        // Se biometria já está configurada, renovar os tokens de sessão agora
+        // (podem ter sido apagados pelo logout fatal) para que o próximo acesso
+        // por digital funcione sem exigir senha novamente.
+        if (getBiometricState().enabled && data?.session) {
+          storeSessionTokens(data.session.access_token, data.session.refresh_token);
+        }
+
         // forceEnroll ignora bioAvailable (usuário pediu explicitamente)
         const shouldEnroll = !getBiometricState().enabled && (forceEnroll || (bioAvailable && !hasShownOffer()));
         if (shouldEnroll) {

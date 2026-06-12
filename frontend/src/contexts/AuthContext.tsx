@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import type { ReactNode } from 'react';
 import { supabase, db } from '../lib/supabase';
 import type { Profile } from '../types/database';
-import { getBiometricState } from '../lib/biometric';
+import { clearBiometricTokens } from '../lib/biometric';
 
 interface AuthContextType {
   user: Profile | null;
@@ -38,9 +38,8 @@ function buildFallbackProfile(supabaseUser: any): Profile {
   };
 }
 
-const PROFILE_CACHE_KEY  = 'itauna_profile_cache';
-const BIOMETRIC_LOCK_KEY = 'itauna_biometric_lock';
-const LOGGED_OUT_KEY     = 'itauna_logged_out';
+const PROFILE_CACHE_KEY = 'itauna_profile_cache';
+const LOGGED_OUT_KEY    = 'itauna_logged_out';
 
 function saveProfileCache(profile: Profile) {
   try { localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile)); } catch {}
@@ -76,14 +75,6 @@ async function fetchProfile(supabaseUser: any): Promise<Profile> {
   return buildFallbackProfile(supabaseUser);
 }
 
-/** Lê as flags de controle de logout do localStorage. */
-function readLogoutFlags() {
-  return {
-    biometricLocked: localStorage.getItem(BIOMETRIC_LOCK_KEY) === '1',
-    loggedOut:       localStorage.getItem(LOGGED_OUT_KEY)     === '1',
-  };
-}
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user,    setUser]    = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -113,21 +104,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       async (event, sess) => {
 
         if (event === 'INITIAL_SESSION') {
-          const { biometricLocked, loggedOut } = readLogoutFlags();
+          const loggedOut = localStorage.getItem(LOGGED_OUT_KEY) === '1';
 
-          if (sess?.user && !biometricLocked && !loggedOut) {
-            // Sessão válida, sem flags de logout — restaurar normalmente.
+          if (sess?.user && !loggedOut) {
+            // Sessão válida e sem flag de logout — restaurar normalmente.
             setSession(sess);
             const cached = loadProfileCache();
             if (cached && cached.id === sess.user.id) setUser(cached);
             const profile = await fetchProfile(sess.user);
             setUser(profile);
           } else {
-            // Logout explícito ou tela de biometria — não restaurar.
-            // Limpa o token local sem chamada de rede para garantir estado limpo.
+            // Logout explícito ou sessão nula — garantir estado limpo.
             setSession(null);
             setUser(null);
             if (sess?.user) {
+              // Token ainda presente em localStorage; remove sem rede.
               try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
             }
           }
@@ -136,16 +127,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           settle();
 
         } else if (event === 'SIGNED_IN') {
-          // Só processa SIGNED_IN se o usuário realmente fez login (sem flags de logout ativas).
-          const { loggedOut, biometricLocked } = readLogoutFlags();
-          if (loggedOut && !biometricLocked) {
-            // SIGNED_IN espúrio após logout (ex: SDK refrescou token em background).
-            // Ignorar e forçar limpeza local.
+          // Protege contra SIGNED_IN espúrio disparado pelo SDK em background
+          // enquanto LOGGED_OUT_KEY ainda está ativo.
+          const loggedOut = localStorage.getItem(LOGGED_OUT_KEY) === '1';
+          if (loggedOut) {
             try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
             return;
           }
 
-          localStorage.removeItem(BIOMETRIC_LOCK_KEY);
           localStorage.removeItem(LOGGED_OUT_KEY);
           setSession(sess);
           setLoading(true);
@@ -165,13 +154,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           settle();
 
         } else if (event === 'TOKEN_REFRESHED') {
-          // Só aplica refresh se não estiver em estado de logout.
-          const { loggedOut } = readLogoutFlags();
+          // Ignora refresh se o usuário já fez logout.
+          const loggedOut = localStorage.getItem(LOGGED_OUT_KEY) === '1';
           if (!loggedOut) setSession(sess);
 
         } else if ((event as string) === 'TOKEN_REFRESH_ERROR') {
           clearProfileCache();
-          localStorage.removeItem(BIOMETRIC_LOCK_KEY);
           try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
           setSession(null);
           setUser(null);
@@ -192,34 +180,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = (email: string, password: string) =>
     supabase.auth.signInWithPassword({ email, password });
 
+  /**
+   * Logout fatal: destrói a sessão local completamente.
+   * Preserva a *configuração* biométrica (credencial, e-mail) mas apaga os
+   * tokens de sessão — o usuário precisará logar com senha no próximo acesso,
+   * após o que os novos tokens serão armazenados e a digital voltará a funcionar.
+   */
   const signOut = async () => {
-    // 1. Marcar logout ANTES de qualquer operação assíncrona.
     localStorage.setItem(LOGGED_OUT_KEY, '1');
     clearProfileCache();
-
-    if (getBiometricState().enabled) {
-      // Logout suave: preserva token Supabase para re-auth biométrica posterior.
-      localStorage.setItem(BIOMETRIC_LOCK_KEY, '1');
-      setUser(null);
-      setSession(null);
-      return;
-    }
-
-    // Limpar estado React imediatamente.
+    clearBiometricTokens(); // mantém enabled + credentialId, apaga access/refreshToken
     setUser(null);
     setSession(null);
-
-    // Remover token local sem chamada de rede (scope: 'local' = síncrono em localStorage).
-    // Não usamos o scope global para evitar falha de rede bloqueando a navegação.
     try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
   };
 
-  // Restaura sessão Supabase preservada após logout suave (biometria).
-  // Chamado pela tela de Login após autenticação biométrica bem-sucedida.
+  /**
+   * Restaura sessão Supabase que permaneceu no localStorage após login biométrico.
+   * Chamado pela tela de Login após verificação biométrica bem-sucedida.
+   * Só funciona se o usuário ainda tiver tokens válidos armazenados (não tiver feito logout).
+   */
   const restoreSession = useCallback(async (): Promise<boolean> => {
     const { data: { session: sess } } = await supabase.auth.getSession();
     if (!sess?.user) return false;
-    localStorage.removeItem(BIOMETRIC_LOCK_KEY);
     localStorage.removeItem(LOGGED_OUT_KEY);
     setSession(sess);
     const profile = await fetchProfile(sess.user);

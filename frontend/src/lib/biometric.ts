@@ -32,6 +32,14 @@ export function clearBiometric(): void {
   localStorage.removeItem(STATE_KEY);
 }
 
+/** Apaga apenas os tokens de sessão, preservando a configuração biométrica (credencial, e-mail, etc.). */
+export function clearBiometricTokens(): void {
+  const s = getBiometricState();
+  if (!s.enabled) return;
+  const { accessToken: _a, refreshToken: _r, ...rest } = s;
+  localStorage.setItem(STATE_KEY, JSON.stringify(rest));
+}
+
 export function hasShownOffer(): boolean {
   return localStorage.getItem(OFFERED_KEY) === '1';
 }
