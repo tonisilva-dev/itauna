@@ -218,12 +218,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Os tokens são protegidos pela biometria: só chegamos aqui após verifyBiometric().
     const bio = getBiometricState();
     if (bio.enabled && bio.accessToken && bio.refreshToken) {
+      // Remove a flag ANTES de setSession para que o handler SIGNED_IN
+      // não interprete o evento como login espúrio pós-logout.
+      localStorage.removeItem(LOGGED_OUT_KEY);
       const { data, error } = await supabase.auth.setSession({
         access_token:  bio.accessToken,
         refresh_token: bio.refreshToken,
       });
       if (!error && data.session?.user) {
-        localStorage.removeItem(LOGGED_OUT_KEY);
         storeSessionTokens(data.session.access_token, data.session.refresh_token);
         setSession(data.session);
         const profile = await fetchProfile(data.session.user);
@@ -231,6 +233,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return true;
       }
       // Refresh token expirado (>7 dias sem uso) — limpa para forçar senha
+      localStorage.setItem(LOGGED_OUT_KEY, '1');
       clearBiometricTokens();
     }
 
