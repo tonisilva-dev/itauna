@@ -6,6 +6,7 @@ import {
 import { checkRateLimit, resetRateLimit, sanitize } from '../../lib/security';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { DotsSpinner } from '@/components/ui/LoadingSpinner';
 import {
   isBiometricAvailable, getBiometricState, registerBiometric,
   verifyBiometric, clearBiometric, hasShownOffer, markOfferShown, storeSessionTokens,
@@ -14,24 +15,6 @@ import {
 /* ─────────────────────────────────────────────────────────────
    SPINNER
    ───────────────────────────────────────────────────────────── */
-const DotsSpinner = () => {
-  const dots = Array.from({ length: 8 });
-  return (
-    <div style={{ position: 'relative', width: 44, height: 44 }}>
-      {dots.map((_, i) => (
-        <span key={i} style={{
-          position: 'absolute', width: 4, height: 4, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.9)', top: '50%', left: '50%',
-          transform: `rotate(${i * 45}deg) translate(0, -18px)`,
-          transformOrigin: '50% 50%',
-          animation: `dot-fade 1s ${i * 0.125}s ease-in-out infinite`,
-        }} />
-      ))}
-      <style>{`@keyframes dot-fade{0%,100%{opacity:.12}50%{opacity:1}}`}</style>
-    </div>
-  );
-};
-
 /* ─────────────────────────────────────────────────────────────
    TELA DE PROGRESSÃO
    ───────────────────────────────────────────────────────────── */
