@@ -9,8 +9,6 @@ import {
 } from 'lucide-react';
 import { fetchGaleriaFotos } from '../lib/supabase-queries';
 
-/* ── Fallback quando galeria vazia ── */
-const FALLBACK = ['/bg-area-livre-1.webp', '/bg-area-livre-2.webp'];
 
 const SLIDE_MS = 18_000;
 const FADE_MS  = 1_500;
@@ -34,8 +32,8 @@ const TAGLINES: Tagline[] = [
     accent: '#10b981',
   },
   {
-    headline: 'Onde as crianças correm livres\ne as portas ficam abertas.',
-    sub: 'Portaria 24h · Acesso controlado · Segurança que você sente',
+    headline: 'O lago que reflete o céu.\nA vida que você\nsempre quis ter.',
+    sub: 'Espelho d’água no coração do condomínio · Fauna nativa · Natureza preservada',
     accent: '#5a84ff',
   },
   {
@@ -54,7 +52,7 @@ const TAGLINES: Tagline[] = [
     accent: '#10b981',
   },
   {
-    headline: 'Fundado em 2005.\nConstruído para durar\ngenerações.',
+    headline: 'Fundado em 2005.\nConstruído para durar\ngerações.',
     sub: 'O maior condomínio periurbano de alto padrão do Norte do Paraná',
     accent: '#57d8ff',
   },
@@ -70,7 +68,6 @@ type BgStyle = {
   overlay: string;
   imgFilter: string;
   layout: 'full';
-  rays: boolean;
 };
 
 const BG_STYLES: BgStyle[] = [
@@ -78,56 +75,23 @@ const BG_STYLES: BgStyle[] = [
     layout: 'full',
     overlay: 'linear-gradient(180deg,rgba(4,4,6,.40) 0%,rgba(4,4,6,.68) 60%,rgba(4,4,6,.90) 100%)',
     imgFilter: 'brightness(0.82) saturate(1.0)',
-    rays: true,
   },
   {
     layout: 'full',
     overlay: 'linear-gradient(180deg,rgba(4,4,6,.48) 0%,rgba(4,4,6,.74) 60%,rgba(4,4,6,.92) 100%)',
     imgFilter: 'brightness(0.75) saturate(0.85)',
-    rays: false,
   },
   {
     layout: 'full',
     overlay: 'linear-gradient(135deg,rgba(5,5,7,.50) 0%,rgba(4,4,6,.72) 100%)',
     imgFilter: 'brightness(0.80) saturate(1.05)',
-    rays: true,
   },
   {
     layout: 'full',
     overlay: 'linear-gradient(90deg,rgba(4,4,6,.55) 0%,rgba(6,6,8,.75) 100%)',
     imgFilter: 'brightness(0.78) saturate(0.90) contrast(1.05)',
-    rays: false,
   },
 ];
-
-/* ── Overlay de raios de luz diagonais (SVG) ── */
-const LightRays = () => (
-  <svg
-    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3 }}
-    viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <defs>
-      <linearGradient id="ray1" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="white" stopOpacity="0"/>
-        <stop offset="50%" stopColor="white" stopOpacity="0.045"/>
-        <stop offset="100%" stopColor="white" stopOpacity="0"/>
-      </linearGradient>
-      <linearGradient id="ray2" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="white" stopOpacity="0"/>
-        <stop offset="50%" stopColor="white" stopOpacity="0.03"/>
-        <stop offset="100%" stopColor="white" stopOpacity="0"/>
-      </linearGradient>
-    </defs>
-    {/* Raios diagonais suaves */}
-    <polygon points="680,0 780,0 520,700 420,700" fill="url(#ray1)" />
-    <polygon points="820,0 870,0 610,700 560,700" fill="url(#ray2)" />
-    <polygon points="950,0 990,0 730,700 690,700" fill="url(#ray1)" />
-    <polygon points="1060,0 1090,0 830,700 800,700" fill="url(#ray2)" />
-    <polygon points="1130,0 1155,0 895,700 870,700" fill="url(#ray1)" />
-    <polygon points="580,0 630,0 370,700 320,700" fill="url(#ray2)" />
-  </svg>
-);
 
 /* ── Componente de background com cross-fade sem piscar ── */
 const BgScene = ({
@@ -173,7 +137,6 @@ const BgScene = ({
       </div>
       <div style={{ ...fadeIn, zIndex: 3, background: nextStyle.overlay }} />
 
-      {style.rays && !transitioning && <LightRays />}
     </div>
   );
 };
@@ -512,7 +475,7 @@ export const LandingPage = () => {
         const shuffled = [...pool].sort(() => Math.random() - 0.5);
         setPhotos(shuffled.map(f => f.src));
       })
-      .catch(() => setPhotos(FALLBACK));
+      .catch(() => {});
   }, []);
 
   /* Ciclo de transição com cross-fade */

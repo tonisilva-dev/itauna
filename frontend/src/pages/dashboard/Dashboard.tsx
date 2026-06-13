@@ -751,7 +751,7 @@ export const Dashboard = () => {
     <div
       className="w-full h-full"
       style={{
-        backgroundImage: 'url(/bg-dashboard.jpg)',
+        backgroundImage: 'url(/bg-lago.webp)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'local',

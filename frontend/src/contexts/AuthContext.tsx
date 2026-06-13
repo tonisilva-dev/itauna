@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import type { ReactNode } from 'react';
 import { supabase, db } from '../lib/supabase';
 import type { Profile } from '../types/database';
-import { clearBiometricTokens } from '../lib/biometric';
+import { getBiometricState, storeSessionTokens, clearBiometricTokens } from '../lib/biometric';
 
 interface AuthContextType {
   user: Profile | null;
@@ -154,9 +154,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           settle();
 
         } else if (event === 'TOKEN_REFRESHED') {
-          // Ignora refresh se o usuário já fez logout.
           const loggedOut = localStorage.getItem(LOGGED_OUT_KEY) === '1';
-          if (!loggedOut) setSession(sess);
+          if (!loggedOut) {
+            setSession(sess);
+            // Mantém tokens biométricos sincronizados com a última rotação
+            if (sess && getBiometricState().enabled) {
+              storeSessionTokens(sess.access_token, sess.refresh_token);
+            }
+          }
 
         } else if ((event as string) === 'TOKEN_REFRESH_ERROR') {
           clearProfileCache();
@@ -182,14 +187,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * Logout fatal: destrói a sessão local completamente.
-   * Preserva a *configuração* biométrica (credencial, e-mail) mas apaga os
-   * tokens de sessão — o usuário precisará logar com senha no próximo acesso,
-   * após o que os novos tokens serão armazenados e a digital voltará a funcionar.
+   * Os tokens biométricos são mantidos intencionalmente — estão protegidos
+   * pela biometria do dispositivo e são necessários para o login sem senha.
    */
   const signOut = async () => {
     localStorage.setItem(LOGGED_OUT_KEY, '1');
     clearProfileCache();
-    clearBiometricTokens(); // mantém enabled + credentialId, apaga access/refreshToken
     setUser(null);
     setSession(null);
     try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
@@ -201,13 +204,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
    * Só funciona se o usuário ainda tiver tokens válidos armazenados (não tiver feito logout).
    */
   const restoreSession = useCallback(async (): Promise<boolean> => {
+    // 1. Sessão ainda ativa no browser (logout não ocorreu ou tokens não expiraram)
     const { data: { session: sess } } = await supabase.auth.getSession();
-    if (!sess?.user) return false;
-    localStorage.removeItem(LOGGED_OUT_KEY);
-    setSession(sess);
-    const profile = await fetchProfile(sess.user);
-    setUser(profile);
-    return true;
+    if (sess?.user) {
+      localStorage.removeItem(LOGGED_OUT_KEY);
+      setSession(sess);
+      const profile = await fetchProfile(sess.user);
+      setUser(profile);
+      return true;
+    }
+
+    // 2. Sessão encerrada — tenta renovar com os tokens guardados na biometria.
+    // Os tokens são protegidos pela biometria: só chegamos aqui após verifyBiometric().
+    const bio = getBiometricState();
+    if (bio.enabled && bio.accessToken && bio.refreshToken) {
+      const { data, error } = await supabase.auth.setSession({
+        access_token:  bio.accessToken,
+        refresh_token: bio.refreshToken,
+      });
+      if (!error && data.session?.user) {
+        localStorage.removeItem(LOGGED_OUT_KEY);
+        storeSessionTokens(data.session.access_token, data.session.refresh_token);
+        setSession(data.session);
+        const profile = await fetchProfile(data.session.user);
+        setUser(profile);
+        return true;
+      }
+      // Refresh token expirado (>7 dias sem uso) — limpa para forçar senha
+      clearBiometricTokens();
+    }
+
+    return false;
   }, []);
 
   const resetPassword = (email: string) =>
