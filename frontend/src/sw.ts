@@ -6,6 +6,10 @@ declare const self: ServiceWorkerGlobalScope;
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
+/* Assume controle imediatamente sem esperar fechar abas */
+self.addEventListener('install',  () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+
 /* ── Push notifications ── */
 self.addEventListener('push', (event: PushEvent) => {
   if (!event.data) return;
